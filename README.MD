@@ -63,5 +63,10 @@ Por padrão, a API estará disponível em `http://localhost:8080`. Abaixo estão
 * `GET /api/cotas/cliente/{clienteId}` - Retorna todas as cotas pertencentes a um cliente específico.
 * `GET /api/cotas/grupo/{grupoId}` - Retorna todas as cotas pertencentes a um grupo específico.
 
+### 💸 Parcelas
+* `POST /api/parcelas` - Gera uma nova parcela vinculada a uma cota (nasce com status `PENDENTE`).
+* `PUT /api/parcelas/{id}/pagar` - Realiza o pagamento de uma parcela (muda status para `PAGA` e registra a data).
+* `GET /api/parcelas/cota/{cotaId}` - Retorna todo o histórico de parcelas de uma cota específica.
+
 ---
 *Projeto desenvolvido como parte do aprimoramento prático em Arquitetura de Software e APIs REST.*
