@@ -1,11 +1,13 @@
 package br.com.estudo.consorcio.domain.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "clientes")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Data // Anotação do Lombok que gera Getters, Setters, toString, etc.
 @NoArgsConstructor
 @AllArgsConstructor
