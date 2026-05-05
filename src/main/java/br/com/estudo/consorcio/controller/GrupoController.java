@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -27,5 +28,12 @@ public class GrupoController {
     @GetMapping
     public ResponseEntity<List<Grupo>> listar() {
         return ResponseEntity.ok(service.listarTodos());
+    }
+
+    // Endpoint para inaugurar o grupo (ocorrerá no dia da 1ª AGO)
+    @PutMapping("/{id}/inaugurar")
+    public ResponseEntity<Grupo> inaugurar(@PathVariable Long id, @RequestParam LocalDate dataAssembleia) {
+        Grupo grupoInaugurado = service.inaugurar(id, dataAssembleia);
+        return ResponseEntity.ok(grupoInaugurado);
     }
 }

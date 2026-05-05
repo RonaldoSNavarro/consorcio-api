@@ -2,48 +2,62 @@ package br.com.estudo.consorcio.domain.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "grupos")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Grupo {
 
-    @EqualsAndHashCode.Include
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 20)
+    @Column(nullable = false, unique = true)
     private String codigo;
 
-    @Column(name = "valor_credito", nullable = false, precision = 15, scale = 2)
+    @Column(nullable = false)
     private BigDecimal valorCredito;
 
-    @Column(name = "prazo_meses", nullable = false)
+    @Column(nullable = false)
     private Integer prazoMeses;
 
-    @Column(name = "taxa_administracao", nullable = false, precision = 5, scale = 2)
+    @Column(nullable = false)
     private BigDecimal taxaAdministracao;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatusGrupo status;
 
-    @Column(name = "data_criacao", updatable = false)
-    private LocalDate dataCriacao;
+    @Column(nullable = false)
+    private LocalDate dataCriacao = LocalDate.now();
 
-    @PrePersist
-    protected void onCreate() {
-        this.dataCriacao = LocalDate.now();
-        if (this.status == null) {
-            this.status = StatusGrupo.ABERTO;
-        }
-    }
+    @Column
+    private LocalDate dataInauguracao; // Data da 1ª AGO (pode ser nula no início)
+
+    // Getters e Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getCodigo() { return codigo; }
+    public void setCodigo(String codigo) { this.codigo = codigo; }
+
+    public BigDecimal getValorCredito() { return valorCredito; }
+    public void setValorCredito(BigDecimal valorCredito) { this.valorCredito = valorCredito; }
+
+    public Integer getPrazoMeses() { return prazoMeses; }
+    public void setPrazoMeses(Integer prazoMeses) { this.prazoMeses = prazoMeses; }
+
+    public BigDecimal getTaxaAdministracao() { return taxaAdministracao; }
+    public void setTaxaAdministracao(BigDecimal taxaAdministracao) { this.taxaAdministracao = taxaAdministracao; }
+
+    public StatusGrupo getStatus() { return status; }
+    public void setStatus(StatusGrupo status) { this.status = status; }
+
+    public LocalDate getDataCriacao() { return dataCriacao; }
+    public void setDataCriacao(LocalDate dataCriacao) { this.dataCriacao = dataCriacao; }
+
+    public LocalDate getDataInauguracao() { return dataInauguracao; }
+    public void setDataInauguracao(LocalDate dataInauguracao) { this.dataInauguracao = dataInauguracao; }
 }
