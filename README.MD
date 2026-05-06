@@ -1,6 +1,6 @@
 # 🏢 Consórcio API
 
-Um sistema back-end completo para administração e gerenciamento de consórcios, desenvolvido em Java com Spring Boot. **Este projeto implementa regras de negócio reais baseadas nas normativas do Banco Central do Brasil (BCB).**
+Um sistema back-end completo para administração e gerenciamento de consórcios, desenvolvido em Java com Spring Boot. **Este projeto implementa regras de negócio financeiras reais baseadas nas normativas do Banco Central do Brasil (BCB).**
 
 ## 🚀 Tecnologias e Ferramentas
 
@@ -13,14 +13,17 @@ Um sistema back-end completo para administração e gerenciamento de consórcios
 
 ## 🧩 Arquitetura do Domínio e Regras de Negócio (BCB)
 
-O núcleo do sistema gerencia o ciclo de vida completo de um consórcio, respeitando regras de integridade transacional:
+O núcleo do sistema gerencia o ciclo de vida completo de um consórcio, respeitando regras de integridade transacional e travas financeiras:
 
 * **Cliente:** Cadastros blindados com validação de unicidade para CPF/CNPJ e E-mail.
 * **Grupo:** Agrupamento financeiro de cotas. Todo grupo nasce com o status `EM_FORMACAO` e seu status evolui para `EM_ANDAMENTO` apenas quando ocorre a inauguração oficial na 1ª Assembleia Geral Ordinária (AGO).
 * **Cota:** A ligação que vincula um Cliente a um Grupo específico. Possui travas de estado (`ATIVA`, `CONTEMPLADA`, `CANCELADA`, `INADIMPLENTE`).
-* **Parcela:** Controle financeiro atrelado à Cota, com transição automatizada de `PENDENTE` para `PAGA` e registro de data de recebimento.
-* **Assembleia:** Eventos oficiais do grupo, classificados como `ORDINARIA` (AGO - encontros mensais) ou `EXTRAORDINARIA` (AGE - decisões excepcionais).
-* **Contemplação:** O motor principal do sistema. Realiza a entrega do crédito por `SORTEIO`, `LANCE_LIVRE` ou `LANCE_FIXO`. O sistema garante via regras de negócio que apenas cotas ativas do mesmo grupo da assembleia possam ser sorteadas, altera automaticamente o status da cota para `CONTEMPLADA` e impede dupla contemplação.
+* **Parcela:** Controle financeiro fracionado. O valor pago pelo cliente é dividido automaticamente (via `@PrePersist`/`@PreUpdate`) em **Fundo Comum**, **Taxa de Administração** e **Fundo de Reserva**, contabilizando o caixa real do grupo.
+* **Assembleia:** Eventos oficiais do grupo, classificados como `ORDINARIA` (AGO) ou `EXTRAORDINARIA` (AGE).
+* **Contemplação:** Motor principal do sistema com **trava de integridade financeira**. O sistema varre o banco de dados somando o *Fundo Comum* de todas as parcelas pagas do grupo e bloqueia a contemplação (retornando erro amigável ao usuário) caso o saldo em caixa seja inferior ao valor do crédito exigido pela cota.
+
+## 🛡️ Tratamento de Exceções (Controller Advice)
+A API conta com um `GlobalExceptionHandler` que intercepta quebras de regras de negócio (ex: tentativa de contemplação sem saldo) e converte erros internos em respostas HTTP 400 (Bad Request) com payloads JSON padronizados, garantindo segurança e clareza para a aplicação cliente.
 
 ## ⚙️ Como rodar o projeto localmente
 
@@ -66,12 +69,10 @@ Por padrão, a API estará disponível em `http://localhost:8080`. Abaixo estão
 ### 🎟️ Cotas
 * `POST /api/cotas` - Adquire uma nova cota.
 * `GET /api/cotas` - Lista todas as cotas.
-* `GET /api/cotas/cliente/{clienteId}` - Lista cotas de um cliente.
-* `GET /api/cotas/grupo/{grupoId}` - Lista cotas de um grupo.
 
 ### 💸 Parcelas
-* `POST /api/parcelas` - Gera uma nova parcela.
-* `PUT /api/parcelas/{id}/pagar` - Realiza o pagamento de uma parcela.
+* `POST /api/parcelas` - Gera uma nova parcela com cálculo automático de fundos.
+* `PUT /api/parcelas/{id}/pagar` - Realiza o pagamento de uma parcela (alimenta o saldo do grupo).
 * `GET /api/parcelas/cota/{cotaId}` - Histórico de parcelas de uma cota.
 
 ### 🏛️ Assembleias
@@ -79,8 +80,8 @@ Por padrão, a API estará disponível em `http://localhost:8080`. Abaixo estão
 * `GET /api/assembleias/grupo/{grupoId}` - Lista todas as assembleias de um grupo específico.
 
 ### 🎉 Contemplações
-* `POST /api/contemplacoes` - Registra uma nova contemplação (Sorteio ou Lance).
-* `GET /api/contemplacoes/assembleia/{assembleiaId}` - Lista todos os contemplados de uma assembleia específica.
+* `POST /api/contemplacoes` - Registra uma nova contemplação mediante validação de saldo do Fundo Comum.
+* `GET /api/contemplacoes/assembleia/{assembleiaId}` - Lista todos os contemplados de uma assembleia.
 
 ---
-*Projeto desenvolvido com foco em arquitetura limpa e regras de negócio do mercado financeiro brasileiro.*
+*Projeto desenvolvido com foco em arquitetura limpa, tratamento de erros e regras de negócio complexas do mercado financeiro brasileiro.*
