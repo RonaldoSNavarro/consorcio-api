@@ -35,7 +35,16 @@ public class Parcela {
     @Column(nullable = false)
     private BigDecimal valorParcela; // Valor total do boleto (Soma dos três acima)
 
-    // -------------------------------------------- //
+    // --- COLUNAS DE INADIMPLÊNCIA --- //
+    @Column(precision = 15, scale = 2)
+    private BigDecimal valorMulta = BigDecimal.ZERO;
+
+    @Column(precision = 15, scale = 2)
+    private BigDecimal valorJuros = BigDecimal.ZERO;
+
+    @Column(name = "valor_pago", precision = 15, scale = 2)
+    private BigDecimal valorPago;
+    // -------------------------------------- //
 
     @Column(nullable = false)
     private LocalDate dataVencimento;
@@ -59,33 +68,97 @@ public class Parcela {
     }
 
     // Getters e Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public Cota getCota() { return cota; }
-    public void setCota(Cota cota) { this.cota = cota; }
+    public Cota getCota() {
+        return cota;
+    }
+    public void setCota(Cota cota) {
+        this.cota = cota;
+    }
 
-    public Integer getNumeroParcela() { return numeroParcela; }
-    public void setNumeroParcela(Integer numeroParcela) { this.numeroParcela = numeroParcela; }
+    public Integer getNumeroParcela() {
+        return numeroParcela;
+    }
+    public void setNumeroParcela(Integer numeroParcela) {
+        this.numeroParcela = numeroParcela;
+    }
 
-    public BigDecimal getValorFundoComum() { return valorFundoComum; }
-    public void setValorFundoComum(BigDecimal valorFundoComum) { this.valorFundoComum = valorFundoComum; }
+    public BigDecimal getValorFundoComum() {
+        return valorFundoComum;
+    }
+    public void setValorFundoComum(BigDecimal valorFundoComum) {
+        this.valorFundoComum = valorFundoComum;
+    }
 
-    public BigDecimal getValorTaxaAdministracao() { return valorTaxaAdministracao; }
-    public void setValorTaxaAdministracao(BigDecimal valorTaxaAdministracao) { this.valorTaxaAdministracao = valorTaxaAdministracao; }
+    public BigDecimal getValorTaxaAdministracao() {
+        return valorTaxaAdministracao;
+    }
+    public void setValorTaxaAdministracao(BigDecimal valorTaxaAdministracao) {
+        this.valorTaxaAdministracao = valorTaxaAdministracao;
+    }
 
-    public BigDecimal getValorFundoReserva() { return valorFundoReserva; }
-    public void setValorFundoReserva(BigDecimal valorFundoReserva) { this.valorFundoReserva = valorFundoReserva; }
+    public BigDecimal getValorFundoReserva() {
+        return valorFundoReserva;
+    }
+    public void setValorFundoReserva(BigDecimal valorFundoReserva) {
+        this.valorFundoReserva = valorFundoReserva;
+    }
 
-    public BigDecimal getValorParcela() { return valorParcela; }
-    public void setValorParcela(BigDecimal valorParcela) { this.valorParcela = valorParcela; }
+    public BigDecimal getValorParcela() {
+        return valorParcela;
+    }
+    public void setValorParcela(BigDecimal valorParcela) {
+        this.valorParcela = valorParcela;
+    }
 
-    public LocalDate getDataVencimento() { return dataVencimento; }
-    public void setDataVencimento(LocalDate dataVencimento) { this.dataVencimento = dataVencimento; }
+    public LocalDate getDataVencimento() {
+        return dataVencimento;
+    }
+    public void setDataVencimento(LocalDate dataVencimento) {
+        this.dataVencimento = dataVencimento;
+    }
 
-    public LocalDate getDataPagamento() { return dataPagamento; }
-    public void setDataPagamento(LocalDate dataPagamento) { this.dataPagamento = dataPagamento; }
+    public LocalDate getDataPagamento() {
+        return dataPagamento;
+    }
+    public void setDataPagamento(LocalDate dataPagamento) {
+        this.dataPagamento = dataPagamento;
+    }
 
-    public StatusParcela getStatus() { return status; }
-    public void setStatus(StatusParcela status) { this.status = status; }
+    public StatusParcela getStatus() {
+        return status;
+    }
+    public void setStatus(StatusParcela status) {
+        this.status = status;
+    }
+
+    public BigDecimal getValorMulta() {
+        return valorMulta;
+    }
+
+    public void setValorMulta(BigDecimal valorMulta) {
+        this.valorMulta = valorMulta;
+    }
+
+    public BigDecimal getValorJuros() {
+        return valorJuros;
+    }
+
+    public void setValorJuros(BigDecimal valorJuros) {
+        this.valorJuros = valorJuros;
+    }
+
+    public BigDecimal getValorPago() {
+        return valorPago;
+    }
+
+    public void setValorPago(BigDecimal valorPago) {
+        this.valorPago = valorPago;
+    }
 }
