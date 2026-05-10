@@ -2,6 +2,7 @@ package br.com.estudo.consorcio.domain.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -38,6 +39,14 @@ public class Contemplacao {
 
     @Column(name = "data_contemplacao", nullable = false)
     private LocalDate dataContemplacao;
+
+    @Column(name = "is_lance_embutido", nullable = false)
+    private Boolean lanceEmbutido = false;
+
+    // É o valor do crédito do grupo MENOS o valor do lance embutido (O que realmente cai na conta do cliente)
+    @Column(name = "valor_credito_liberado", precision = 38, scale = 2)
+    private BigDecimal valorCreditoLiberado;
+
 
     @PrePersist
     protected void onCreate() {
