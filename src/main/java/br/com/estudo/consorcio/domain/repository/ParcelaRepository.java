@@ -16,6 +16,12 @@ public interface ParcelaRepository extends JpaRepository<Parcela, Long> {
     // Lista parcelas pelo id da cota
     List<Parcela> findByCotaId(Long cotaId);
 
+    // Busca as parcelas de uma cota por status, ordenando da última para a primeira
+    List<Parcela> findByCotaIdAndStatusOrderByNumeroParcelaDesc(Long cotaId, StatusParcela status);
+
+    // Busca as parcelas pendentes na ordem natural (1, 2, 3...)
+    List<Parcela> findByCotaIdAndStatusOrderByNumeroParcelaAsc(Long cotaId, StatusParcela status);
+
     // JPQL: Soma o Fundo Comum de um grupo inteiro, mas apenas das parcelas pagas!
     @Query("SELECT COALESCE(SUM(p.valorFundoComum), 0) FROM Parcela p WHERE p.cota.grupo.id = :grupoId AND p.status = :status")
     BigDecimal somarFundoComumPorGrupoEStatus(@Param("grupoId") Long grupoId, @Param("status") StatusParcela status);

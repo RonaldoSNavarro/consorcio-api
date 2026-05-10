@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -37,5 +38,25 @@ public class ParcelaController {
 
         Parcela parcelaPaga = service.pagar(id, dataPagamento);
         return ResponseEntity.ok(parcelaPaga);
+    }
+
+    @PostMapping("/cota/{cotaId}/lance/reducao-prazo")
+    public ResponseEntity<String> amortizarLanceReducaoPrazo(
+            @PathVariable Long cotaId,
+            @RequestParam BigDecimal valorLance) {
+
+        service.amortizarPorReducaoDePrazo(cotaId, valorLance);
+
+        return ResponseEntity.ok("Amortização por redução de prazo realizada com sucesso!");
+    }
+
+    @PostMapping("/cota/{cotaId}/lance/diluicao")
+    public ResponseEntity<String> amortizarLanceDiluicao(
+            @PathVariable Long cotaId,
+            @RequestParam BigDecimal valorLance) {
+
+        service.amortizarPorDiluicao(cotaId, valorLance);
+
+        return ResponseEntity.ok("Amortização por diluição do valor das parcelas realizada com sucesso!");
     }
 }
