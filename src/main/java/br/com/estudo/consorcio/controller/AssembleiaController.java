@@ -1,6 +1,7 @@
 package br.com.estudo.consorcio.controller;
 
-import br.com.estudo.consorcio.domain.model.Assembleia;
+import br.com.estudo.consorcio.domain.dto.AssembleiaRequestDTO;
+import br.com.estudo.consorcio.domain.dto.AssembleiaResponseDTO;
 import br.com.estudo.consorcio.service.AssembleiaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -22,17 +23,17 @@ public class AssembleiaController {
     }
 
     @Operation(summary = "Agendar nova assembleia",
-            description = "Registra um novo evento de assembleia (Ordinária ou Extraordinária) para um determinado grupo. Evento obrigatório para a realização de contemplações (sorteios ou lances).")
+            description = "Registra um novo evento de assembleia vinculado a um grupo. O status inicial é 'ORDINARIA' por padrão caso não informado.")
     @PostMapping
-    public ResponseEntity<Assembleia> agendar(@RequestBody Assembleia assembleia) {
-        Assembleia assembleiaSalva = service.salvar(assembleia);
-        return ResponseEntity.status(HttpStatus.CREATED).body(assembleiaSalva);
+    public ResponseEntity<AssembleiaResponseDTO> agendar(@RequestBody AssembleiaRequestDTO dto) {
+        AssembleiaResponseDTO response = service.salvar(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @Operation(summary = "Listar assembleias do grupo",
-            description = "Retorna o histórico cronológico de todas as assembleias já realizadas ou agendadas para um grupo específico.")
+            description = "Retorna o histórico cronológico de todas as assembleias de um grupo específico através do seu ID.")
     @GetMapping("/grupo/{grupoId}")
-    public ResponseEntity<List<Assembleia>> listarPorGrupo(@PathVariable Long grupoId) {
+    public ResponseEntity<List<AssembleiaResponseDTO>> listarPorGrupo(@PathVariable Long grupoId) {
         return ResponseEntity.ok(service.listarPorGrupo(grupoId));
     }
 }

@@ -1,6 +1,10 @@
 package br.com.estudo.consorcio.service;
 
+import br.com.estudo.consorcio.domain.dto.AssembleiaRequestDTO;
+import br.com.estudo.consorcio.domain.dto.AssembleiaResponseDTO;
 import br.com.estudo.consorcio.domain.model.Assembleia;
+import br.com.estudo.consorcio.domain.model.Grupo;
+import br.com.estudo.consorcio.domain.model.TipoAssembleia;
 import br.com.estudo.consorcio.domain.repository.AssembleiaRepository;
 import br.com.estudo.consorcio.domain.repository.GrupoRepository;
 import org.springframework.stereotype.Service;
@@ -20,20 +24,38 @@ public class AssembleiaService {
     }
 
     @Transactional
-    public Assembleia salvar(Assembleia assembleia) {
-        // Valida se o grupo foi informado e se existe no banco
-        if (assembleia.getGrupo() == null || assembleia.getGrupo().getId() == null) {
-            throw new RuntimeException("O grupo é obrigatório para agendar uma assembleia.");
-        }
+    public AssembleiaResponseDTO salvar(AssembleiaRequestDTO dto) {
+        // 1. Busca o grupo no banco
+        Grupo grupo = grupoRepository.findById(dto.grupoId())
+                .orElseThrow(() -> new RuntimeException("Grupo não encontrado para agendar assembleia."));
 
-        if (!grupoRepository.existsById(assembleia.getGrupo().getId())) {
-            throw new RuntimeException("Grupo não encontrado no banco de dados.");
-        }
+        // 2. Mapeamento: DTO -> Entidade
+        Assembleia assembleia = new Assembleia();
+        assembleia.setDataAssembleia(dto.dataAssembleia());
+        assembleia.setGrupo(grupo);
 
-        return assembleiaRepository.save(assembleia);
+        // Regra de negócio: se não informar o tipo, assume ORDINARIA
+        assembleia.setTipo(dto.tipo() != null ? dto.tipo() : TipoAssembleia.ORDINARIA);
+
+        // 3. Persistência
+        Assembleia assembleiaSalva = assembleiaRepository.save(assembleia);
+
+        // 4. Retorno mapeado para ResponseDTO
+        return converterParaResponseDTO(assembleiaSalva);
     }
 
-    public List<Assembleia> listarPorGrupo(Long grupoId) {
-        return assembleiaRepository.findByGrupoId(grupoId);
+    public List<AssembleiaResponseDTO> listarPorGrupo(Long grupoId) {
+        return assembleiaRepository.findByGrupoId(grupoId).stream()
+                .map(this::converterParaResponseDTO)
+                .toList();
+    }
+
+    private AssembleiaResponseDTO converterParaResponseDTO(Assembleia assembleia) {
+        return new AssembleiaResponseDTO(
+                assembleia.getId(),
+                assembleia.getDataAssembleia(),
+                assembleia.getTipo(),
+                assembleia.getGrupo().getId()
+        );
     }
 }

@@ -1,5 +1,8 @@
 package br.com.estudo.consorcio.service;
 
+import br.com.estudo.consorcio.domain.dto.ParcelaRequestDTO;
+import br.com.estudo.consorcio.domain.dto.ParcelaResponseDTO;
+import br.com.estudo.consorcio.domain.model.Cota;
 import br.com.estudo.consorcio.domain.model.Parcela;
 import br.com.estudo.consorcio.domain.model.StatusParcela;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
@@ -25,20 +28,31 @@ public class ParcelaService {
     }
 
     @Transactional
-    public Parcela salvar(Parcela parcela) {
-        if (parcela.getCota() == null || parcela.getCota().getId() == null || !cotaRepository.existsById(parcela.getCota().getId())) {
-            throw new RuntimeException("Cota inválida ou não encontrada no banco de dados.");
-        }
+    public ParcelaResponseDTO salvar(ParcelaRequestDTO dto) {
+        // 1. Valida e busca a Cota
+        Cota cota = cotaRepository.findById(dto.cotaId())
+                .orElseThrow(() -> new RuntimeException("Cota inválida ou não encontrada no banco de dados."));
 
-        if (parcela.getStatus() == null) {
-            parcela.setStatus(StatusParcela.PENDENTE);
-        }
+        // 2. Mapeia DTO para Entidade
+        Parcela parcela = new Parcela();
+        parcela.setCota(cota);
+        parcela.setNumeroParcela(dto.numeroParcela());
+        parcela.setValorFundoComum(dto.valorFundoComum());
+        parcela.setValorTaxaAdministracao(dto.valorTaxaAdministracao());
+        parcela.setValorFundoReserva(dto.valorFundoReserva());
+        parcela.setDataVencimento(dto.dataVencimento());
 
-        return parcelaRepository.save(parcela);
+        // 3. Regra de negócio: Parcela nasce PENDENTE
+        parcela.setStatus(StatusParcela.PENDENTE);
+
+        // O JPA chamará o @PrePersist e calculará o valorParcela (soma dos três)
+        Parcela parcelaSalva = parcelaRepository.save(parcela);
+
+        return converterParaResponseDTO(parcelaSalva);
     }
 
     @Transactional
-    public Parcela pagar(Long parcelaId, LocalDate dataPagamento) {
+    public ParcelaResponseDTO pagar(Long parcelaId, LocalDate dataPagamento) {
         Parcela parcela = parcelaRepository.findById(parcelaId)
                 .orElseThrow(() -> new RuntimeException("Parcela não encontrada."));
 
@@ -48,132 +62,99 @@ public class ParcelaService {
 
         parcela.setDataPagamento(dataPagamento);
 
-        // Regra de Inadimplência (BCB / CDC)
+        // --- Regra de Inadimplência (BCB / CDC) ---
         if (dataPagamento.isAfter(parcela.getDataVencimento())) {
             long diasAtraso = ChronoUnit.DAYS.between(parcela.getDataVencimento(), dataPagamento);
 
-            // Multa: 2% sobre o valor total da parcela
-            BigDecimal multa = parcela.getValorParcela()
-                    .multiply(new BigDecimal("0.02"))
-                    .setScale(2, RoundingMode.HALF_UP);
-
-            // Juros de Mora: 1% ao mês (pro-rata die)
+            BigDecimal multa = parcela.getValorParcela().multiply(new BigDecimal("0.02")).setScale(2, RoundingMode.HALF_UP);
             BigDecimal taxaMensal = new BigDecimal("0.01");
             BigDecimal taxaDiaria = taxaMensal.divide(new BigDecimal("30"), 10, RoundingMode.HALF_UP);
-            BigDecimal juros = parcela.getValorParcela()
-                    .multiply(taxaDiaria)
-                    .multiply(new BigDecimal(diasAtraso))
-                    .setScale(2, RoundingMode.HALF_UP);
+            BigDecimal juros = parcela.getValorParcela().multiply(taxaDiaria).multiply(new BigDecimal(diasAtraso)).setScale(2, RoundingMode.HALF_UP);
 
             parcela.setValorMulta(multa);
             parcela.setValorJuros(juros);
             parcela.setValorPago(parcela.getValorParcela().add(multa).add(juros));
         } else {
-            // Pagamento em dia ou antecipado
             parcela.setValorMulta(BigDecimal.ZERO);
             parcela.setValorJuros(BigDecimal.ZERO);
             parcela.setValorPago(parcela.getValorParcela());
         }
 
         parcela.setStatus(StatusParcela.PAGA);
+        Parcela parcelaMapeada = parcelaRepository.save(parcela);
 
-        return parcelaRepository.save(parcela);
+        return converterParaResponseDTO(parcelaMapeada);
     }
 
+    // Os métodos de amortização continuam iguais, pois eles operam listas internas no banco
     @Transactional
     public void amortizarPorReducaoDePrazo(Long cotaId, BigDecimal valorLance) {
-        // 1. Pega todas as parcelas pendentes de trás para frente (Ex: 60, 59, 58...)
-        List<Parcela> parcelasDeTrasParaFrente = parcelaRepository
-                .findByCotaIdAndStatusOrderByNumeroParcelaDesc(cotaId, StatusParcela.PENDENTE);
-
+        List<Parcela> parcelasDeTrasParaFrente = parcelaRepository.findByCotaIdAndStatusOrderByNumeroParcelaDesc(cotaId, StatusParcela.PENDENTE);
         BigDecimal saldoLance = valorLance;
 
         for (Parcela parcela : parcelasDeTrasParaFrente) {
-            // Se o dinheiro do lance acabou, paramos o loop
-            if (saldoLance.compareTo(BigDecimal.ZERO) <= 0) {
-                break;
-            }
+            if (saldoLance.compareTo(BigDecimal.ZERO) <= 0) break;
 
-            // Cenário A: O saldo do lance é maior ou igual ao valor da parcela inteira
             if (saldoLance.compareTo(parcela.getValorParcela()) >= 0) {
                 parcela.setStatus(StatusParcela.PAGA);
                 parcela.setDataPagamento(LocalDate.now());
-
-                // Como ele antecipou, não cobramos multa nem juros
                 parcela.setValorMulta(BigDecimal.ZERO);
                 parcela.setValorJuros(BigDecimal.ZERO);
                 parcela.setValorPago(parcela.getValorParcela());
-
-                // Subtrai do lance o valor que acabamos de usar
                 saldoLance = saldoLance.subtract(parcela.getValorParcela());
-            }
-            // Cenário B: O saldo do lance não quita a parcela inteira
-            else {
-                // O lance abate o Fundo Comum (FC) da parcela atual.
-                // Ex: Parcela tem FC de R$ 1000. Sobrou R$ 400 de lance. O novo FC será R$ 600.
+            } else {
                 BigDecimal novoFundoComum = parcela.getValorFundoComum().subtract(saldoLance);
                 parcela.setValorFundoComum(novoFundoComum);
-
-                // Não precisamos setar o novo valorParcela, pois o @PreUpdate da entidade
-                // vai somar esse novo FC com a Taxa e a Reserva automaticamente antes de salvar!
-
-                saldoLance = BigDecimal.ZERO; // Zeramos o saldo para encerrar o loop no próximo giro
+                saldoLance = BigDecimal.ZERO;
             }
         }
-
-        // Salva todas as parcelas modificadas de uma vez só
         parcelaRepository.saveAll(parcelasDeTrasParaFrente);
     }
 
     @Transactional
     public void amortizarPorDiluicao(Long cotaId, BigDecimal valorLance) {
-        // 1. Pega todas as parcelas pendentes
-        List<Parcela> parcelasPendentes = parcelaRepository
-                .findByCotaIdAndStatusOrderByNumeroParcelaAsc(cotaId, StatusParcela.PENDENTE);
+        List<Parcela> parcelasPendentes = parcelaRepository.findByCotaIdAndStatusOrderByNumeroParcelaAsc(cotaId, StatusParcela.PENDENTE);
+        if (parcelasPendentes.isEmpty()) throw new RuntimeException("Não há parcelas pendentes para amortizar.");
 
-        if (parcelasPendentes.isEmpty()) {
-            throw new RuntimeException("Não há parcelas pendentes para amortizar.");
-        }
-
-        // 2. Descobre quantas parcelas vão receber o desconto
         int quantidadeParcelas = parcelasPendentes.size();
-        BigDecimal qtdDecimal = new BigDecimal(quantidadeParcelas);
-
-        // 3. Divide o lance pelo número de parcelas (Arredondando para baixo, 2 casas)
-        BigDecimal abatimentoPorParcela = valorLance.divide(qtdDecimal, 2, RoundingMode.DOWN);
-
-        // Variável para rastrear quanto do lance já aplicamos de fato
+        BigDecimal abatimentoPorParcela = valorLance.divide(new BigDecimal(quantidadeParcelas), 2, RoundingMode.DOWN);
         BigDecimal valorAplicado = BigDecimal.ZERO;
 
         for (int i = 0; i < quantidadeParcelas; i++) {
             Parcela parcela = parcelasPendentes.get(i);
-            BigDecimal abatimentoAtual = abatimentoPorParcela;
+            BigDecimal abatimentoAtual = (i == quantidadeParcelas - 1) ? valorLance.subtract(valorAplicado) : abatimentoPorParcela;
 
-            // 4. A Regra do Centavo Perdido: Se for a ÚLTIMA parcela do loop,
-            // o abatimento dela será tudo o que sobrou do lance original.
-            if (i == quantidadeParcelas - 1) {
-                abatimentoAtual = valorLance.subtract(valorAplicado);
-            }
-
-            // 5. Abate do Fundo Comum
             BigDecimal novoFundoComum = parcela.getValorFundoComum().subtract(abatimentoAtual);
-
-            // Trava de segurança: Se o lance diluído for maior que o FC da parcela, zera o FC.
-            if (novoFundoComum.compareTo(BigDecimal.ZERO) < 0) {
-                novoFundoComum = BigDecimal.ZERO;
-            }
+            if (novoFundoComum.compareTo(BigDecimal.ZERO) < 0) novoFundoComum = BigDecimal.ZERO;
 
             parcela.setValorFundoComum(novoFundoComum);
-
-            // Registra que esse pedaço do lance já foi usado
             valorAplicado = valorAplicado.add(abatimentoAtual);
         }
-
-        // 6. Salva tudo. O @PreUpdate da Parcela vai somar o novo FC com as taxas e atualizar o valor total!
         parcelaRepository.saveAll(parcelasPendentes);
     }
 
-    public List<Parcela> listarPorCota(Long cotaId) {
-        return parcelaRepository.findByCotaId(cotaId);
+    public List<ParcelaResponseDTO> listarPorCota(Long cotaId) {
+        return parcelaRepository.findByCotaId(cotaId).stream()
+                .map(this::converterParaResponseDTO)
+                .toList();
+    }
+
+    // Método centralizado de conversão
+    private ParcelaResponseDTO converterParaResponseDTO(Parcela parcela) {
+        return new ParcelaResponseDTO(
+                parcela.getId(),
+                parcela.getCota().getId(),
+                parcela.getNumeroParcela(),
+                parcela.getValorFundoComum(),
+                parcela.getValorTaxaAdministracao(),
+                parcela.getValorFundoReserva(),
+                parcela.getValorParcela(),
+                parcela.getValorMulta(),
+                parcela.getValorJuros(),
+                parcela.getValorPago(),
+                parcela.getDataVencimento(),
+                parcela.getDataPagamento(),
+                parcela.getStatus()
+        );
     }
 }

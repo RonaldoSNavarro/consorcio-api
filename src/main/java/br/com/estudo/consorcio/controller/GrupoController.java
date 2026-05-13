@@ -1,6 +1,7 @@
 package br.com.estudo.consorcio.controller;
 
-import br.com.estudo.consorcio.domain.model.Grupo;
+import br.com.estudo.consorcio.domain.dto.GrupoRequestDTO;
+import br.com.estudo.consorcio.domain.dto.GrupoResponseDTO;
 import br.com.estudo.consorcio.service.GrupoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -22,24 +23,23 @@ public class GrupoController {
         this.service = service;
     }
 
-    @Operation(summary = "Criar novo grupo", description = "Define os parâmetros do grupo: valor do crédito, taxa de administração, fundo de reserva e prazo total em meses.")
+    @Operation(summary = "Criar novo grupo", description = "Define os parâmetros do grupo: valor do crédito, taxa de administração e prazo total em meses. O status inicial é definido automaticamente como 'EM_FORMACAO'.")
     @PostMapping
-    public ResponseEntity<Grupo> cadastrar(@RequestBody Grupo grupo) {
-        Grupo grupoSalvo = service.salvar(grupo);
+    public ResponseEntity<GrupoResponseDTO> cadastrar(@RequestBody GrupoRequestDTO dto) {
+        GrupoResponseDTO grupoSalvo = service.salvar(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(grupoSalvo);
     }
 
-    @Operation(summary = "Listar Grupos", description = "Lista todos os grupos.")
+    @Operation(summary = "Listar Grupos", description = "Lista todos os grupos cadastrados no sistema com seus respectivos dados financeiros e status.")
     @GetMapping
-    public ResponseEntity<List<Grupo>> listar() {
+    public ResponseEntity<List<GrupoResponseDTO>> listar() {
         return ResponseEntity.ok(service.listarTodos());
     }
 
-    // Endpoint para inaugurar o grupo (ocorrerá no dia da 1ª AGO)
-    @Operation(summary = "Inaugurar grupo", description = "Altera o status do grupo para 'EM_ANDAMENTO'. Esta operação valida se o quórum mínimo de cotas vendidas foi atingido conforme normas do BCB.")
+    @Operation(summary = "Inaugurar grupo", description = "Altera o status do grupo para 'EM_ANDAMENTO'. Esta operação valida se o grupo está em formação e registra a data da 1ª AGO.")
     @PutMapping("/{id}/inaugurar")
-    public ResponseEntity<Grupo> inaugurar(@PathVariable Long id, @RequestParam LocalDate dataAssembleia) {
-        Grupo grupoInaugurado = service.inaugurar(id, dataAssembleia);
+    public ResponseEntity<GrupoResponseDTO> inaugurar(@PathVariable Long id, @RequestParam LocalDate dataAssembleia) {
+        GrupoResponseDTO grupoInaugurado = service.inaugurar(id, dataAssembleia);
         return ResponseEntity.ok(grupoInaugurado);
     }
 }

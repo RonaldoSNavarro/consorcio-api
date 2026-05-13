@@ -1,6 +1,7 @@
 package br.com.estudo.consorcio.controller;
 
-import br.com.estudo.consorcio.domain.model.Parcela;
+import br.com.estudo.consorcio.domain.dto.ParcelaRequestDTO;
+import br.com.estudo.consorcio.domain.dto.ParcelaResponseDTO;
 import br.com.estudo.consorcio.service.ParcelaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,42 +24,37 @@ public class ParcelaController {
         this.service = service;
     }
 
-    @Operation(summary = "Gerar nova parcela", description = "Cria um novo registro de cobrança para a cota vinculada, calculando os valores iniciais de fundo comum, taxa de administração e fundo de reserva.")
+    @Operation(summary = "Gerar nova parcela", description = "Cria um novo registro de cobrança vinculando apenas ao ID da cota.")
     @PostMapping
-    public ResponseEntity<Parcela> cadastrar(@RequestBody Parcela parcela) {
-        Parcela parcelaSalva = service.salvar(parcela);
+    public ResponseEntity<ParcelaResponseDTO> cadastrar(@RequestBody ParcelaRequestDTO dto) {
+        ParcelaResponseDTO parcelaSalva = service.salvar(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(parcelaSalva);
     }
 
-    @Operation(summary = "Histórico de parcelas da cota", description = "Retorna a lista completa de parcelas (pagas e pendentes) de uma cota específica.")
+    @Operation(summary = "Histórico de parcelas da cota", description = "Retorna a lista completa de parcelas de uma cota específica.")
     @GetMapping("/cota/{cotaId}")
-    public ResponseEntity<List<Parcela>> listarPorCota(@PathVariable Long cotaId) {
+    public ResponseEntity<List<ParcelaResponseDTO>> listarPorCota(@PathVariable Long cotaId) {
         return ResponseEntity.ok(service.listarPorCota(cotaId));
     }
 
-    @Operation(summary = "Registrar pagamento da parcela", description = "Processa a baixa financeira. Caso o pagamento ocorra após o vencimento, o motor de inadimplência calcula automaticamente 2% de multa moratória e juros de mora de 1% ao mês pro-rata die (por dia de atraso).")
+    @Operation(summary = "Registrar pagamento da parcela", description = "Processa a baixa financeira, calculando automaticamente 2% de multa moratória e juros pro-rata die em caso de atraso.")
     @PutMapping("/{id}/pagar")
-    public ResponseEntity<Parcela> pagarParcela(@PathVariable Long id, @RequestParam LocalDate dataPagamento) {
-
-        Parcela parcelaPaga = service.pagar(id, dataPagamento);
+    public ResponseEntity<ParcelaResponseDTO> pagarParcela(@PathVariable Long id, @RequestParam LocalDate dataPagamento) {
+        ParcelaResponseDTO parcelaPaga = service.pagar(id, dataPagamento);
         return ResponseEntity.ok(parcelaPaga);
     }
 
-    @Operation(summary = "Amortizar lance (Redução de Prazo)", description = "Utiliza o valor do lance pago para quitar as últimas parcelas do contrato (de trás para frente). Mantém o valor da mensalidade intacto, mas reduz o tempo de permanência do cliente no grupo.")
+    @Operation(summary = "Amortizar lance (Redução de Prazo)", description = "Utiliza o lance pago para quitar as últimas parcelas do contrato (de trás para frente).")
     @PostMapping("/cota/{cotaId}/lance/reducao-prazo")
     public ResponseEntity<String> amortizarLanceReducaoPrazo(@PathVariable Long cotaId, @RequestParam BigDecimal valorLance) {
-
         service.amortizarPorReducaoDePrazo(cotaId, valorLance);
-
         return ResponseEntity.ok("Amortização por redução de prazo realizada com sucesso!");
     }
 
-    @Operation(summary = "Amortizar lance (Diluição de Valor)", description = "Divide o valor do lance pago igualmente entre todas as parcelas pendentes. Reduz o valor mensal do boleto do cliente sem alterar o prazo final do grupo. Aplica tratamento matemático para dízimas e absorção de centavos residuais na última parcela.")
+    @Operation(summary = "Amortizar lance (Diluição de Valor)", description = "Divide o lance pago igualmente entre todas as parcelas pendentes.")
     @PostMapping("/cota/{cotaId}/lance/diluicao")
     public ResponseEntity<String> amortizarLanceDiluicao(@PathVariable Long cotaId, @RequestParam BigDecimal valorLance) {
-
         service.amortizarPorDiluicao(cotaId, valorLance);
-
         return ResponseEntity.ok("Amortização por diluição do valor das parcelas realizada com sucesso!");
     }
 }

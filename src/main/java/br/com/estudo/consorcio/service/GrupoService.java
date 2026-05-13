@@ -1,5 +1,7 @@
 package br.com.estudo.consorcio.service;
 
+import br.com.estudo.consorcio.domain.dto.GrupoRequestDTO;
+import br.com.estudo.consorcio.domain.dto.GrupoResponseDTO;
 import br.com.estudo.consorcio.domain.model.Grupo;
 import br.com.estudo.consorcio.domain.model.StatusGrupo;
 import br.com.estudo.consorcio.domain.repository.GrupoRepository;
@@ -19,16 +21,26 @@ public class GrupoService {
     }
 
     @Transactional
-    public Grupo salvar(Grupo grupo) {
-        // Regra BCB: Todo grupo nasce em formação
-        if (grupo.getStatus() == null) {
-            grupo.setStatus(StatusGrupo.EM_FORMACAO);
-        }
-        return repository.save(grupo);
+    public GrupoResponseDTO salvar(GrupoRequestDTO dto) {
+        // 1. Mapeamento: DTO de entrada para Entidade
+        Grupo grupo = new Grupo();
+        grupo.setCodigo(dto.codigo());
+        grupo.setValorCredito(dto.valorCredito());
+        grupo.setPrazoMeses(dto.prazoMeses());
+        grupo.setTaxaAdministracao(dto.taxaAdministracao());
+
+        // Regra BCB: Todo grupo nasce em formação (Garantido pelo Back-end)
+        grupo.setStatus(StatusGrupo.EM_FORMACAO);
+
+        // 2. Persistência
+        Grupo grupoSalvo = repository.save(grupo);
+
+        // 3. Retorno mapeado para DTO de saída
+        return converterParaResponseDTO(grupoSalvo);
     }
 
     @Transactional
-    public Grupo inaugurar(Long id, LocalDate dataAssembleia) {
+    public GrupoResponseDTO inaugurar(Long id, LocalDate dataAssembleia) {
         Grupo grupo = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Grupo não encontrado."));
 
@@ -40,10 +52,29 @@ public class GrupoService {
         grupo.setStatus(StatusGrupo.EM_ANDAMENTO);
         grupo.setDataInauguracao(dataAssembleia);
 
-        return repository.save(grupo);
+        Grupo grupoInaugurado = repository.save(grupo);
+
+        return converterParaResponseDTO(grupoInaugurado);
     }
 
-    public List<Grupo> listarTodos() {
-        return repository.findAll();
+    public List<GrupoResponseDTO> listarTodos() {
+        return repository.findAll()
+                .stream()
+                .map(this::converterParaResponseDTO)
+                .toList();
+    }
+
+    // Método auxiliar para centralizar a conversão de saída
+    private GrupoResponseDTO converterParaResponseDTO(Grupo grupo) {
+        return new GrupoResponseDTO(
+                grupo.getId(),
+                grupo.getCodigo(),
+                grupo.getValorCredito(),
+                grupo.getPrazoMeses(),
+                grupo.getTaxaAdministracao(),
+                grupo.getStatus(),
+                grupo.getDataCriacao(),
+                grupo.getDataInauguracao()
+        );
     }
 }

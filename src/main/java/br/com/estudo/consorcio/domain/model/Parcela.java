@@ -2,14 +2,20 @@ package br.com.estudo.consorcio.domain.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
+import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "parcelas")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@Data // Cria todos os Getters e Setters
+@NoArgsConstructor // Cria construtor vazio exigido pelo JPA
+@AllArgsConstructor // Cria construtor com todos os argumentos
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Parcela {
 
+    @EqualsAndHashCode.Include
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -56,7 +62,7 @@ public class Parcela {
     @Column(nullable = false)
     private StatusParcela status;
 
-    // Método mágico do JPA: Antes de salvar ou atualizar no banco, ele soma tudo sozinho!
+    // Método do JPA: Antes de salvar ou atualizar no banco, ele soma tudo sozinho!
     @PrePersist
     @PreUpdate
     public void calcularValorTotal() {
@@ -65,100 +71,5 @@ public class Parcela {
                     .add(this.valorTaxaAdministracao)
                     .add(this.valorFundoReserva);
         }
-    }
-
-    // Getters e Setters
-    public Long getId() {
-        return id;
-    }
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Cota getCota() {
-        return cota;
-    }
-    public void setCota(Cota cota) {
-        this.cota = cota;
-    }
-
-    public Integer getNumeroParcela() {
-        return numeroParcela;
-    }
-    public void setNumeroParcela(Integer numeroParcela) {
-        this.numeroParcela = numeroParcela;
-    }
-
-    public BigDecimal getValorFundoComum() {
-        return valorFundoComum;
-    }
-    public void setValorFundoComum(BigDecimal valorFundoComum) {
-        this.valorFundoComum = valorFundoComum;
-    }
-
-    public BigDecimal getValorTaxaAdministracao() {
-        return valorTaxaAdministracao;
-    }
-    public void setValorTaxaAdministracao(BigDecimal valorTaxaAdministracao) {
-        this.valorTaxaAdministracao = valorTaxaAdministracao;
-    }
-
-    public BigDecimal getValorFundoReserva() {
-        return valorFundoReserva;
-    }
-    public void setValorFundoReserva(BigDecimal valorFundoReserva) {
-        this.valorFundoReserva = valorFundoReserva;
-    }
-
-    public BigDecimal getValorParcela() {
-        return valorParcela;
-    }
-    public void setValorParcela(BigDecimal valorParcela) {
-        this.valorParcela = valorParcela;
-    }
-
-    public LocalDate getDataVencimento() {
-        return dataVencimento;
-    }
-    public void setDataVencimento(LocalDate dataVencimento) {
-        this.dataVencimento = dataVencimento;
-    }
-
-    public LocalDate getDataPagamento() {
-        return dataPagamento;
-    }
-    public void setDataPagamento(LocalDate dataPagamento) {
-        this.dataPagamento = dataPagamento;
-    }
-
-    public StatusParcela getStatus() {
-        return status;
-    }
-    public void setStatus(StatusParcela status) {
-        this.status = status;
-    }
-
-    public BigDecimal getValorMulta() {
-        return valorMulta;
-    }
-
-    public void setValorMulta(BigDecimal valorMulta) {
-        this.valorMulta = valorMulta;
-    }
-
-    public BigDecimal getValorJuros() {
-        return valorJuros;
-    }
-
-    public void setValorJuros(BigDecimal valorJuros) {
-        this.valorJuros = valorJuros;
-    }
-
-    public BigDecimal getValorPago() {
-        return valorPago;
-    }
-
-    public void setValorPago(BigDecimal valorPago) {
-        this.valorPago = valorPago;
     }
 }

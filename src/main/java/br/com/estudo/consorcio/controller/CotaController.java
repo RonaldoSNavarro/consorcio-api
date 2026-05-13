@@ -1,6 +1,7 @@
 package br.com.estudo.consorcio.controller;
 
-import br.com.estudo.consorcio.domain.model.Cota;
+import br.com.estudo.consorcio.domain.dto.CotaRequestDTO;
+import br.com.estudo.consorcio.domain.dto.CotaResponseDTO;
 import br.com.estudo.consorcio.service.CotaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,26 +24,26 @@ public class CotaController {
 
     @Operation(summary = "Cadastrar cota", description = "Vincula um cliente a um grupo específico, gerando um número de cota único e definindo o status inicial como 'ATIVA'.")
     @PostMapping
-    public ResponseEntity<Cota> cadastrar(@RequestBody Cota cota) {
-        Cota cotaSalva = service.salvar(cota);
+    public ResponseEntity<CotaResponseDTO> cadastrar(@RequestBody CotaRequestDTO dto) {
+        CotaResponseDTO cotaSalva = service.salvar(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(cotaSalva);
     }
 
     @Operation(summary = "Listar cotas", description = "Exibe todas as cotas.")
     @GetMapping
-    public ResponseEntity<List<Cota>> listar() {
+    public ResponseEntity<List<CotaResponseDTO>> listar() {
         return ResponseEntity.ok(service.listarTodas());
     }
 
     @Operation(summary = "Listar por cliente", description = "Lista cotas por cliente")
     @GetMapping("/cliente/{clienteId}")
-    public ResponseEntity<List<Cota>> listarPorCliente(@PathVariable Long clienteId) {
+    public ResponseEntity<List<CotaResponseDTO>> listarPorCliente(@PathVariable Long clienteId) {
         return ResponseEntity.ok(service.listarPorCliente(clienteId));
     }
 
-    @Operation(summary = "Listar por grupo", description = "Lista cota por grupo.")
+    @Operation(summary = "Listar por grupo", description = "Lista cotas por grupo.")
     @GetMapping("/grupo/{grupoId}")
-    public ResponseEntity<List<Cota>> listarPorGrupo(@PathVariable Long grupoId) {
+    public ResponseEntity<List<CotaResponseDTO>> listarPorGrupo(@PathVariable Long grupoId) {
         return ResponseEntity.ok(service.listarPorGrupo(grupoId));
     }
 }
