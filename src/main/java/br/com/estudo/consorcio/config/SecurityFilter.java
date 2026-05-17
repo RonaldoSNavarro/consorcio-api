@@ -34,6 +34,12 @@ public class SecurityFilter extends OncePerRequestFilter {
             var subject = tokenService.getSubject(tokenJWT);
             var usuario = repository.findByLogin(subject);
 
+            // Adicionado: aborta silenciosamente se o usuário não existir mais no banco
+            if (usuario == null) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             // Força a autenticação no contexto do Spring Security
             var authentication = new UsernamePasswordAuthenticationToken(usuario, null, usuario.getAuthorities());
             SecurityContextHolder.getContext().setAuthentication(authentication);

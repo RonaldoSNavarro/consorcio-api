@@ -8,6 +8,7 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 * **Spring Boot 4:** (Web, Data JPA, Security).
 * **Spring Security & JWT (Auth0):** Autenticação stateless e autorização baseada em tokens.
 * **PostgreSQL:** Persistência de dados financeiros.
+* **Flyway:** Versionamento e migração de schema do banco de dados.
 * **JUnit 5, Mockito & MockMvc:** Ecossistema completo de testes para garantir a integridade do sistema.
 * **Springdoc OpenAPI (Swagger):** Documentação interativa personalizada e protegida.
 * **Lombok:** Redução de código boilerplate.
@@ -31,6 +32,7 @@ O projeto segue a pirâmide de testes para garantir que nenhuma alteração no c
 A proteção dos recursos financeiros é garantida via **Bearer Token**:
 * **Autenticação:** O usuário obtém acesso via `/api/login`.
 * **Autorização:** Um `SecurityFilter` customizado valida a assinatura JWT e as permissões antes de liberar o acesso aos `Services`.
+* **Segredo JWT:** Gerenciado exclusivamente via variável de ambiente — nenhuma credencial é armazenada no código-fonte.
 
 ## 🧩 Regras de Negócio e Motores Financeiros
 
@@ -39,6 +41,37 @@ A proteção dos recursos financeiros é garantida via **Bearer Token**:
 * **Algoritmos de Amortização:**
     * **Redução de Prazo:** Quitação de parcelas de trás para frente.
     * **Diluição de Valor:** Reequilíbrio do saldo devedor com tratamento matemático da **Regra do Centavo Perdido** (ajuste de resíduos de dízimas na última parcela).
+
+## ⚙️ Configuração e Setup
+
+### Pré-requisitos
+* Java 21
+* PostgreSQL 16+
+
+### Variáveis de ambiente
+
+Configure as variáveis abaixo no seu ambiente ou no IntelliJ em **Edit Configurations → Environment Variables**. Consulte o `.env.example` na raiz do projeto para referência.
+
+| Variável | Descrição |
+|---|---|
+| `DB_USER` | Usuário do PostgreSQL |
+| `DB_PASSWORD` | Senha do PostgreSQL |
+| `JWT_SECRET` | Chave secreta para assinar tokens JWT (mín. 32 caracteres) |
+
+Para gerar um `JWT_SECRET` seguro no PowerShell:
+```powershell
+[Convert]::ToBase64String((1..32 | ForEach-Object { [byte](Get-Random -Max 256) }))
+```
+
+### Banco de dados
+
+O schema é gerenciado pelo **Flyway**. Ao subir a aplicação pela primeira vez, todas as tabelas são criadas automaticamente. Novas alterações de schema devem ser adicionadas como migrações versionadas em `src/main/resources/db/migration` seguindo o padrão `V2__descricao.sql`, `V3__descricao.sql`, etc.
+
+### Rodando o projeto
+
+```bash
+./mvnw spring-boot:run
+```
 
 ## 📖 Documentação da API (Swagger)
 
