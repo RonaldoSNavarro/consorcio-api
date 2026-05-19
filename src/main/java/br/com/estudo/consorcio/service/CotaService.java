@@ -9,6 +9,7 @@ import br.com.estudo.consorcio.domain.model.StatusCota;
 import br.com.estudo.consorcio.domain.repository.ClienteRepository;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.GrupoRepository;
+import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,10 +32,10 @@ public class CotaService {
     public CotaResponseDTO salvar(CotaRequestDTO dto) {
         // 1. Busca as entidades reais no banco de dados garantindo que elas existem
         Cliente cliente = clienteRepository.findById(dto.clienteId())
-                .orElseThrow(() -> new RuntimeException("Cliente não encontrado."));
+                .orElseThrow(() -> new RegraDeNegocioException("Cliente não encontrado."));
 
         Grupo grupo = grupoRepository.findById(dto.grupoId())
-                .orElseThrow(() -> new RuntimeException("Grupo não encontrado."));
+                .orElseThrow(() -> new RegraDeNegocioException("Grupo não encontrado."));
 
         // 2. Mapeamento para a Entidade
         Cota cota = new Cota();

@@ -5,6 +5,7 @@ import br.com.estudo.consorcio.domain.dto.ClienteResponseDTO;
 import br.com.estudo.consorcio.service.ClienteService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +25,7 @@ public class ClienteController {
 
     @Operation(summary = "Registar novo cliente", description = "Cria um novo registro de consorciado. Valida a duplicidade de CPF/CNPJ e inicia o histórico do cliente no sistema.")
     @PostMapping
-    public ResponseEntity<ClienteResponseDTO> cadastrar(@RequestBody ClienteRequestDTO dto) {
+    public ResponseEntity<ClienteResponseDTO> cadastrar(@Valid @RequestBody ClienteRequestDTO dto) {
         ClienteResponseDTO clienteSalvo = service.salvar(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(clienteSalvo);
     }

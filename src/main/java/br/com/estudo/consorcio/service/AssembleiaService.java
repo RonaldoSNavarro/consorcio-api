@@ -7,6 +7,7 @@ import br.com.estudo.consorcio.domain.model.Grupo;
 import br.com.estudo.consorcio.domain.model.TipoAssembleia;
 import br.com.estudo.consorcio.domain.repository.AssembleiaRepository;
 import br.com.estudo.consorcio.domain.repository.GrupoRepository;
+import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +28,7 @@ public class AssembleiaService {
     public AssembleiaResponseDTO salvar(AssembleiaRequestDTO dto) {
         // 1. Busca o grupo no banco
         Grupo grupo = grupoRepository.findById(dto.grupoId())
-                .orElseThrow(() -> new RuntimeException("Grupo não encontrado para agendar assembleia."));
+                .orElseThrow(() -> new RegraDeNegocioException("Grupo não encontrado para agendar assembleia."));
 
         // 2. Mapeamento: DTO -> Entidade
         Assembleia assembleia = new Assembleia();

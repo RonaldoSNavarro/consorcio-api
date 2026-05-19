@@ -1,6 +1,7 @@
 package br.com.estudo.consorcio.service;
 
 import br.com.estudo.consorcio.domain.model.Usuario;
+import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTCreationException;
@@ -22,7 +23,7 @@ public class TokenService {
             var algoritmo = Algorithm.HMAC256(secret);
             return JWT.create().withIssuer("API Consorcio").withSubject(usuario.getUsername()).withExpiresAt(dataExpiracao()).sign(algoritmo);
         } catch (JWTCreationException exception) {
-            throw new RuntimeException("Erro ao gerar token JWT", exception);
+            throw new RegraDeNegocioException("Erro ao gerar token JWT");
         }
     }
 
@@ -40,7 +41,7 @@ public class TokenService {
                     .verify(tokenJWT)
                     .getSubject();
         } catch (Exception exception) {
-            throw new RuntimeException("Token JWT inválido ou expirado!");
+            throw new RegraDeNegocioException("Token JWT inválido ou expirado!");
         }
     }
 }

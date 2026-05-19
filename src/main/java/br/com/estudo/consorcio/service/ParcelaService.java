@@ -7,6 +7,7 @@ import br.com.estudo.consorcio.domain.model.Parcela;
 import br.com.estudo.consorcio.domain.model.StatusParcela;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
+import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +32,7 @@ public class ParcelaService {
     public ParcelaResponseDTO salvar(ParcelaRequestDTO dto) {
         // 1. Valida e busca a Cota
         Cota cota = cotaRepository.findById(dto.cotaId())
-                .orElseThrow(() -> new RuntimeException("Cota inválida ou não encontrada no banco de dados."));
+                .orElseThrow(() -> new RegraDeNegocioException("Cota inválida ou não encontrada no banco de dados."));
 
         // 2. Mapeia DTO para Entidade
         Parcela parcela = new Parcela();
@@ -54,10 +55,10 @@ public class ParcelaService {
     @Transactional
     public ParcelaResponseDTO pagar(Long parcelaId, LocalDate dataPagamento) {
         Parcela parcela = parcelaRepository.findById(parcelaId)
-                .orElseThrow(() -> new RuntimeException("Parcela não encontrada."));
+                .orElseThrow(() -> new RegraDeNegocioException("Parcela não encontrada."));
 
         if (parcela.getStatus() == StatusParcela.PAGA) {
-            throw new RuntimeException("Esta parcela já consta como paga.");
+            throw new RegraDeNegocioException("Esta parcela já consta como paga.");
         }
 
         parcela.setDataPagamento(dataPagamento);
@@ -114,7 +115,7 @@ public class ParcelaService {
     @Transactional
     public void amortizarPorDiluicao(Long cotaId, BigDecimal valorLance) {
         List<Parcela> parcelasPendentes = parcelaRepository.findByCotaIdAndStatusOrderByNumeroParcelaAsc(cotaId, StatusParcela.PENDENTE);
-        if (parcelasPendentes.isEmpty()) throw new RuntimeException("Não há parcelas pendentes para amortizar.");
+        if (parcelasPendentes.isEmpty()) throw new RegraDeNegocioException("Não há parcelas pendentes para amortizar.");
 
         int quantidadeParcelas = parcelasPendentes.size();
         BigDecimal abatimentoPorParcela = valorLance.divide(new BigDecimal(quantidadeParcelas), 2, RoundingMode.DOWN);

@@ -5,6 +5,7 @@ import br.com.estudo.consorcio.domain.dto.GrupoResponseDTO;
 import br.com.estudo.consorcio.service.GrupoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +26,7 @@ public class GrupoController {
 
     @Operation(summary = "Criar novo grupo", description = "Define os parâmetros do grupo: valor do crédito, taxa de administração e prazo total em meses. O status inicial é definido automaticamente como 'EM_FORMACAO'.")
     @PostMapping
-    public ResponseEntity<GrupoResponseDTO> cadastrar(@RequestBody GrupoRequestDTO dto) {
+    public ResponseEntity<GrupoResponseDTO> cadastrar(@Valid @RequestBody GrupoRequestDTO dto) {
         GrupoResponseDTO grupoSalvo = service.salvar(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(grupoSalvo);
     }

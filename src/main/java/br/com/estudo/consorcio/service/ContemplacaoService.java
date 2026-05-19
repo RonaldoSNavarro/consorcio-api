@@ -7,6 +7,7 @@ import br.com.estudo.consorcio.domain.repository.AssembleiaRepository;
 import br.com.estudo.consorcio.domain.repository.ContemplacaoRepository;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
+import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,17 +35,17 @@ public class ContemplacaoService {
     public ContemplacaoResponseDTO registrar(ContemplacaoRequestDTO dto) {
         // 1. Buscas de Integridade
         Assembleia assembleia = assembleiaRepository.findById(dto.assembleiaId())
-                .orElseThrow(() -> new RuntimeException("Assembleia não encontrada."));
+                .orElseThrow(() -> new RegraDeNegocioException("Assembleia não encontrada."));
 
         Cota cota = cotaRepository.findById(dto.cotaId())
-                .orElseThrow(() -> new RuntimeException("Cota não encontrada."));
+                .orElseThrow(() -> new RegraDeNegocioException("Cota não encontrada."));
 
         if (!cota.getGrupo().getId().equals(assembleia.getGrupo().getId())) {
-            throw new RuntimeException("A cota e a assembleia pertencem a grupos diferentes.");
+            throw new RegraDeNegocioException("A cota e a assembleia pertencem a grupos diferentes.");
         }
 
         if (cota.getStatus() != StatusCota.ATIVA) {
-            throw new RuntimeException("Apenas cotas com status ATIVA podem ser contempladas.");
+            throw new RegraDeNegocioException("Apenas cotas com status ATIVA podem ser contempladas.");
         }
 
         // 2. Mapeamento inicial
@@ -62,13 +63,13 @@ public class ContemplacaoService {
         if (Boolean.TRUE.equals(contemplacao.getLanceEmbutido())) {
 
             if (contemplacao.getValorLance() == null || contemplacao.getValorLance().compareTo(BigDecimal.ZERO) <= 0) {
-                throw new RuntimeException("Para lances embutidos, o valor do lance deve ser informado.");
+                throw new RegraDeNegocioException("Para lances embutidos, o valor do lance deve ser informado.");
             }
 
             BigDecimal limiteEmbutido = valorCreditoGrupo.multiply(new BigDecimal("0.30")).setScale(2, RoundingMode.HALF_UP);
 
             if (contemplacao.getValorLance().compareTo(limiteEmbutido) > 0) {
-                throw new RuntimeException("O valor do lance embutido não pode ultrapassar 30% do crédito (Máximo permitido: R$ " + limiteEmbutido + ").");
+                throw new RegraDeNegocioException("O valor do lance embutido não pode ultrapassar 30% do crédito (Máximo permitido: R$ " + limiteEmbutido + ").");
             }
 
             valorCreditoLiberado = valorCreditoGrupo.subtract(contemplacao.getValorLance());
@@ -84,7 +85,7 @@ public class ContemplacaoService {
         );
 
         if (saldoFundoComum.compareTo(valorCreditoLiberado) < 0) {
-            throw new RuntimeException("REGRA BCB: Saldo insuficiente no Fundo Comum do grupo. Saldo atual: R$ "
+            throw new RegraDeNegocioException("REGRA BCB: Saldo insuficiente no Fundo Comum do grupo. Saldo atual: R$ "
                     + saldoFundoComum + " | Necessário para liberação: R$ " + valorCreditoLiberado);
         }
         // -------------------------------------------------------- //

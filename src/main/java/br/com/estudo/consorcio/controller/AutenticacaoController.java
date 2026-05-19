@@ -5,6 +5,7 @@ import br.com.estudo.consorcio.domain.dto.DadosTokenJWT;
 import br.com.estudo.consorcio.domain.model.Usuario;
 import br.com.estudo.consorcio.service.TokenService;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -24,7 +25,7 @@ public class AutenticacaoController {
     }
 
     @PostMapping
-    public ResponseEntity<DadosTokenJWT> efetuarLogin(@RequestBody DadosAutenticacao dados) {
+    public ResponseEntity<DadosTokenJWT> efetuarLogin(@Valid @RequestBody DadosAutenticacao dados) {
         var authenticationToken = new UsernamePasswordAuthenticationToken(dados.login(), dados.senha());
 
         // O Spring Security vai pegar esse token, ir no AutenticacaoService, buscar no banco e comparar as senhas (Hashes)

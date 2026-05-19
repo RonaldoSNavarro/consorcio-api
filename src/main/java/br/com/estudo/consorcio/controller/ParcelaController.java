@@ -5,6 +5,7 @@ import br.com.estudo.consorcio.domain.dto.ParcelaResponseDTO;
 import br.com.estudo.consorcio.service.ParcelaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,7 +27,7 @@ public class ParcelaController {
 
     @Operation(summary = "Gerar nova parcela", description = "Cria um novo registro de cobrança vinculando apenas ao ID da cota.")
     @PostMapping
-    public ResponseEntity<ParcelaResponseDTO> cadastrar(@RequestBody ParcelaRequestDTO dto) {
+    public ResponseEntity<ParcelaResponseDTO> cadastrar(@Valid @RequestBody ParcelaRequestDTO dto) {
         ParcelaResponseDTO parcelaSalva = service.salvar(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(parcelaSalva);
     }

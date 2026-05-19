@@ -5,6 +5,7 @@ import br.com.estudo.consorcio.domain.dto.ContemplacaoResponseDTO;
 import br.com.estudo.consorcio.service.ContemplacaoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +26,7 @@ public class ContemplacaoController {
     @Operation(summary = "Registra uma nova contemplação",
             description = "Processa sorteios e lances. Valida regras do Banco Central, incluindo trava de saldo do Fundo Comum e limite máximo de 30% para lances embutidos.")
     @PostMapping
-    public ResponseEntity<ContemplacaoResponseDTO> registrar(@RequestBody ContemplacaoRequestDTO dto) {
+    public ResponseEntity<ContemplacaoResponseDTO> registrar(@Valid @RequestBody ContemplacaoRequestDTO dto) {
         ContemplacaoResponseDTO salva = service.registrar(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(salva);
     }

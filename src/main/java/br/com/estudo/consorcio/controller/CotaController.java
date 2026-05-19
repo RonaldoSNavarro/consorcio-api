@@ -5,6 +5,7 @@ import br.com.estudo.consorcio.domain.dto.CotaResponseDTO;
 import br.com.estudo.consorcio.service.CotaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +25,7 @@ public class CotaController {
 
     @Operation(summary = "Cadastrar cota", description = "Vincula um cliente a um grupo específico, gerando um número de cota único e definindo o status inicial como 'ATIVA'.")
     @PostMapping
-    public ResponseEntity<CotaResponseDTO> cadastrar(@RequestBody CotaRequestDTO dto) {
+    public ResponseEntity<CotaResponseDTO> cadastrar(@Valid @RequestBody CotaRequestDTO dto) {
         CotaResponseDTO cotaSalva = service.salvar(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(cotaSalva);
     }

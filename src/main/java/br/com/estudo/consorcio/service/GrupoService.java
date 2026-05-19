@@ -5,6 +5,7 @@ import br.com.estudo.consorcio.domain.dto.GrupoResponseDTO;
 import br.com.estudo.consorcio.domain.model.Grupo;
 import br.com.estudo.consorcio.domain.model.StatusGrupo;
 import br.com.estudo.consorcio.domain.repository.GrupoRepository;
+import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,10 +43,10 @@ public class GrupoService {
     @Transactional
     public GrupoResponseDTO inaugurar(Long id, LocalDate dataAssembleia) {
         Grupo grupo = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Grupo não encontrado."));
+                .orElseThrow(() -> new RegraDeNegocioException("Grupo não encontrado."));
 
         if (grupo.getStatus() != StatusGrupo.EM_FORMACAO) {
-            throw new RuntimeException("Apenas grupos em formação podem ser inaugurados.");
+            throw new RegraDeNegocioException("Apenas grupos em formação podem ser inaugurados.");
         }
 
         // Regra BCB: O grupo é inaugurado na data da 1ª Assembleia Geral Ordinária (AGO)

@@ -4,6 +4,8 @@ import br.com.estudo.consorcio.domain.dto.ClienteRequestDTO;
 import br.com.estudo.consorcio.domain.dto.ClienteResponseDTO;
 import br.com.estudo.consorcio.domain.model.Cliente;
 import br.com.estudo.consorcio.domain.repository.ClienteRepository;
+import br.com.estudo.consorcio.exception.RegraDeNegocioException;
+import com.auth0.jwt.exceptions.JWTCreationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,11 +24,11 @@ public class ClienteService {
     public ClienteResponseDTO salvar(ClienteRequestDTO dto) {
         // 1. Validações de Negócio (Usando os dados do DTO)
         if (repository.findByCpfCnpj(dto.cpfCnpj()).isPresent()) {
-            throw new RuntimeException("Já existe um cliente cadastrado com este CPF/CNPJ.");
+            throw new RegraDeNegocioException("Já existe um cliente cadastrado com este CPF/CNPJ.");
         }
 
         if (repository.findByEmail(dto.email()).isPresent()) {
-            throw new RuntimeException("Já existe um cliente cadastrado com este e-mail.");
+            throw new RegraDeNegocioException("Já existe um cliente cadastrado com este e-mail.");
         }
 
         // 2. Mapeamento Manual: DTO -> Entidade
