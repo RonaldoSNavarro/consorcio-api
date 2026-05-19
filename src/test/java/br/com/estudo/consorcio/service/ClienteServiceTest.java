@@ -100,7 +100,7 @@ class ClienteServiceTest {
         when(repository.findAll()).thenReturn(List.of(c1, c2));
 
         // --- ACT ---
-        List<ClienteResponseDTO> resultado = service.listarTodos();
+        List<ClienteResponseDTO> resultado = service.listarTodos(pageable);
 
         // --- ASSERT ---
         assertEquals(2, resultado.size());

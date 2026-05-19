@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -90,7 +92,8 @@ class ClienteControllerTest {
         ClienteResponseDTO cliente1 = new ClienteResponseDTO(1L, "Ronaldo", "ronaldo@email.com", LocalDateTime.now());
         ClienteResponseDTO cliente2 = new ClienteResponseDTO(2L, "Maria", "maria@email.com", LocalDateTime.now());
 
-        when(clienteService.listarTodos()).thenReturn(List.of(cliente1, cliente2));
+        Pageable pageable = null;
+        when(clienteService.listarTodos(pageable)).thenReturn((Page<ClienteResponseDTO>) List.of(cliente1, cliente2));
 
         // Act & Assert
         mockMvc.perform(get("/api/clientes"))
