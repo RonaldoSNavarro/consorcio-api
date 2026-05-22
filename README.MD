@@ -40,13 +40,36 @@ A proteção dos recursos financeiros é garantida via **Bearer Token**:
 
 ## 🧩 Regras de Negócio e Motores Financeiros
 
-* **Motor de Contemplação:** Validação de saldo em caixa (Fundo Comum) e trava de **Lance Embutido** (limitado a 30% do crédito).
-* **Gestão de Inadimplência:** Cálculo automático de multa (2%) e juros de mora pro-rata die (1% ao mês).
-* **Mutabilidade Cadastral Restrita:** Bloqueio de alteração de documentos de identificação (CPF/CNPJ) pós-cadastro, baseado na Lei do Consórcio (Lei 11.795/2008).
-* **Validação de Status Operacional:** Restrições rígidas baseadas no status de atividade do cliente (ex: inativação lógica impede novas operações).
-* **Algoritmos de Amortização:**
-    * **Redução de Prazo:** Quitação de parcelas de trás para frente.
-    * **Diluição de Valor:** Reequilíbrio do saldo devedor com tratamento matemático da **Regra do Centavo Perdido** (ajuste de resíduos de dízimas na última parcela).
+O sistema implementa regras de negócio financeiras extremamente robustas baseadas na **Lei 11.795/2008**, **Circulares BCB 3.432/2009 e 285/2022**, além do **Código de Defesa do Consumidor (CDC)** e da **LGPD**:
+
+### 1. Motor de Contemplação e Lances
+* **Verificação de Saldo de Caixa:** O Fundo Comum do grupo é validado antes de qualquer liberação de crédito, assegurando que o caixa arrecadado (`PAGA`) possua recursos suficientes.
+* **Lance Embutido Dinâmico:** Limite parametrizado diretamente no grupo (ex: máximo de 30% do valor do crédito) que desconta o lance ofertado diretamente do crédito a ser liberado.
+* **Bloqueio por Inadimplência:** Cotas com qualquer parcela pendente em atraso são sumariamente barradas do sorteio ou lances nas Assembleias Ordinárias.
+
+### 2. Bens, Créditos e Reajuste Proporcional
+* **Reajuste de Crédito Ativo:** Através do endpoint `PUT /api/grupos/{id}/reajuste`, o administrador pode atualizar o valor de crédito do grupo de consórcio.
+* **Rateio de Parcelas em Aberto:** O sistema calcula dinamicamente a variação do crédito e reajusta de forma idêntica e proporcional o `valorFundoComum` de todas as parcelas pendentes (`PENDENTE` ou `ATRASADA`), garantindo que o saldo arrecadado acompanhe a valorização do bem de referência.
+
+### 3. Consolidação Financeira e Encerramento de Grupos
+* **Relatório Financeiro Unificado:** O endpoint `GET /api/grupos/{id}/financeiro` calcula de forma agregada a saúde contábil do grupo:
+  * **Fundo Comum Arrecadado** e **Saldo Disponível do Fundo Comum** (descontando créditos já pagos).
+  * **Taxa de Administração Arrecadada** e **Fundo de Reserva Arrecadado/Disponível**.
+* **Encerramento Seguro (Compliance BCB):** O endpoint `POST /api/grupos/{id}/encerrar` impede o encerramento contábil se houver qualquer parcela em aberto (`PENDENTE` ou `ATRASADA`), assegurando quitação absoluta de passivos e ativos.
+
+### 4. Gestão de Inadimplência e Cobrança
+* **Cálculo de Penalidades Legais (Circular 3432 & CDC):** Parcelas pagas após a data de vencimento incorporam automaticamente:
+  * **Multa de 2.00%** (limite do CDC) calculada sobre o valor total da parcela.
+  * **Juros de mora pro-rata die de 1.00% ao mês** calculados diariamente com base nos dias exatos de atraso.
+* **Relatório de Débitos da Cota:** O endpoint `GET /api/cotas/{id}/inadimplencia` detalha o histórico, quantidade de atrasos, juros acumulados, multa e o saldo devedor exato de uma cota.
+
+### 5. Cotas Excluídas (Desistentes e Cancelados)
+* **Inativação e Exclusão Segura:** Através de `POST /api/cotas/{id}/cancelar`, a cota é desativada (status `CANCELADA`) e todas as suas parcelas pendentes em aberto são sumariamente excluídas para evitar falsas projeções de arrecadação.
+* **Reembolso Rescisório com Cláusula Penal (10%):** O endpoint `POST /api/cotas/{id}/reembolsar` calcula a restituição dos valores pagos ao Fundo Comum pelo consorciado excluído, retendo uma **multa rescisória de 10%** (cláusula penal) em conformidade com as jurisprudências e regulamentações do BCB.
+
+### 6. Algoritmos de Amortização
+* **Redução de Prazo:** Abate o saldo devedor quitando parcelas de trás para frente (da última parcela retroagindo).
+* **Diluição de Valor:** Distribui uniformemente o valor amortizado pelas parcelas pendentes. O motor utiliza a **Regra do Centavo Perdido** para reabsorver discrepâncias e arredondamentos de dízimas na última parcela.
 
 ## ⚙️ Configuração e Setup
 

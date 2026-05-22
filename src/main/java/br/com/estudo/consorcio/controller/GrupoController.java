@@ -1,5 +1,6 @@
 package br.com.estudo.consorcio.controller;
 
+import br.com.estudo.consorcio.domain.dto.GrupoFinanceiroResponseDTO;
 import br.com.estudo.consorcio.domain.dto.GrupoRequestDTO;
 import br.com.estudo.consorcio.domain.dto.GrupoResponseDTO;
 import br.com.estudo.consorcio.service.GrupoService;
@@ -10,12 +11,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/grupos")
-@Tag(name = "Grupos", description = "Administração das regras financeiras, prazos, taxas e inauguração de novos grupos de consórcio.")
+@Tag(name = "Grupos", description = "Administração das regras financeiras, prazos, taxas, reajustes e encerramento de grupos de consórcio.")
 public class GrupoController {
 
     private final GrupoService service;
@@ -42,5 +44,25 @@ public class GrupoController {
     public ResponseEntity<GrupoResponseDTO> inaugurar(@PathVariable Long id, @RequestParam LocalDate dataAssembleia) {
         GrupoResponseDTO grupoInaugurado = service.inaugurar(id, dataAssembleia);
         return ResponseEntity.ok(grupoInaugurado);
+    }
+
+    @Operation(summary = "Reajustar valor do crédito", description = "Atualiza o valor do crédito do grupo e reajusta todas as parcelas em aberto proporcionalmente.")
+    @PutMapping("/{id}/reajuste")
+    public ResponseEntity<GrupoResponseDTO> reajustar(@PathVariable Long id, @RequestParam BigDecimal novoValorCredito) {
+        GrupoResponseDTO grupoReajustado = service.reajustarGrupo(id, novoValorCredito);
+        return ResponseEntity.ok(grupoReajustado);
+    }
+
+    @Operation(summary = "Relatório financeiro do grupo", description = "Consolida a arrecadação de Fundo Comum, Fundo de Reserva, Taxa de Administração e créditos já pagos.")
+    @GetMapping("/{id}/financeiro")
+    public ResponseEntity<GrupoFinanceiroResponseDTO> obterFinanceiro(@PathVariable Long id) {
+        return ResponseEntity.ok(service.obterRelatorioFinanceiro(id));
+    }
+
+    @Operation(summary = "Encerrar grupo", description = "Encerra as atividades do grupo de consórcio caso todas as obrigações financeiras de todas as cotas tenham sido quitadas.")
+    @PostMapping("/{id}/encerrar")
+    public ResponseEntity<GrupoResponseDTO> encerrar(@PathVariable Long id) {
+        GrupoResponseDTO grupoEncerrado = service.encerrarGrupo(id);
+        return ResponseEntity.ok(grupoEncerrado);
     }
 }

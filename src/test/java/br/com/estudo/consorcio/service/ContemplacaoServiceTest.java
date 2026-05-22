@@ -1,11 +1,13 @@
 package br.com.estudo.consorcio.service;
 
 import br.com.estudo.consorcio.domain.dto.ContemplacaoRequestDTO;
+import br.com.estudo.consorcio.domain.dto.ContemplacaoResponseDTO;
 import br.com.estudo.consorcio.domain.model.*;
 import br.com.estudo.consorcio.domain.repository.AssembleiaRepository;
 import br.com.estudo.consorcio.domain.repository.ContemplacaoRepository;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
+import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -53,11 +56,13 @@ class ContemplacaoServiceTest {
         Grupo grupo = new Grupo();
         grupo.setId(10L);
         grupo.setValorCredito(new BigDecimal("100000.00"));
+        grupo.setPercentualLanceEmbutidoMaximo(new BigDecimal("0.30"));
 
         // 2. Vinculamos a assembleia ao grupo
         Assembleia assembleia = new Assembleia();
         assembleia.setId(idAssembleia);
         assembleia.setGrupo(grupo);
+        assembleia.setDataAssembleia(LocalDate.now());
 
         // 3. Vinculamos a cota ao mesmo grupo
         Cota cota = new Cota();
@@ -78,9 +83,9 @@ class ContemplacaoServiceTest {
         // 5. Ensinamos o Mockito a devolver nossos objetos quando procurados
         when(assembleiaRepository.findById(idAssembleia)).thenReturn(Optional.of(assembleia));
         when(cotaRepository.findById(idCota)).thenReturn(Optional.of(cota));
+        when(parcelaRepository.existsByCotaIdAndStatusAndDataVencimentoBefore(eq(idCota), eq(StatusParcela.PENDENTE), any())).thenReturn(false);
 
         // --- ACT & ASSERT ---
-        // Aqui testamos se a nossa exceção realmente vai "estourar"
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
             service.registrar(requestMalicioso);
         });
@@ -109,6 +114,7 @@ class ContemplacaoServiceTest {
         Assembleia assembleia = new Assembleia();
         assembleia.setId(idAssembleia);
         assembleia.setGrupo(grupo);
+        assembleia.setDataAssembleia(LocalDate.now());
 
         Cota cota = new Cota();
         cota.setId(idCota);
@@ -126,6 +132,7 @@ class ContemplacaoServiceTest {
 
         when(assembleiaRepository.findById(idAssembleia)).thenReturn(Optional.of(assembleia));
         when(cotaRepository.findById(idCota)).thenReturn(Optional.of(cota));
+        when(parcelaRepository.existsByCotaIdAndStatusAndDataVencimentoBefore(eq(idCota), eq(StatusParcela.PENDENTE), any())).thenReturn(false);
 
         // A MÁGICA ACONTECE AQUI: Simulamos que o grupo só tem 10.000 em caixa (insuficiente para os 50k)
         when(parcelaRepository.somarFundoComumPorGrupoEStatus(idGrupo, StatusParcela.PAGA))
@@ -158,6 +165,7 @@ class ContemplacaoServiceTest {
         Assembleia assembleia = new Assembleia();
         assembleia.setId(idAssembleia);
         assembleia.setGrupo(grupo);
+        assembleia.setDataAssembleia(LocalDate.now());
 
         Cota cota = new Cota();
         cota.setId(idCota);
@@ -170,6 +178,7 @@ class ContemplacaoServiceTest {
 
         when(assembleiaRepository.findById(idAssembleia)).thenReturn(Optional.of(assembleia));
         when(cotaRepository.findById(idCota)).thenReturn(Optional.of(cota));
+        when(parcelaRepository.existsByCotaIdAndStatusAndDataVencimentoBefore(eq(idCota), eq(StatusParcela.PENDENTE), any())).thenReturn(false);
 
         // Simulamos que o grupo tem dinheiro de sobra (100.000 em caixa)
         when(parcelaRepository.somarFundoComumPorGrupoEStatus(idGrupo, StatusParcela.PAGA))
@@ -186,5 +195,46 @@ class ContemplacaoServiceTest {
         assertEquals(new BigDecimal("50000.00"), resultado.valorCreditoLiberado());
         assertEquals(StatusCota.CONTEMPLADA, cota.getStatus()); // Verifica se a cota mudou de estado
         verify(contemplacaoRepository, times(1)).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve barrar contemplação se a cota possuir parcelas vencidas em atraso")
+    void deveBarrarContemplacaoPorInadimplencia() {
+        // --- ARRANGE ---
+        Long idCota = 1L;
+        Long idAssembleia = 2L;
+        Long idGrupo = 10L;
+
+        Grupo grupo = new Grupo();
+        grupo.setId(idGrupo);
+        grupo.setValorCredito(new BigDecimal("50000.00"));
+
+        Assembleia assembleia = new Assembleia();
+        assembleia.setId(idAssembleia);
+        assembleia.setGrupo(grupo);
+        assembleia.setDataAssembleia(LocalDate.now());
+
+        Cota cota = new Cota();
+        cota.setId(idCota);
+        cota.setGrupo(grupo);
+        cota.setStatus(StatusCota.ATIVA);
+
+        ContemplacaoRequestDTO request = new ContemplacaoRequestDTO(
+                idCota, idAssembleia, TipoContemplacao.SORTEIO, null, false
+        );
+
+        when(assembleiaRepository.findById(idAssembleia)).thenReturn(Optional.of(assembleia));
+        when(cotaRepository.findById(idCota)).thenReturn(Optional.of(cota));
+        // MÁGICA: Cota está com parcelas atrasadas!
+        when(parcelaRepository.existsByCotaIdAndStatusAndDataVencimentoBefore(eq(idCota), eq(StatusParcela.PENDENTE), eq(assembleia.getDataAssembleia())))
+                .thenReturn(true);
+
+        // --- ACT & ASSERT ---
+        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class, () -> {
+            service.registrar(request);
+        });
+
+        assertEquals("Não é possível contemplar a cota: existem parcelas em atraso.", exception.getMessage());
+        verify(contemplacaoRepository, never()).save(any());
     }
 }

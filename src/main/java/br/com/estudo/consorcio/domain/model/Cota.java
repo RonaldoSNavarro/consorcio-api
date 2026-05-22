@@ -3,6 +3,7 @@ package br.com.estudo.consorcio.domain.model;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "cotas")
@@ -35,10 +36,22 @@ public class Cota {
     @Column(nullable = false)
     private StatusCota status;
 
+    @Column(name = "valor_reembolsado", precision = 15, scale = 2)
+    private BigDecimal valorReembolsado = BigDecimal.ZERO;
+
+    @Column(nullable = false)
+    private Boolean reembolsada = false;
+
     @PrePersist
     protected void onCreate() {
         if (this.status == null) {
             this.status = StatusCota.ATIVA;
+        }
+        if (this.valorReembolsado == null) {
+            this.valorReembolsado = BigDecimal.ZERO;
+        }
+        if (this.reembolsada == null) {
+            this.reembolsada = false;
         }
     }
 }

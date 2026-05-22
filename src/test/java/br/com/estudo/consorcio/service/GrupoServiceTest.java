@@ -1,10 +1,16 @@
 package br.com.estudo.consorcio.service;
 
+import br.com.estudo.consorcio.domain.dto.GrupoFinanceiroResponseDTO;
 import br.com.estudo.consorcio.domain.dto.GrupoRequestDTO;
 import br.com.estudo.consorcio.domain.dto.GrupoResponseDTO;
 import br.com.estudo.consorcio.domain.model.Grupo;
+import br.com.estudo.consorcio.domain.model.Parcela;
 import br.com.estudo.consorcio.domain.model.StatusGrupo;
+import br.com.estudo.consorcio.domain.model.StatusParcela;
+import br.com.estudo.consorcio.domain.repository.ContemplacaoRepository;
 import br.com.estudo.consorcio.domain.repository.GrupoRepository;
+import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
+import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +32,12 @@ class GrupoServiceTest {
 
     @Mock
     private GrupoRepository repository;
+
+    @Mock
+    private ParcelaRepository parcelaRepository;
+
+    @Mock
+    private ContemplacaoRepository contemplacaoRepository;
 
     @org.mockito.Spy
     private br.com.estudo.consorcio.domain.mapper.GrupoMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.GrupoMapper.class);
@@ -135,5 +147,160 @@ class GrupoServiceTest {
         assertEquals("G-01", lista.get(0).codigo());
         assertEquals("G-02", lista.get(1).codigo());
         verify(repository, times(1)).findAll();
+    }
+
+    @Test
+    @DisplayName("Deve reajustar grupo com sucesso recalculando o valorFundoComum das parcelas pendentes e atrasadas")
+    void deveReajustarGrupoComSucesso() {
+        // --- ARRANGE ---
+        Long grupoId = 1L;
+        BigDecimal antigoValorCredito = new BigDecimal("100000.00");
+        BigDecimal novoValorCredito = new BigDecimal("110000.00");
+
+        Grupo grupo = new Grupo();
+        grupo.setId(grupoId);
+        grupo.setValorCredito(antigoValorCredito);
+        grupo.setStatus(StatusGrupo.EM_ANDAMENTO);
+
+        Parcela p1 = new Parcela();
+        p1.setStatus(StatusParcela.PENDENTE);
+        p1.setValorFundoComum(new BigDecimal("1000.00"));
+
+        Parcela p2 = new Parcela();
+        p2.setStatus(StatusParcela.ATRASADA);
+        p2.setValorFundoComum(new BigDecimal("1000.00"));
+
+        List<Parcela> parcelas = List.of(p1, p2);
+
+        when(repository.findById(grupoId)).thenReturn(Optional.of(grupo));
+        when(repository.save(any(Grupo.class))).thenAnswer(i -> i.getArgument(0));
+        when(parcelaRepository.findByCotaGrupoIdAndStatusIn(eq(grupoId), anyList())).thenReturn(parcelas);
+
+        // --- ACT ---
+        GrupoResponseDTO response = service.reajustarGrupo(grupoId, novoValorCredito);
+
+        // --- ASSERT ---
+        assertNotNull(response);
+        assertEquals(novoValorCredito, grupo.getValorCredito());
+        // Fator de reajuste: 110000 / 100000 = 1.10
+        // Novo fundo comum: 1000 * 1.10 = 1100.00
+        assertEquals(new BigDecimal("1100.00"), p1.getValorFundoComum());
+        assertEquals(new BigDecimal("1100.00"), p2.getValorFundoComum());
+
+        verify(repository, times(1)).save(grupo);
+        verify(parcelaRepository, times(1)).saveAll(parcelas);
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção ao reajustar grupo inexistente")
+    void deveLancarExcecaoAoReajustarGrupoInexistente() {
+        Long grupoId = 99L;
+        when(repository.findById(grupoId)).thenReturn(Optional.empty());
+
+        assertThrows(RegraDeNegocioException.class, () -> service.reajustarGrupo(grupoId, new BigDecimal("120000.00")));
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção ao reajustar grupo encerrado")
+    void deveLancarExcecaoAoReajustarGrupoEncerrado() {
+        Long grupoId = 1L;
+        Grupo grupo = new Grupo();
+        grupo.setId(grupoId);
+        grupo.setStatus(StatusGrupo.ENCERRADO);
+
+        when(repository.findById(grupoId)).thenReturn(Optional.of(grupo));
+
+        assertThrows(RegraDeNegocioException.class, () -> service.reajustarGrupo(grupoId, new BigDecimal("120000.00")));
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve retornar o grupo sem reajustar se o valor for idêntico")
+    void deveRetornarGrupoSemReajusteSeValorForIdentico() {
+        Long grupoId = 1L;
+        BigDecimal valor = new BigDecimal("100000.00");
+        Grupo grupo = new Grupo();
+        grupo.setId(grupoId);
+        grupo.setValorCredito(valor);
+        grupo.setStatus(StatusGrupo.EM_ANDAMENTO);
+
+        when(repository.findById(grupoId)).thenReturn(Optional.of(grupo));
+
+        var response = service.reajustarGrupo(grupoId, valor);
+
+        assertNotNull(response);
+        verify(repository, never()).save(any());
+        verify(parcelaRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("Deve obter relatório financeiro consolidando parcelas pagas e contemplações")
+    void deveObterRelatorioFinanceiroComSucesso() {
+        // --- ARRANGE ---
+        Long grupoId = 1L;
+        Grupo grupo = new Grupo();
+        grupo.setId(grupoId);
+        grupo.setCodigo("GRP-001");
+
+        when(repository.findById(grupoId)).thenReturn(Optional.of(grupo));
+        when(parcelaRepository.somarFundoComumPorGrupoEStatus(grupoId, StatusParcela.PAGA)).thenReturn(new BigDecimal("50000.00"));
+        when(parcelaRepository.somarTaxaAdministracaoPorGrupoEStatus(grupoId, StatusParcela.PAGA)).thenReturn(new BigDecimal("7500.00"));
+        when(parcelaRepository.somarFundoReservaPorGrupoEStatus(grupoId, StatusParcela.PAGA)).thenReturn(new BigDecimal("2500.00"));
+        when(contemplacaoRepository.somarCreditosLiberadosPorGrupo(grupoId)).thenReturn(new BigDecimal("40000.00"));
+
+        // --- ACT ---
+        GrupoFinanceiroResponseDTO relatorio = service.obterRelatorioFinanceiro(grupoId);
+
+        // --- ASSERT ---
+        assertNotNull(relatorio);
+        assertEquals(grupoId, relatorio.grupoId());
+        assertEquals("GRP-001", relatorio.codigoGrupo());
+        assertEquals(new BigDecimal("50000.00"), relatorio.totalFundoComumArrecadado());
+        assertEquals(new BigDecimal("7500.00"), relatorio.totalTaxaAdministracaoArrecadada());
+        assertEquals(new BigDecimal("2500.00"), relatorio.totalFundoReservaArrecadado());
+        assertEquals(new BigDecimal("40000.00"), relatorio.totalCreditosLiberados());
+        assertEquals(new BigDecimal("10000.00"), relatorio.saldoDisponivelFundoComum()); // 50000 - 40000 = 10000
+        assertEquals(new BigDecimal("2500.00"), relatorio.saldoDisponivelFundoReserva());
+    }
+
+    @Test
+    @DisplayName("Deve encerrar grupo com sucesso quando não há parcelas em aberto")
+    void deveEncerrarGrupoComSucesso() {
+        // --- ARRANGE ---
+        Long grupoId = 1L;
+        Grupo grupo = new Grupo();
+        grupo.setId(grupoId);
+        grupo.setStatus(StatusGrupo.EM_ANDAMENTO);
+
+        when(repository.findById(grupoId)).thenReturn(Optional.of(grupo));
+        when(parcelaRepository.countByCotaGrupoIdAndStatusIn(eq(grupoId), anyList())).thenReturn(0L);
+        when(repository.save(any(Grupo.class))).thenAnswer(i -> i.getArgument(0));
+
+        // --- ACT ---
+        GrupoResponseDTO response = service.encerrarGrupo(grupoId);
+
+        // --- ASSERT ---
+        assertNotNull(response);
+        assertEquals(StatusGrupo.ENCERRADO, response.status());
+        verify(repository, times(1)).save(grupo);
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção ao tentar encerrar grupo com parcelas em aberto")
+    void deveLancarExcecaoAoEncerrarGrupoComParcelasEmAberto() {
+        // --- ARRANGE ---
+        Long grupoId = 1L;
+        Grupo grupo = new Grupo();
+        grupo.setId(grupoId);
+        grupo.setStatus(StatusGrupo.EM_ANDAMENTO);
+
+        when(repository.findById(grupoId)).thenReturn(Optional.of(grupo));
+        // Simulamos que existem 2 parcelas em aberto
+        when(parcelaRepository.countByCotaGrupoIdAndStatusIn(eq(grupoId), anyList())).thenReturn(2L);
+
+        // --- ACT & ASSERT ---
+        assertThrows(RegraDeNegocioException.class, () -> service.encerrarGrupo(grupoId));
+        verify(repository, never()).save(any());
     }
 }

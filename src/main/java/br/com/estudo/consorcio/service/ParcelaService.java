@@ -1,8 +1,9 @@
 package br.com.estudo.consorcio.service;
 
+import br.com.estudo.consorcio.domain.dto.CotaInadimplenciaResponseDTO;
 import br.com.estudo.consorcio.domain.dto.ParcelaRequestDTO;
 import br.com.estudo.consorcio.domain.dto.ParcelaResponseDTO;
-import br.com.estudo.consorcio.domain.mapper.ParcelaMapper; // Importar o mapper
+import br.com.estudo.consorcio.domain.mapper.ParcelaMapper;
 import br.com.estudo.consorcio.domain.model.Cota;
 import br.com.estudo.consorcio.domain.model.Parcela;
 import br.com.estudo.consorcio.domain.model.StatusParcela;
@@ -138,5 +139,67 @@ public class ParcelaService {
                 .toList();
     }
 
-    // O método auxiliar converterParaResponseDTO foi removido, pois o mapper faz esse trabalho.
+    @Transactional(readOnly = true)
+    public CotaInadimplenciaResponseDTO obterInadimplenciaCota(Long cotaId) {
+        Cota cota = cotaRepository.findById(cotaId)
+                .orElseThrow(() -> new RegraDeNegocioException("Cota não encontrada."));
+
+        List<Parcela> todas = parcelaRepository.findByCotaId(cotaId);
+        List<Parcela> atrasadas = todas.stream()
+                .filter(p -> p.getStatus() == StatusParcela.PENDENTE && p.getDataVencimento().isBefore(LocalDate.now()))
+                .toList();
+
+        if (atrasadas.isEmpty()) {
+            return new CotaInadimplenciaResponseDTO(
+                    cotaId,
+                    cota.getNumeroCota(),
+                    false,
+                    0,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    List.of()
+            );
+        }
+
+        BigDecimal valorOriginalTotal = BigDecimal.ZERO;
+        BigDecimal multaTotal = BigDecimal.ZERO;
+        BigDecimal jurosTotal = BigDecimal.ZERO;
+
+        java.util.List<ParcelaResponseDTO> detalheDtos = new java.util.ArrayList<>();
+
+        for (Parcela p : atrasadas) {
+            long dias = ChronoUnit.DAYS.between(p.getDataVencimento(), LocalDate.now());
+            BigDecimal m = p.getValorParcela().multiply(new BigDecimal("0.02")).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal taxaMensal = new BigDecimal("0.01");
+            BigDecimal taxaDiaria = taxaMensal.divide(new BigDecimal("30"), 10, RoundingMode.HALF_UP);
+            BigDecimal j = p.getValorParcela().multiply(taxaDiaria).multiply(new BigDecimal(dias)).setScale(2, RoundingMode.HALF_UP);
+
+            valorOriginalTotal = valorOriginalTotal.add(p.getValorParcela());
+            multaTotal = multaTotal.add(m);
+            jurosTotal = jurosTotal.add(j);
+
+            // Modifica temporariamente a parcela para mapeamento elegante
+            p.setValorMulta(m);
+            p.setValorJuros(j);
+            p.setValorPago(p.getValorParcela().add(m).add(j));
+
+            detalheDtos.add(mapper.toResponse(p));
+        }
+
+        BigDecimal saldoDevedor = valorOriginalTotal.add(multaTotal).add(jurosTotal);
+
+        return new CotaInadimplenciaResponseDTO(
+                cotaId,
+                cota.getNumeroCota(),
+                true,
+                atrasadas.size(),
+                valorOriginalTotal,
+                multaTotal,
+                jurosTotal,
+                saldoDevedor,
+                detalheDtos
+        );
+    }
 }

@@ -51,6 +51,16 @@ public class ContemplacaoService {
             throw new RegraDeNegocioException("Apenas cotas com status ATIVA podem ser contempladas.");
         }
 
+        // Regra de Compliance Inadimplência: Bloquear contemplação se a cota possuir parcelas vencidas
+        boolean possuiParcelasVencidas = parcelaRepository.existsByCotaIdAndStatusAndDataVencimentoBefore(
+                cota.getId(),
+                StatusParcela.PENDENTE,
+                assembleia.getDataAssembleia()
+        );
+        if (possuiParcelasVencidas) {
+            throw new RegraDeNegocioException("Não é possível contemplar a cota: existem parcelas em atraso.");
+        }
+
         // 2. Mapeamento inicial usando o mapper
         Contemplacao contemplacao = mapper.toEntity(dto);
         contemplacao.setAssembleia(assembleia); // Setar a assembleia após a busca

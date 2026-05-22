@@ -1,23 +1,24 @@
 package br.com.estudo.consorcio.service;
 
+import br.com.estudo.consorcio.domain.dto.CotaReembolsoResponseDTO;
 import br.com.estudo.consorcio.domain.dto.CotaRequestDTO;
 import br.com.estudo.consorcio.domain.dto.CotaResponseDTO;
-import br.com.estudo.consorcio.domain.model.Cliente;
-import br.com.estudo.consorcio.domain.model.Cota;
-import br.com.estudo.consorcio.domain.model.Grupo;
-import br.com.estudo.consorcio.domain.model.StatusCliente;
-import br.com.estudo.consorcio.domain.model.StatusCota;
+import br.com.estudo.consorcio.domain.model.*;
 import br.com.estudo.consorcio.domain.repository.ClienteRepository;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.GrupoRepository;
+import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
 import br.com.estudo.consorcio.exception.ClienteInativoException;
+import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,6 +35,8 @@ class CotaServiceTest {
     private ClienteRepository clienteRepository;
     @Mock
     private GrupoRepository grupoRepository;
+    @Mock
+    private ParcelaRepository parcelaRepository;
 
     @org.mockito.Spy
     private br.com.estudo.consorcio.domain.mapper.CotaMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.CotaMapper.class);
@@ -87,26 +90,19 @@ class CotaServiceTest {
     @DisplayName("Deve lançar exceção ao tentar salvar cota para um grupo inexistente")
     void deveLancarExcecaoGrupoNaoEncontrado() {
         // --- ARRANGE ---
-        // Solicitamos a compra para o Cliente 1 no Grupo 99 (que não existe)
         CotaRequestDTO request = new CotaRequestDTO(15, 1L, 99L);
 
         Cliente cliente = new Cliente();
         cliente.setId(1L);
         cliente.setStatus(StatusCliente.ATIVO);
 
-        // Ensinamos o Mockito: O cliente existe e passa pela primeira validação
         when(clienteRepository.findById(1L)).thenReturn(Optional.of(cliente));
-
-        // Mas a segunda validação falha porque o grupo não existe
         when(grupoRepository.findById(99L)).thenReturn(Optional.empty());
 
         // --- ACT & ASSERT ---
         RuntimeException exception = assertThrows(RuntimeException.class, () -> service.salvar(request));
 
-        // Verificamos se ele estourou o erro correto no momento correto
         assertEquals("Grupo não encontrado.", exception.getMessage());
-
-        // Garante que não tentou salvar no banco
         verify(cotaRepository, never()).save(any());
     }
 
@@ -149,7 +145,7 @@ class CotaServiceTest {
         assertEquals(2, resultado.size());
         assertEquals(100L, resultado.get(0).id());
         assertEquals(10, resultado.get(0).numeroCota());
-        assertEquals(1L, resultado.get(0).clienteId()); // Verifica se a conversão do Cliente extraiu o ID corretamente
+        assertEquals(1L, resultado.get(0).clienteId());
 
         verify(cotaRepository, times(1)).findAll();
     }
@@ -200,7 +196,7 @@ class CotaServiceTest {
     @DisplayName("Deve retornar uma lista vazia caso não encontre cotas")
     void deveRetornarListaVaziaQuandoNaoHouverCotas() {
         // --- ARRANGE ---
-        when(cotaRepository.findAll()).thenReturn(List.of()); // Simula o banco de dados vazio
+        when(cotaRepository.findAll()).thenReturn(List.of());
 
         // --- ACT ---
         List<CotaResponseDTO> resultado = service.listarTodas();
@@ -208,5 +204,129 @@ class CotaServiceTest {
         // --- ASSERT ---
         assertNotNull(resultado);
         assertTrue(resultado.isEmpty(), "A lista deve retornar vazia, não nula");
+    }
+
+    @Test
+    @DisplayName("Deve cancelar cota com sucesso e deletar parcelas pendentes")
+    void deveCancelarCotaComSucesso() {
+        // --- ARRANGE ---
+        Long cotaId = 1L;
+        Cota cota = new Cota();
+        cota.setId(cotaId);
+        cota.setStatus(StatusCota.ATIVA);
+
+        Parcela p1 = new Parcela();
+        p1.setId(10L);
+        p1.setStatus(StatusParcela.PENDENTE);
+
+        Parcela p2 = new Parcela();
+        p2.setId(11L);
+        p2.setStatus(StatusParcela.PAGA);
+
+        when(cotaRepository.findById(cotaId)).thenReturn(Optional.of(cota));
+        when(cotaRepository.save(any(Cota.class))).thenAnswer(i -> i.getArgument(0));
+        when(parcelaRepository.findByCotaId(cotaId)).thenReturn(List.of(p1, p2));
+
+        // --- ACT ---
+        CotaResponseDTO response = service.cancelarCota(cotaId);
+
+        // --- ASSERT ---
+        assertNotNull(response);
+        assertEquals(StatusCota.CANCELADA, response.status());
+        verify(cotaRepository, times(1)).save(cota);
+        
+        // Garante que deletou apenas a pendente (p1) usando ArgumentCaptor
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<Parcela>> captor = ArgumentCaptor.forClass(List.class);
+        verify(parcelaRepository, times(1)).deleteAll(captor.capture());
+        List<Parcela> deletadas = captor.getValue();
+        assertEquals(1, deletadas.size());
+        assertTrue(deletadas.contains(p1));
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção ao tentar cancelar cota já cancelada")
+    void deveLancarExcecaoAoCancelarCotaJaCancelada() {
+        Long cotaId = 1L;
+        Cota cota = new Cota();
+        cota.setId(cotaId);
+        cota.setStatus(StatusCota.CANCELADA);
+
+        when(cotaRepository.findById(cotaId)).thenReturn(Optional.of(cota));
+
+        assertThrows(RegraDeNegocioException.class, () -> service.cancelarCota(cotaId));
+        verify(cotaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve reembolsar cota cancelada com 10% de cláusula penal")
+    void deveReembolsarCotaCanceladaComSucesso() {
+        // --- ARRANGE ---
+        Long cotaId = 1L;
+        Cota cota = new Cota();
+        cota.setId(cotaId);
+        cota.setNumeroCota(44);
+        cota.setStatus(StatusCota.CANCELADA);
+        cota.setReembolsada(false);
+
+        // Fundo comum pago total: 2000.00
+        Parcela p1 = new Parcela();
+        p1.setStatus(StatusParcela.PAGA);
+        p1.setValorFundoComum(new BigDecimal("1000.00"));
+
+        Parcela p2 = new Parcela();
+        p2.setStatus(StatusParcela.PAGA);
+        p2.setValorFundoComum(new BigDecimal("1000.00"));
+
+        when(cotaRepository.findById(cotaId)).thenReturn(Optional.of(cota));
+        when(parcelaRepository.findByCotaId(cotaId)).thenReturn(List.of(p1, p2));
+        when(cotaRepository.save(any(Cota.class))).thenAnswer(i -> i.getArgument(0));
+
+        // --- ACT ---
+        CotaReembolsoResponseDTO response = service.reembolsarCota(cotaId);
+
+        // --- ASSERT ---
+        assertNotNull(response);
+        assertEquals(cotaId, response.cotaId());
+        assertEquals(44, response.numeroCota());
+        assertEquals(new BigDecimal("2000.00"), response.totalFundoComumPago());
+        // Multa rescisória de 10% de 2000.00 = 200.00
+        assertEquals(new BigDecimal("200.00"), response.multaRescisoria());
+        // Valor a ser reembolsado: 1800.00
+        assertEquals(new BigDecimal("1800.00"), response.valorReembolsado());
+        assertTrue(response.reembolsada());
+
+        assertTrue(cota.getReembolsada());
+        assertEquals(new BigDecimal("1800.00"), cota.getValorReembolsado());
+        verify(cotaRepository, times(1)).save(cota);
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção ao tentar reembolsar cota ativa")
+    void deveLancarExcecaoAoReembolsarCotaAtiva() {
+        Long cotaId = 1L;
+        Cota cota = new Cota();
+        cota.setId(cotaId);
+        cota.setStatus(StatusCota.ATIVA);
+
+        when(cotaRepository.findById(cotaId)).thenReturn(Optional.of(cota));
+
+        assertThrows(RegraDeNegocioException.class, () -> service.reembolsarCota(cotaId));
+        verify(cotaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção ao tentar reembolsar cota já reembolsada")
+    void deveLancarExcecaoAoReembolsarCotaJaReembolsada() {
+        Long cotaId = 1L;
+        Cota cota = new Cota();
+        cota.setId(cotaId);
+        cota.setStatus(StatusCota.CANCELADA);
+        cota.setReembolsada(true);
+
+        when(cotaRepository.findById(cotaId)).thenReturn(Optional.of(cota));
+
+        assertThrows(RegraDeNegocioException.class, () -> service.reembolsarCota(cotaId));
+        verify(cotaRepository, never()).save(any());
     }
 }

@@ -1,11 +1,13 @@
 package br.com.estudo.consorcio.service;
 
+import br.com.estudo.consorcio.domain.dto.CotaInadimplenciaResponseDTO;
 import br.com.estudo.consorcio.domain.dto.ParcelaResponseDTO;
 import br.com.estudo.consorcio.domain.model.Cota;
 import br.com.estudo.consorcio.domain.model.Parcela;
 import br.com.estudo.consorcio.domain.model.StatusParcela;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
+import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -187,5 +189,79 @@ class ParcelaServiceTest {
         assertEquals(new BigDecimal("1000.00"), p58.getValorFundoComum());
 
         verify(parcelaRepository, times(1)).saveAll(parcelasDeTrasParaFrente);
+    }
+
+    @Test
+    @DisplayName("Deve retornar cota adimplente quando não houver parcelas em atraso")
+    void deveRetornarCotaAdimplenteQuandoNaoHouverParcelasEmAtraso() {
+        // --- ARRANGE ---
+        Long cotaId = 1L;
+        Cota cota = new Cota();
+        cota.setId(cotaId);
+        cota.setNumeroCota(100);
+
+        Parcela p1 = new Parcela();
+        p1.setStatus(StatusParcela.PENDENTE);
+        p1.setDataVencimento(LocalDate.now().plusDays(5)); // Vence no futuro, portanto adimplente
+
+        Parcela p2 = new Parcela();
+        p2.setStatus(StatusParcela.PAGA);
+        p2.setDataVencimento(LocalDate.now().minusDays(5)); // Paga, portanto adimplente
+
+        when(cotaRepository.findById(cotaId)).thenReturn(Optional.of(cota));
+        when(parcelaRepository.findByCotaId(cotaId)).thenReturn(List.of(p1, p2));
+
+        // --- ACT ---
+        CotaInadimplenciaResponseDTO response = service.obterInadimplenciaCota(cotaId);
+
+        // --- ASSERT ---
+        assertNotNull(response);
+        assertEquals(cotaId, response.cotaId());
+        assertEquals(100, response.numeroCota());
+        assertFalse(response.possuiInadimplencia());
+        assertEquals(0, response.quantidadeParcelasAtrasadas());
+        assertEquals(BigDecimal.ZERO, response.multaAcumulada());
+        assertEquals(BigDecimal.ZERO, response.jurosAcumulados());
+        assertEquals(BigDecimal.ZERO, response.saldoDevedorTotal());
+    }
+
+    @Test
+    @DisplayName("Deve retornar cota inadimplente e calcular juros e multa pro-rata die corretamente")
+    void deveRetornarCotaInadimplenteECalcularValores() {
+        // --- ARRANGE ---
+        Long cotaId = 1L;
+        Cota cota = new Cota();
+        cota.setId(cotaId);
+        cota.setNumeroCota(100);
+
+        // Parcela atrasada há 10 dias
+        // Valor total original: FC 1000 + TaxaAdmin 150 + FundoReserva 50 = 1200.00
+        Parcela p1 = new Parcela();
+        p1.setStatus(StatusParcela.PENDENTE);
+        p1.setValorFundoComum(new BigDecimal("1000.00"));
+        p1.setValorTaxaAdministracao(new BigDecimal("150.00"));
+        p1.setValorFundoReserva(new BigDecimal("50.00"));
+        p1.setDataVencimento(LocalDate.now().minusDays(10));
+        p1.calcularValorTotal();
+
+        when(cotaRepository.findById(cotaId)).thenReturn(Optional.of(cota));
+        when(parcelaRepository.findByCotaId(cotaId)).thenReturn(List.of(p1));
+
+        // --- ACT ---
+        CotaInadimplenciaResponseDTO response = service.obterInadimplenciaCota(cotaId);
+
+        // --- ASSERT ---
+        assertNotNull(response);
+        assertEquals(cotaId, response.cotaId());
+        assertTrue(response.possuiInadimplencia());
+        assertEquals(1, response.quantidadeParcelasAtrasadas());
+        assertEquals(new BigDecimal("1200.00"), response.valorOriginalAtrasado());
+        // Multa: 2% de 1200.00 = 24.00
+        assertEquals(new BigDecimal("24.00"), response.multaAcumulada());
+        // Juros: 10 dias de atraso pro-rata die = 1% / 30 * 10 * 1200 = 4.00
+        assertEquals(new BigDecimal("4.00"), response.jurosAcumulados());
+        // Saldo devedor: 1200 + 24 + 4 = 1228.00
+        assertEquals(new BigDecimal("1228.00"), response.saldoDevedorTotal());
+        assertEquals(1, response.parcelasAtrasadas().size());
     }
 }
