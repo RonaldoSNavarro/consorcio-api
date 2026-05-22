@@ -31,6 +31,9 @@ class ParcelaServiceTest {
     @Mock
     private CotaRepository cotaRepository;
 
+    @org.mockito.Spy
+    private br.com.estudo.consorcio.domain.mapper.ParcelaMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.ParcelaMapper.class);
+
     @InjectMocks
     private ParcelaService service;
 

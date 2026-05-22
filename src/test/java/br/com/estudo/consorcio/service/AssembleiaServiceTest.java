@@ -31,6 +31,9 @@ class AssembleiaServiceTest {
     @Mock
     private GrupoRepository grupoRepository;
 
+    @org.mockito.Spy
+    private br.com.estudo.consorcio.domain.mapper.AssembleiaMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.AssembleiaMapper.class);
+
     @InjectMocks
     private AssembleiaService service;
 

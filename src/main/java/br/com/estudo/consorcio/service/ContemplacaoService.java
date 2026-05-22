@@ -2,6 +2,7 @@ package br.com.estudo.consorcio.service;
 
 import br.com.estudo.consorcio.domain.dto.ContemplacaoRequestDTO;
 import br.com.estudo.consorcio.domain.dto.ContemplacaoResponseDTO;
+import br.com.estudo.consorcio.domain.mapper.ContemplacaoMapper; // Importar o mapper
 import br.com.estudo.consorcio.domain.model.*;
 import br.com.estudo.consorcio.domain.repository.AssembleiaRepository;
 import br.com.estudo.consorcio.domain.repository.ContemplacaoRepository;
@@ -23,12 +24,14 @@ public class ContemplacaoService {
     private final AssembleiaRepository assembleiaRepository;
     private final CotaRepository cotaRepository;
     private final ParcelaRepository parcelaRepository;
+    private final ContemplacaoMapper mapper; // Injetar o mapper
 
-    public ContemplacaoService(ContemplacaoRepository contemplacaoRepository, AssembleiaRepository assembleiaRepository, CotaRepository cotaRepository, ParcelaRepository parcelaRepository) {
+    public ContemplacaoService(ContemplacaoRepository contemplacaoRepository, AssembleiaRepository assembleiaRepository, CotaRepository cotaRepository, ParcelaRepository parcelaRepository, ContemplacaoMapper mapper) { // Adicionar o mapper ao construtor
         this.contemplacaoRepository = contemplacaoRepository;
         this.assembleiaRepository = assembleiaRepository;
         this.cotaRepository = cotaRepository;
         this.parcelaRepository = parcelaRepository;
+        this.mapper = mapper;
     }
 
     @Transactional
@@ -48,13 +51,10 @@ public class ContemplacaoService {
             throw new RegraDeNegocioException("Apenas cotas com status ATIVA podem ser contempladas.");
         }
 
-        // 2. Mapeamento inicial
-        Contemplacao contemplacao = new Contemplacao();
-        contemplacao.setAssembleia(assembleia);
-        contemplacao.setCota(cota);
-        contemplacao.setTipoContemplacao(dto.tipoContemplacao());
-        contemplacao.setValorLance(dto.valorLance());
-        contemplacao.setLanceEmbutido(dto.lanceEmbutido() != null ? dto.lanceEmbutido() : false);
+        // 2. Mapeamento inicial usando o mapper
+        Contemplacao contemplacao = mapper.toEntity(dto);
+        contemplacao.setAssembleia(assembleia); // Setar a assembleia após a busca
+        contemplacao.setCota(cota); // Setar a cota após a busca
 
         BigDecimal valorCreditoGrupo = assembleia.getGrupo().getValorCredito();
         BigDecimal valorCreditoLiberado = valorCreditoGrupo;
@@ -98,27 +98,15 @@ public class ContemplacaoService {
         cota.setStatus(StatusCota.CONTEMPLADA);
         cotaRepository.save(cota);
 
-        // 4. Retorno Mapeado
-        return converterParaResponseDTO(contemplacaoSalva);
+        // 4. Retorno Mapeado usando o mapper
+        return mapper.toResponse(contemplacaoSalva);
     }
 
     public List<ContemplacaoResponseDTO> listarPorAssembleia(Long assembleiaId) {
         return contemplacaoRepository.findByAssembleiaId(assembleiaId).stream()
-                .map(this::converterParaResponseDTO)
+                .map(mapper::toResponse) // Usar o mapper
                 .toList();
     }
 
-    // Método de conversão centralizado
-    private ContemplacaoResponseDTO converterParaResponseDTO(Contemplacao contemplacao) {
-        return new ContemplacaoResponseDTO(
-                contemplacao.getId(),
-                contemplacao.getCota().getId(),
-                contemplacao.getAssembleia().getId(),
-                contemplacao.getTipoContemplacao(),
-                contemplacao.getValorLance(),
-                contemplacao.getDataContemplacao(),
-                contemplacao.getLanceEmbutido(),
-                contemplacao.getValorCreditoLiberado()
-        );
-    }
+    // O método auxiliar converterParaResponseDTO foi removido, pois o mapper faz esse trabalho.
 }

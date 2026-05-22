@@ -27,6 +27,9 @@ class GrupoServiceTest {
     @Mock
     private GrupoRepository repository;
 
+    @org.mockito.Spy
+    private br.com.estudo.consorcio.domain.mapper.GrupoMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.GrupoMapper.class);
+
     @InjectMocks
     private GrupoService service;
 

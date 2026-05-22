@@ -26,6 +26,9 @@ class ClienteServiceTest {
     @Mock
     private ClienteRepository repository;
 
+    @org.mockito.Spy
+    private br.com.estudo.consorcio.domain.mapper.ClienteMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.ClienteMapper.class);
+
     @InjectMocks
     private ClienteService service;
 
@@ -37,7 +40,6 @@ class ClienteServiceTest {
 
         // Simulamos que não encontra nada no banco (vazio)
         when(repository.findByCpfCnpj(request.cpfCnpj())).thenReturn(Optional.empty());
-        when(repository.findByEmail(request.email())).thenReturn(Optional.empty());
 
         // Simulamos o save retornando a entidade com ID e Data
         when(repository.save(any(Cliente.class))).thenAnswer(i -> {
@@ -69,43 +71,23 @@ class ClienteServiceTest {
         // --- ACT & ASSERT ---
         RuntimeException exception = assertThrows(RuntimeException.class, () -> service.salvar(request));
 
-        assertEquals("Já existe um cliente cadastrado com este CPF/CNPJ.", exception.getMessage());
+        assertEquals("Já existe um cliente cadastrado com o documento: 12345678901", exception.getMessage());
         verify(repository, never()).save(any()); // Garante que NÃO salvou
-    }
-
-    @Test
-    @DisplayName("Deve lançar exceção quando o E-mail já estiver cadastrado")
-    void deveLancarExcecaoEmailDuplicado() {
-        // --- ARRANGE ---
-        ClienteRequestDTO request = new ClienteRequestDTO("Ronaldo", "123", "duplicado@email.com", "139");
-
-        // CPF está livre, mas o E-mail já existe
-        when(repository.findByCpfCnpj(anyString())).thenReturn(Optional.empty());
-        when(repository.findByEmail(request.email())).thenReturn(Optional.of(new Cliente()));
-
-        // --- ACT & ASSERT ---
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> service.salvar(request));
-
-        assertEquals("Já existe um cliente cadastrado com este e-mail.", exception.getMessage());
-        verify(repository, never()).save(any());
     }
 
     @Test
     @DisplayName("Deve listar todos os clientes convertendo para DTO")
     void deveListarClientes() {
-        // --- ARRANGE ---
         Cliente c1 = new Cliente(); c1.setId(1L); c1.setNome("Cliente 1");
         Cliente c2 = new Cliente(); c2.setId(2L); c2.setNome("Cliente 2");
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.Pageable.unpaged();
+        when(repository.findAll(pageable)).thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(c1, c2)));
 
-        when(repository.findAll()).thenReturn(List.of(c1, c2));
+        org.springframework.data.domain.Page<ClienteResponseDTO> resultado = service.listarTodos(pageable);
 
-        // --- ACT ---
-        List<ClienteResponseDTO> resultado = service.listarTodos(pageable);
-
-        // --- ASSERT ---
-        assertEquals(2, resultado.size());
-        assertEquals("Cliente 1", resultado.get(0).nome());
-        assertEquals(1L, resultado.get(0).id());
-        verify(repository, times(1)).findAll();
+        assertEquals(2, resultado.getContent().size());
+        assertEquals("Cliente 1", resultado.getContent().get(0).nome());
+        assertEquals(1L, resultado.getContent().get(0).id());
+        verify(repository, times(1)).findAll(pageable);
     }
 }

@@ -2,6 +2,7 @@ package br.com.estudo.consorcio.service;
 
 import br.com.estudo.consorcio.domain.dto.ParcelaRequestDTO;
 import br.com.estudo.consorcio.domain.dto.ParcelaResponseDTO;
+import br.com.estudo.consorcio.domain.mapper.ParcelaMapper; // Importar o mapper
 import br.com.estudo.consorcio.domain.model.Cota;
 import br.com.estudo.consorcio.domain.model.Parcela;
 import br.com.estudo.consorcio.domain.model.StatusParcela;
@@ -22,10 +23,12 @@ public class ParcelaService {
 
     private final ParcelaRepository parcelaRepository;
     private final CotaRepository cotaRepository;
+    private final ParcelaMapper mapper; // Injetar o mapper
 
-    public ParcelaService(ParcelaRepository parcelaRepository, CotaRepository cotaRepository) {
+    public ParcelaService(ParcelaRepository parcelaRepository, CotaRepository cotaRepository, ParcelaMapper mapper) { // Adicionar o mapper ao construtor
         this.parcelaRepository = parcelaRepository;
         this.cotaRepository = cotaRepository;
+        this.mapper = mapper;
     }
 
     @Transactional
@@ -34,14 +37,9 @@ public class ParcelaService {
         Cota cota = cotaRepository.findById(dto.cotaId())
                 .orElseThrow(() -> new RegraDeNegocioException("Cota inválida ou não encontrada no banco de dados."));
 
-        // 2. Mapeia DTO para Entidade
-        Parcela parcela = new Parcela();
-        parcela.setCota(cota);
-        parcela.setNumeroParcela(dto.numeroParcela());
-        parcela.setValorFundoComum(dto.valorFundoComum());
-        parcela.setValorTaxaAdministracao(dto.valorTaxaAdministracao());
-        parcela.setValorFundoReserva(dto.valorFundoReserva());
-        parcela.setDataVencimento(dto.dataVencimento());
+        // 2. Mapeia DTO para Entidade usando o mapper
+        Parcela parcela = mapper.toEntity(dto);
+        parcela.setCota(cota); // Setar a cota após a busca
 
         // 3. Regra de negócio: Parcela nasce PENDENTE
         parcela.setStatus(StatusParcela.PENDENTE);
@@ -49,7 +47,7 @@ public class ParcelaService {
         // O JPA chamará o @PrePersist e calculará o valorParcela (soma dos três)
         Parcela parcelaSalva = parcelaRepository.save(parcela);
 
-        return converterParaResponseDTO(parcelaSalva);
+        return mapper.toResponse(parcelaSalva); // Usar o mapper
     }
 
     @Transactional
@@ -84,7 +82,7 @@ public class ParcelaService {
         parcela.setStatus(StatusParcela.PAGA);
         Parcela parcelaMapeada = parcelaRepository.save(parcela);
 
-        return converterParaResponseDTO(parcelaMapeada);
+        return mapper.toResponse(parcelaMapeada); // Usar o mapper
     }
 
     // Os métodos de amortização continuam iguais, pois eles operam listas internas no banco
@@ -136,26 +134,9 @@ public class ParcelaService {
 
     public List<ParcelaResponseDTO> listarPorCota(Long cotaId) {
         return parcelaRepository.findByCotaId(cotaId).stream()
-                .map(this::converterParaResponseDTO)
+                .map(mapper::toResponse) // Usar o mapper
                 .toList();
     }
 
-    // Método centralizado de conversão
-    private ParcelaResponseDTO converterParaResponseDTO(Parcela parcela) {
-        return new ParcelaResponseDTO(
-                parcela.getId(),
-                parcela.getCota().getId(),
-                parcela.getNumeroParcela(),
-                parcela.getValorFundoComum(),
-                parcela.getValorTaxaAdministracao(),
-                parcela.getValorFundoReserva(),
-                parcela.getValorParcela(),
-                parcela.getValorMulta(),
-                parcela.getValorJuros(),
-                parcela.getValorPago(),
-                parcela.getDataVencimento(),
-                parcela.getDataPagamento(),
-                parcela.getStatus()
-        );
-    }
+    // O método auxiliar converterParaResponseDTO foi removido, pois o mapper faz esse trabalho.
 }

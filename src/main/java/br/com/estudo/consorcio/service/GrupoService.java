@@ -2,6 +2,7 @@ package br.com.estudo.consorcio.service;
 
 import br.com.estudo.consorcio.domain.dto.GrupoRequestDTO;
 import br.com.estudo.consorcio.domain.dto.GrupoResponseDTO;
+import br.com.estudo.consorcio.domain.mapper.GrupoMapper; // Importar o mapper
 import br.com.estudo.consorcio.domain.model.Grupo;
 import br.com.estudo.consorcio.domain.model.StatusGrupo;
 import br.com.estudo.consorcio.domain.repository.GrupoRepository;
@@ -16,19 +17,17 @@ import java.util.List;
 public class GrupoService {
 
     private final GrupoRepository repository;
+    private final GrupoMapper mapper; // Injetar o mapper
 
-    public GrupoService(GrupoRepository repository) {
+    public GrupoService(GrupoRepository repository, GrupoMapper mapper) { // Adicionar o mapper ao construtor
         this.repository = repository;
+        this.mapper = mapper;
     }
 
     @Transactional
     public GrupoResponseDTO salvar(GrupoRequestDTO dto) {
-        // 1. Mapeamento: DTO de entrada para Entidade
-        Grupo grupo = new Grupo();
-        grupo.setCodigo(dto.codigo());
-        grupo.setValorCredito(dto.valorCredito());
-        grupo.setPrazoMeses(dto.prazoMeses());
-        grupo.setTaxaAdministracao(dto.taxaAdministracao());
+        // 1. Mapeamento: DTO de entrada para Entidade usando o mapper
+        Grupo grupo = mapper.toEntity(dto);
 
         // Regra BCB: Todo grupo nasce em formação (Garantido pelo Back-end)
         grupo.setStatus(StatusGrupo.EM_FORMACAO);
@@ -36,8 +35,8 @@ public class GrupoService {
         // 2. Persistência
         Grupo grupoSalvo = repository.save(grupo);
 
-        // 3. Retorno mapeado para DTO de saída
-        return converterParaResponseDTO(grupoSalvo);
+        // 3. Retorno mapeado para DTO de saída usando o mapper
+        return mapper.toResponse(grupoSalvo);
     }
 
     @Transactional
@@ -55,27 +54,15 @@ public class GrupoService {
 
         Grupo grupoInaugurado = repository.save(grupo);
 
-        return converterParaResponseDTO(grupoInaugurado);
+        return mapper.toResponse(grupoInaugurado); // Usar o mapper
     }
 
     public List<GrupoResponseDTO> listarTodos() {
         return repository.findAll()
                 .stream()
-                .map(this::converterParaResponseDTO)
+                .map(mapper::toResponse) // Usar o mapper
                 .toList();
     }
 
-    // Método auxiliar para centralizar a conversão de saída
-    private GrupoResponseDTO converterParaResponseDTO(Grupo grupo) {
-        return new GrupoResponseDTO(
-                grupo.getId(),
-                grupo.getCodigo(),
-                grupo.getValorCredito(),
-                grupo.getPrazoMeses(),
-                grupo.getTaxaAdministracao(),
-                grupo.getStatus(),
-                grupo.getDataCriacao(),
-                grupo.getDataInauguracao()
-        );
-    }
+    // O método auxiliar converterParaResponseDTO foi removido, pois o mapper faz esse trabalho.
 }

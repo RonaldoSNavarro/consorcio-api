@@ -33,6 +33,9 @@ class CotaServiceTest {
     @Mock
     private GrupoRepository grupoRepository;
 
+    @org.mockito.Spy
+    private br.com.estudo.consorcio.domain.mapper.CotaMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.CotaMapper.class);
+
     @InjectMocks
     private CotaService service;
 

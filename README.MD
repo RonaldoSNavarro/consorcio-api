@@ -1,16 +1,18 @@
 # 🏢 Consórcio API
 
-Um sistema back-end de alta performance para administração e gerenciamento de consórcios, desenvolvido em **Java 21** com **Spring Boot 4**. Este projeto implementa regras de negócio financeiras reais baseadas nas normativas do Banco Central do Brasil (BCB) e no Código de Defesa do Consumidor (CDC).
+Um sistema back-end de alta performance para administração e gerenciamento de consórcios, desenvolvido em **Java 21** com **Spring Boot 4.0.6** (Spring Framework 7). Este projeto implementa regras de negócio financeiras reais baseadas nas normativas do Banco Central do Brasil (BCB) e no Código de Defesa do Consumidor (CDC).
 
 ## 🚀 Tecnologias e Ferramentas
 
 * **Java 21:** Uso de *Virtual Threads* para escalabilidade e *Records* para imutabilidade.
-* **Spring Boot 4:** (Web, Data JPA, Security).
-* **Spring Security & JWT (Auth0):** Autenticação stateless e autorização baseada em tokens.
+* **Spring Boot 4.0.6:** (Web, Data JPA, Security) com Spring Framework 7 e Hibernate 7.
+* **Spring Security 7 & JWT (Auth0 4.5):** Autenticação stateless e autorização baseada em tokens.
 * **PostgreSQL:** Persistência de dados financeiros.
-* **Flyway:** Versionamento e migração de schema do banco de dados.
+* **Flyway 11 (via Starter):** Versionamento e migração de schema do banco de dados.
+* **Jackson 3:** Serialização/desserialização JSON de alta performance.
+* **MapStruct 1.6:** Mapeamento declarativo entre entidades e DTOs.
 * **JUnit 5, Mockito & MockMvc:** Ecossistema completo de testes para garantir a integridade do sistema.
-* **Springdoc OpenAPI (Swagger):** Documentação interativa personalizada e protegida.
+* **Springdoc OpenAPI 3.0 (Swagger):** Documentação interativa personalizada e protegida.
 * **Lombok:** Redução de código boilerplate.
 
 ## 🏗️ Arquitetura e Padrões de Projeto

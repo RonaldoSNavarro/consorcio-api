@@ -36,6 +36,9 @@ class ContemplacaoServiceTest {
     @Mock
     private ParcelaRepository parcelaRepository;
 
+    @org.mockito.Spy
+    private br.com.estudo.consorcio.domain.mapper.ContemplacaoMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.ContemplacaoMapper.class);
+
     @InjectMocks
     private ContemplacaoService service;
 

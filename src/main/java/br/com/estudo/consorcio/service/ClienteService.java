@@ -3,12 +3,12 @@ package br.com.estudo.consorcio.service;
 import br.com.estudo.consorcio.domain.dto.ClienteRequestDTO;
 import br.com.estudo.consorcio.domain.dto.ClienteResponseDTO;
 import br.com.estudo.consorcio.domain.model.Cliente;
-import br.com.estudo.consorcio.domain.enums.StatusCliente;
+import br.com.estudo.consorcio.domain.model.StatusCliente;
 import br.com.estudo.consorcio.domain.mapper.ClienteMapper;
 import br.com.estudo.consorcio.exception.ClienteInativoException;
 import br.com.estudo.consorcio.exception.DocumentoJaCadastradoException;
 import br.com.estudo.consorcio.exception.RecursoNaoEncontradoException;
-import br.com.estudo.consorcio.repository.ClienteRepository;
+import br.com.estudo.consorcio.domain.repository.ClienteRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -31,7 +31,7 @@ public class ClienteService {
 
     @Transactional
     public ClienteResponseDTO salvar(ClienteRequestDTO dto) {
-        validarDocumentoUnico(dto.documento());
+        validarDocumentoUnico(dto.cpfCnpj()); // CORRIGIDO: dto.documento() para dto.cpfCnpj()
 
         Cliente cliente = mapper.toEntity(dto);
         cliente.setStatus(StatusCliente.ATIVO);
@@ -70,7 +70,7 @@ public class ClienteService {
          * que exige identificação inequívoca do consorciado durante todo
          * o ciclo do grupo.
          */
-        if (!cliente.getDocumento().equals(dto.documento())) {
+        if (!cliente.getCpfCnpj().equals(dto.cpfCnpj())) { // CORRIGIDO: cliente.getDocumento() para cliente.getCpfCnpj() e dto.documento() para dto.cpfCnpj()
             throw new IllegalArgumentException(
                     "O documento (CPF/CNPJ) não pode ser alterado após o cadastro.");
         }
@@ -111,7 +111,7 @@ public class ClienteService {
     }
 
     private void validarDocumentoUnico(String documento) {
-        if (repository.existsByDocumento(documento)) {
+        if (repository.findByCpfCnpj(documento).isPresent()) { // CORRIGIDO: existsByDocumento para findByCpfCnpj().isPresent()
             throw new DocumentoJaCadastradoException(
                     "Já existe um cliente cadastrado com o documento: " + documento);
         }

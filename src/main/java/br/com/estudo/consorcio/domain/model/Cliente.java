@@ -34,9 +34,16 @@ public class Cliente {
     @Column(name = "data_cadastro", updatable = false)
     private LocalDate dataCadastro;
 
+    @Enumerated(EnumType.STRING) // Adicionado o campo status
+    @Column(nullable = false)
+    private StatusCliente status;
+
     // Metodo executado automaticamente antes de salvar no banco pela primeira vez
     @PrePersist
     protected void onCreate() {
         this.dataCadastro = LocalDate.now();
+        if (this.status == null) { // Definir status padrão se não for setado
+            this.status = StatusCliente.ATIVO;
+        }
     }
 }
