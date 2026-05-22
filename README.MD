@@ -20,6 +20,8 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 * **Arquitetura de DTOs (Records):** Isolamento total das entidades para segurança e estabilidade de contratos.
 * **Mapeamento Unidirecional:** Separação clara entre dados de entrada validados e saída filtrada.
 * **Global Exception Handling:** Centralização do tratamento de erros com respostas HTTP padronizadas.
+* **Inativação Lógica em Conformidade Legal:** A exclusão física de clientes é substituída por inativação lógica para conformidade regulatória (LGPD Art. 16, II & IV, e Resolução 285 do Banco Central do Brasil).
+* **Mapeamento Declarativo com MapStruct:** Camada de conversão compilada de alta performance entre entidades e DTOs, garantindo separação rígida e eliminando boilerplate.
 
 ## 🧪 Qualidade de Software e Testes
 
@@ -40,6 +42,8 @@ A proteção dos recursos financeiros é garantida via **Bearer Token**:
 
 * **Motor de Contemplação:** Validação de saldo em caixa (Fundo Comum) e trava de **Lance Embutido** (limitado a 30% do crédito).
 * **Gestão de Inadimplência:** Cálculo automático de multa (2%) e juros de mora pro-rata die (1% ao mês).
+* **Mutabilidade Cadastral Restrita:** Bloqueio de alteração de documentos de identificação (CPF/CNPJ) pós-cadastro, baseado na Lei do Consórcio (Lei 11.795/2008).
+* **Validação de Status Operacional:** Restrições rígidas baseadas no status de atividade do cliente (ex: inativação lógica impede novas operações).
 * **Algoritmos de Amortização:**
     * **Redução de Prazo:** Quitação de parcelas de trás para frente.
     * **Diluição de Valor:** Reequilíbrio do saldo devedor com tratamento matemático da **Regra do Centavo Perdido** (ajuste de resíduos de dízimas na última parcela).
