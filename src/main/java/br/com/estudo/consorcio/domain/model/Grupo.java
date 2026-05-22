@@ -26,6 +26,9 @@ public class Grupo {
     @Column(nullable = false)
     private BigDecimal taxaAdministracao;
 
+    @Column(name = "percentual_lance_embutido_maximo", nullable = false)
+    private BigDecimal percentualLanceEmbutidoMaximo = new BigDecimal("0.3000");
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatusGrupo status;
@@ -51,6 +54,9 @@ public class Grupo {
 
     public BigDecimal getTaxaAdministracao() { return taxaAdministracao; }
     public void setTaxaAdministracao(BigDecimal taxaAdministracao) { this.taxaAdministracao = taxaAdministracao; }
+
+    public BigDecimal getPercentualLanceEmbutidoMaximo() { return percentualLanceEmbutidoMaximo; }
+    public void setPercentualLanceEmbutidoMaximo(BigDecimal percentualLanceEmbutidoMaximo) { this.percentualLanceEmbutidoMaximo = percentualLanceEmbutidoMaximo; }
 
     public StatusGrupo getStatus() { return status; }
     public void setStatus(StatusGrupo status) { this.status = status; }

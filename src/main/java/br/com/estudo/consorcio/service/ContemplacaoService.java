@@ -59,17 +59,19 @@ public class ContemplacaoService {
         BigDecimal valorCreditoGrupo = assembleia.getGrupo().getValorCredito();
         BigDecimal valorCreditoLiberado = valorCreditoGrupo;
 
-        // --- REGRA DO BANCO CENTRAL: LANCE EMBUTIDO (MÁXIMO 30%) --- //
+        // --- REGRA DO BANCO CENTRAL: LANCE EMBUTIDO DINÂMICO --- //
         if (Boolean.TRUE.equals(contemplacao.getLanceEmbutido())) {
 
             if (contemplacao.getValorLance() == null || contemplacao.getValorLance().compareTo(BigDecimal.ZERO) <= 0) {
                 throw new RegraDeNegocioException("Para lances embutidos, o valor do lance deve ser informado.");
             }
 
-            BigDecimal limiteEmbutido = valorCreditoGrupo.multiply(new BigDecimal("0.30")).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal limitePercentual = assembleia.getGrupo().getPercentualLanceEmbutidoMaximo();
+            BigDecimal limiteEmbutido = valorCreditoGrupo.multiply(limitePercentual).setScale(2, RoundingMode.HALF_UP);
 
             if (contemplacao.getValorLance().compareTo(limiteEmbutido) > 0) {
-                throw new RegraDeNegocioException("O valor do lance embutido não pode ultrapassar 30% do crédito (Máximo permitido: R$ " + limiteEmbutido + ").");
+                BigDecimal percentualFormatado = limitePercentual.multiply(new BigDecimal("100")).setScale(0, RoundingMode.HALF_UP);
+                throw new RegraDeNegocioException("O valor do lance embutido não pode ultrapassar " + percentualFormatado + "% do crédito (Máximo permitido: R$ " + limiteEmbutido + ").");
             }
 
             valorCreditoLiberado = valorCreditoGrupo.subtract(contemplacao.getValorLance());

@@ -5,10 +5,12 @@ import br.com.estudo.consorcio.domain.dto.CotaResponseDTO;
 import br.com.estudo.consorcio.domain.model.Cliente;
 import br.com.estudo.consorcio.domain.model.Cota;
 import br.com.estudo.consorcio.domain.model.Grupo;
+import br.com.estudo.consorcio.domain.model.StatusCliente;
 import br.com.estudo.consorcio.domain.model.StatusCota;
 import br.com.estudo.consorcio.domain.repository.ClienteRepository;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.GrupoRepository;
+import br.com.estudo.consorcio.exception.ClienteInativoException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,7 +62,9 @@ class CotaServiceTest {
         // --- ARRANGE ---
         CotaRequestDTO request = new CotaRequestDTO(15, 1L, 2L);
 
-        Cliente cliente = new Cliente(); cliente.setId(1L);
+        Cliente cliente = new Cliente();
+        cliente.setId(1L);
+        cliente.setStatus(StatusCliente.ATIVO);
         Grupo grupo = new Grupo(); grupo.setId(2L);
 
         when(clienteRepository.findById(1L)).thenReturn(Optional.of(cliente));
@@ -88,6 +92,7 @@ class CotaServiceTest {
 
         Cliente cliente = new Cliente();
         cliente.setId(1L);
+        cliente.setStatus(StatusCliente.ATIVO);
 
         // Ensinamos o Mockito: O cliente existe e passa pela primeira validação
         when(clienteRepository.findById(1L)).thenReturn(Optional.of(cliente));
@@ -103,6 +108,25 @@ class CotaServiceTest {
 
         // Garante que não tentou salvar no banco
         verify(cotaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve lançar exceção ao tentar salvar cota para um cliente inativo")
+    void deveLancarExcecaoAoSalvarCotaParaClienteInativo() {
+        // --- ARRANGE ---
+        CotaRequestDTO request = new CotaRequestDTO(15, 1L, 2L);
+
+        Cliente cliente = new Cliente();
+        cliente.setId(1L);
+        cliente.setStatus(StatusCliente.INATIVO);
+
+        when(clienteRepository.findById(1L)).thenReturn(Optional.of(cliente));
+
+        // --- ACT & ASSERT ---
+        assertThrows(ClienteInativoException.class, () -> service.salvar(request));
+
+        verify(cotaRepository, never()).save(any());
+        verify(grupoRepository, never()).findById(any());
     }
 
     @Test

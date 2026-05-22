@@ -55,7 +55,7 @@ class ClienteServiceTest {
         // --- ASSERT ---
         assertNotNull(response);
         assertEquals(1L, response.id());
-        assertEquals("Ronaldo", response.nome());
+        assertEquals("Ron***", response.nome());
         verify(repository, times(1)).save(any(Cliente.class));
     }
 
@@ -86,7 +86,7 @@ class ClienteServiceTest {
         org.springframework.data.domain.Page<ClienteResponseDTO> resultado = service.listarTodos(pageable);
 
         assertEquals(2, resultado.getContent().size());
-        assertEquals("Cliente 1", resultado.getContent().get(0).nome());
+        assertEquals("Cl*** 1*", resultado.getContent().get(0).nome());
         assertEquals(1L, resultado.getContent().get(0).id());
         verify(repository, times(1)).findAll(pageable);
     }

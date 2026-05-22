@@ -49,20 +49,22 @@ class ClienteControllerTest {
     @DisplayName("Deve devolver 201 Created e o JSON do cliente ao salvar com sucesso")
     void deveRetornar201AoSalvarCliente() throws Exception {
         // Arrange
-        ClienteRequestDTO request = new ClienteRequestDTO("João", "11122233344", "joao@email.com", "1199999999");
-        ClienteResponseDTO response = new ClienteResponseDTO(1L, "João", "joao@email.com", java.time.LocalDate.now());
-
+        ClienteRequestDTO request = new ClienteRequestDTO("João", "11122233344", "joao@email.com", "11999999999");
+        ClienteResponseDTO response = new ClienteResponseDTO(1L, "João", "11122233344", "joao@email.com", "11999999999", java.time.LocalDate.now());
+ 
         when(clienteService.salvar(any(ClienteRequestDTO.class))).thenReturn(response);
         String jsonRequest = objectMapper.writeValueAsString(request);
-
+ 
         // Act & Assert
         mockMvc.perform(post("/api/clientes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonRequest))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.nome").value("João"))
-                .andExpect(jsonPath("$.cpfCnpj").doesNotExist());
+                .andExpect(jsonPath("$.nome").value("Joã***"))
+                .andExpect(jsonPath("$.cpfCnpj").value("***.222.333-**"))
+                .andExpect(jsonPath("$.email").value("joa***@email.com"))
+                .andExpect(jsonPath("$.telefone").value("(11) 99999-****"));
     }
 
     @Test
@@ -87,18 +89,18 @@ class ClienteControllerTest {
     @DisplayName("Deve devolver 200 OK e a lista de clientes")
     void deveRetornar200AoListarClientes() throws Exception {
         // Arrange
-        ClienteResponseDTO cliente1 = new ClienteResponseDTO(1L, "Ronaldo", "ronaldo@email.com", java.time.LocalDate.now());
-        ClienteResponseDTO cliente2 = new ClienteResponseDTO(2L, "Maria", "maria@email.com", java.time.LocalDate.now());
-
+        ClienteResponseDTO cliente1 = new ClienteResponseDTO(1L, "Ronaldo", "11122233344", "ronaldo@email.com", "11999999999", java.time.LocalDate.now());
+        ClienteResponseDTO cliente2 = new ClienteResponseDTO(2L, "Maria", "22233344455", "maria@email.com", "11988888888", java.time.LocalDate.now());
+ 
         when(clienteService.listarTodos(any(Pageable.class))).thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(cliente1, cliente2)));
-
+ 
         // Act & Assert
         mockMvc.perform(get("/api/clientes"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isArray()) // A resposta paginada envelopa a lista no atributo 'content'
                 .andExpect(jsonPath("$.content.length()").value(2))
-                .andExpect(jsonPath("$.content[0].nome").value("Ronaldo"))
-                .andExpect(jsonPath("$.content[1].nome").value("Maria"));
+                .andExpect(jsonPath("$.content[0].nome").value("Ron***"))
+                .andExpect(jsonPath("$.content[1].nome").value("Mar***"));
     }
 
     // ========================================================================
