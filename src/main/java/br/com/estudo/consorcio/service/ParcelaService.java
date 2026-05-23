@@ -4,12 +4,11 @@ import br.com.estudo.consorcio.domain.dto.CotaInadimplenciaResponseDTO;
 import br.com.estudo.consorcio.domain.dto.ParcelaRequestDTO;
 import br.com.estudo.consorcio.domain.dto.ParcelaResponseDTO;
 import br.com.estudo.consorcio.domain.mapper.ParcelaMapper;
-import br.com.estudo.consorcio.domain.model.Cota;
-import br.com.estudo.consorcio.domain.model.Parcela;
-import br.com.estudo.consorcio.domain.model.StatusParcela;
+import br.com.estudo.consorcio.domain.model.*;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,11 +24,25 @@ public class ParcelaService {
     private final ParcelaRepository parcelaRepository;
     private final CotaRepository cotaRepository;
     private final ParcelaMapper mapper; // Injetar o mapper
+    private final MovimentoFinanceiroService movimentoService;
+    private final HistoricoConsorciadoService historicoService;
 
-    public ParcelaService(ParcelaRepository parcelaRepository, CotaRepository cotaRepository, ParcelaMapper mapper) { // Adicionar o mapper ao construtor
+    public ParcelaService(ParcelaRepository parcelaRepository, CotaRepository cotaRepository,
+                          ParcelaMapper mapper, MovimentoFinanceiroService movimentoService,
+                          HistoricoConsorciadoService historicoService) {
         this.parcelaRepository = parcelaRepository;
         this.cotaRepository = cotaRepository;
         this.mapper = mapper;
+        this.movimentoService = movimentoService;
+        this.historicoService = historicoService;
+    }
+
+    private Usuario getUsuarioAutenticado() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof Usuario) {
+            return (Usuario) authentication.getPrincipal();
+        }
+        return null;
     }
 
     @Transactional
@@ -45,8 +58,16 @@ public class ParcelaService {
         // 3. Regra de negócio: Parcela nasce PENDENTE
         parcela.setStatus(StatusParcela.PENDENTE);
 
-        // O JPA chamará o @PrePersist e calculará o valorParcela (soma dos três)
+        // O JPA chamará o @PrePersist e calculará o valorParcela (soma dos quatro)
         Parcela parcelaSalva = parcelaRepository.save(parcela);
+
+        // --- Registrar Interação de Histórico (Módulo 4) ---
+        historicoService.registrarInteracao(
+                cota.getCliente(), cota, cota.getGrupo(), parcelaSalva,
+                TipoInteracao.GERACAO_PARCELAS, "Geração da parcela número " + parcelaSalva.getNumeroParcela(),
+                cota.getGrupo().getValorCredito(), parcelaSalva.getValorFundoComum(),
+                parcelaSalva.getValorTaxaAdministracao(), parcelaSalva.getValorFundoReserva(), parcelaSalva.getValorSeguro(),
+                null, null, getUsuarioAutenticado());
 
         return mapper.toResponse(parcelaSalva); // Usar o mapper
     }
@@ -83,7 +104,104 @@ public class ParcelaService {
         parcela.setStatus(StatusParcela.PAGA);
         Parcela parcelaMapeada = parcelaRepository.save(parcela);
 
+        // --- Registrar Movimentos Financeiros (Módulo 2) ---
+        Usuario usuario = getUsuarioAutenticado();
+        Grupo grupo = parcelaMapeada.getCota().getGrupo();
+        Cota cota = parcelaMapeada.getCota();
+
+        movimentoService.registrarMovimento(grupo, cota, parcelaMapeada, null,
+                TipoMovimentoFinanceiro.FUNDO_COMUM, NaturezaMovimento.CREDITO,
+                parcelaMapeada.getValorFundoComum(), "Fundo comum pago - Parcela " + parcelaMapeada.getNumeroParcela(), usuario);
+
+        movimentoService.registrarMovimento(grupo, cota, parcelaMapeada, null,
+                TipoMovimentoFinanceiro.TAXA_ADMINISTRACAO, NaturezaMovimento.CREDITO,
+                parcelaMapeada.getValorTaxaAdministracao(), "Taxa de administração paga - Parcela " + parcelaMapeada.getNumeroParcela(), usuario);
+
+        movimentoService.registrarMovimento(grupo, cota, parcelaMapeada, null,
+                TipoMovimentoFinanceiro.FUNDO_RESERVA, NaturezaMovimento.CREDITO,
+                parcelaMapeada.getValorFundoReserva(), "Fundo de reserva pago - Parcela " + parcelaMapeada.getNumeroParcela(), usuario);
+
+        movimentoService.registrarMovimento(grupo, cota, parcelaMapeada, null,
+                TipoMovimentoFinanceiro.SEGURO, NaturezaMovimento.CREDITO,
+                parcelaMapeada.getValorSeguro(), "Seguro pago - Parcela " + parcelaMapeada.getNumeroParcela(), usuario);
+
+        if (parcelaMapeada.getValorMulta() != null && parcelaMapeada.getValorMulta().compareTo(BigDecimal.ZERO) > 0) {
+            movimentoService.registrarMovimento(grupo, cota, parcelaMapeada, null,
+                    TipoMovimentoFinanceiro.MULTA_ATRASO, NaturezaMovimento.CREDITO,
+                    parcelaMapeada.getValorMulta(), "Multa por atraso paga - Parcela " + parcelaMapeada.getNumeroParcela(), usuario);
+        }
+
+        if (parcelaMapeada.getValorJuros() != null && parcelaMapeada.getValorJuros().compareTo(BigDecimal.ZERO) > 0) {
+            movimentoService.registrarMovimento(grupo, cota, parcelaMapeada, null,
+                    TipoMovimentoFinanceiro.JUROS_MORA, NaturezaMovimento.CREDITO,
+                    parcelaMapeada.getValorJuros(), "Juros de mora pago - Parcela " + parcelaMapeada.getNumeroParcela(), usuario);
+        }
+
+        // --- Registrar Interação de Histórico (Módulo 4) ---
+        historicoService.registrarInteracao(
+                parcelaMapeada.getCota().getCliente(), parcelaMapeada.getCota(), parcelaMapeada.getCota().getGrupo(), parcelaMapeada,
+                TipoInteracao.PAGAMENTO_PARCELA, "Pagamento da parcela número " + parcelaMapeada.getNumeroParcela(),
+                parcelaMapeada.getCota().getGrupo().getValorCredito(), parcelaMapeada.getValorFundoComum(),
+                parcelaMapeada.getValorTaxaAdministracao(), parcelaMapeada.getValorFundoReserva(), parcelaMapeada.getValorSeguro(),
+                null, null, usuario);
+
         return mapper.toResponse(parcelaMapeada); // Usar o mapper
+    }
+
+    @Transactional
+    public ParcelaResponseDTO estornar(Long parcelaId) {
+        Parcela parcela = parcelaRepository.findById(parcelaId)
+                .orElseThrow(() -> new RegraDeNegocioException("Parcela não encontrada."));
+
+        if (parcela.getStatus() != StatusParcela.PAGA) {
+            throw new RegraDeNegocioException("Apenas parcelas com status PAGA podem ser estornadas.");
+        }
+
+        Usuario usuario = getUsuarioAutenticado();
+        Grupo grupo = parcela.getCota().getGrupo();
+        Cota cota = parcela.getCota();
+
+        // 1. Cria lançamentos inversos (DEBITO) para cada componente original
+        movimentoService.registrarMovimento(grupo, cota, parcela, null,
+                TipoMovimentoFinanceiro.ESTORNO_PAGAMENTO, NaturezaMovimento.DEBITO,
+                parcela.getValorFundoComum(), "Estorno de Fundo comum - Parcela " + parcela.getNumeroParcela(), usuario);
+
+        movimentoService.registrarMovimento(grupo, cota, parcela, null,
+                TipoMovimentoFinanceiro.ESTORNO_PAGAMENTO, NaturezaMovimento.DEBITO,
+                parcela.getValorTaxaAdministracao(), "Estorno de Taxa de administração - Parcela " + parcela.getNumeroParcela(), usuario);
+
+        movimentoService.registrarMovimento(grupo, cota, parcela, null,
+                TipoMovimentoFinanceiro.ESTORNO_PAGAMENTO, NaturezaMovimento.DEBITO,
+                parcela.getValorFundoReserva(), "Estorno de Fundo de reserva - Parcela " + parcela.getNumeroParcela(), usuario);
+
+        movimentoService.registrarMovimento(grupo, cota, parcela, null,
+                TipoMovimentoFinanceiro.ESTORNO_PAGAMENTO, NaturezaMovimento.DEBITO,
+                parcela.getValorSeguro(), "Estorno de Seguro - Parcela " + parcela.getNumeroParcela(), usuario);
+
+        if (parcela.getValorMulta() != null && parcela.getValorMulta().compareTo(BigDecimal.ZERO) > 0) {
+            movimentoService.registrarMovimento(grupo, cota, parcela, null,
+                    TipoMovimentoFinanceiro.ESTORNO_PAGAMENTO, NaturezaMovimento.DEBITO,
+                    parcela.getValorMulta(), "Estorno de Multa por atraso - Parcela " + parcela.getNumeroParcela(), usuario);
+        }
+
+        if (parcela.getValorJuros() != null && parcela.getValorJuros().compareTo(BigDecimal.ZERO) > 0) {
+            movimentoService.registrarMovimento(grupo, cota, parcela, null,
+                    TipoMovimentoFinanceiro.ESTORNO_PAGAMENTO, NaturezaMovimento.DEBITO,
+                    parcela.getValorJuros(), "Estorno de Juros de mora - Parcela " + parcela.getNumeroParcela(), usuario);
+        }
+
+        // 2. Altera status da parcela para PENDENTE (reabrir cobrança)
+        parcela.setStatus(StatusParcela.PENDENTE);
+
+        // 3. Zera valorPago, valorMulta, valorJuros, dataPagamento
+        parcela.setValorPago(null);
+        parcela.setValorMulta(BigDecimal.ZERO);
+        parcela.setValorJuros(BigDecimal.ZERO);
+        parcela.setDataPagamento(null);
+
+        Parcela parcelaSalva = parcelaRepository.save(parcela);
+
+        return mapper.toResponse(parcelaSalva);
     }
 
     // Os métodos de amortização continuam iguais, pois eles operam listas internas no banco

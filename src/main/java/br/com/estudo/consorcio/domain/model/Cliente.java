@@ -3,6 +3,7 @@ package br.com.estudo.consorcio.domain.model;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
@@ -31,6 +32,39 @@ public class Cliente {
     @Column(length = 20)
     private String telefone;
 
+    // --- Endereço ---
+    @Column(length = 8, nullable = false)
+    private String cep;
+
+    @Column(length = 200, nullable = false)
+    private String logradouro;
+
+    @Column(length = 20, nullable = false)
+    private String numero;
+
+    @Column(length = 100)
+    private String complemento;
+
+    @Column(length = 100, nullable = false)
+    private String bairro;
+
+    @Column(length = 100, nullable = false)
+    private String localidade;
+
+    @Column(length = 2, nullable = false)
+    private String uf;
+
+    // --- Dados financeiros ---
+    @Column(precision = 38, scale = 2)
+    private BigDecimal patrimonio = BigDecimal.ZERO;
+
+    @Column(name = "renda_mensal", precision = 38, scale = 2)
+    private BigDecimal rendaMensal = BigDecimal.ZERO;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "nivel_risco", nullable = false, length = 10)
+    private NivelRisco nivelRisco = NivelRisco.MEDIO;
+
     @Column(name = "data_cadastro", updatable = false)
     private LocalDate dataCadastro;
 
@@ -44,6 +78,15 @@ public class Cliente {
         this.dataCadastro = LocalDate.now();
         if (this.status == null) { // Definir status padrão se não for setado
             this.status = StatusCliente.ATIVO;
+        }
+        if (this.patrimonio == null) {
+            this.patrimonio = BigDecimal.ZERO;
+        }
+        if (this.rendaMensal == null) {
+            this.rendaMensal = BigDecimal.ZERO;
+        }
+        if (this.nivelRisco == null) {
+            this.nivelRisco = NivelRisco.MEDIO;
         }
     }
 }

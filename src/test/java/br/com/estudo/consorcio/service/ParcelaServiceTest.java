@@ -2,9 +2,7 @@ package br.com.estudo.consorcio.service;
 
 import br.com.estudo.consorcio.domain.dto.CotaInadimplenciaResponseDTO;
 import br.com.estudo.consorcio.domain.dto.ParcelaResponseDTO;
-import br.com.estudo.consorcio.domain.model.Cota;
-import br.com.estudo.consorcio.domain.model.Parcela;
-import br.com.estudo.consorcio.domain.model.StatusParcela;
+import br.com.estudo.consorcio.domain.model.*;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
@@ -33,6 +31,12 @@ class ParcelaServiceTest {
     @Mock
     private CotaRepository cotaRepository;
 
+    @Mock
+    private MovimentoFinanceiroService movimentoService;
+
+    @Mock
+    private HistoricoConsorciadoService historicoService;
+
     @org.mockito.Spy
     private br.com.estudo.consorcio.domain.mapper.ParcelaMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.ParcelaMapper.class);
 
@@ -48,6 +52,15 @@ class ParcelaServiceTest {
 
         Cota cota = new Cota();
         cota.setId(idCota);
+
+        Cliente cliente = new Cliente();
+        cliente.setId(5L);
+        cota.setCliente(cliente);
+
+        Grupo grupo = new Grupo();
+        grupo.setId(20L);
+        grupo.setValorCredito(new BigDecimal("100000.00"));
+        cota.setGrupo(grupo);
 
         // Cenário: Vencimento há 10 dias atrás para forçar o cálculo de atraso
         LocalDate vencimento = LocalDate.now().minusDays(10);

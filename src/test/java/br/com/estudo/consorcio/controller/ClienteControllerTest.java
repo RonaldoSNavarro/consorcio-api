@@ -2,6 +2,7 @@ package br.com.estudo.consorcio.controller;
 
 import br.com.estudo.consorcio.domain.dto.ClienteRequestDTO;
 import br.com.estudo.consorcio.domain.dto.ClienteResponseDTO;
+import br.com.estudo.consorcio.domain.model.NivelRisco;
 import br.com.estudo.consorcio.service.ClienteService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -16,6 +17,8 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -39,6 +42,12 @@ class ClienteControllerTest {
     private ClienteService clienteService;
 
     @MockitoBean
+    private br.com.estudo.consorcio.service.ViaCepService viaCepService;
+
+    @MockitoBean
+    private br.com.estudo.consorcio.service.HistoricoConsorciadoService historicoService;
+
+    @MockitoBean
     private br.com.estudo.consorcio.config.SecurityFilter securityFilter;
 
     // ========================================================================
@@ -49,8 +58,37 @@ class ClienteControllerTest {
     @DisplayName("Deve devolver 201 Created e o JSON do cliente ao salvar com sucesso")
     void deveRetornar201AoSalvarCliente() throws Exception {
         // Arrange
-        ClienteRequestDTO request = new ClienteRequestDTO("João", "11122233344", "joao@email.com", "11999999999");
-        ClienteResponseDTO response = new ClienteResponseDTO(1L, "João", "11122233344", "joao@email.com", "11999999999", java.time.LocalDate.now());
+        ClienteRequestDTO request = new ClienteRequestDTO(
+                "João", 
+                "12345678909", 
+                "joao@email.com", 
+                "11999999999",
+                "01001000",
+                "100",
+                "Apto 12",
+                new BigDecimal("150000.00"),
+                new BigDecimal("5500.00"),
+                NivelRisco.MEDIO
+        );
+        
+        ClienteResponseDTO response = new ClienteResponseDTO(
+                1L, 
+                "João", 
+                "12345678909", 
+                "joao@email.com", 
+                "11999999999",
+                "01001000",
+                "Praça da Sé",
+                "100",
+                "Apto 12",
+                "Sé",
+                "São Paulo",
+                "SP",
+                new BigDecimal("150000.00"),
+                new BigDecimal("5500.00"),
+                NivelRisco.MEDIO,
+                LocalDate.now()
+        );
  
         when(clienteService.salvar(any(ClienteRequestDTO.class))).thenReturn(response);
         String jsonRequest = objectMapper.writeValueAsString(request);
@@ -62,7 +100,7 @@ class ClienteControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.nome").value("Joã***"))
-                .andExpect(jsonPath("$.cpfCnpj").value("***.222.333-**"))
+                .andExpect(jsonPath("$.cpfCnpj").value("***.456.789-**"))
                 .andExpect(jsonPath("$.email").value("joa***@email.com"))
                 .andExpect(jsonPath("$.telefone").value("(11) 99999-****"));
     }
@@ -71,7 +109,18 @@ class ClienteControllerTest {
     @DisplayName("Deve devolver 400 Bad Request se o DTO enviado for inválido (Validação do Bean)")
     void deveRetornar400ParaDadosInvalidos() throws Exception {
         // Arrange
-        ClienteRequestDTO requestInvalido = new ClienteRequestDTO("", "", "email-errado", null);
+        ClienteRequestDTO requestInvalido = new ClienteRequestDTO(
+                "", 
+                "", 
+                "email-errado", 
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
         String jsonRequest = objectMapper.writeValueAsString(requestInvalido);
 
         // Act & Assert
@@ -89,8 +138,43 @@ class ClienteControllerTest {
     @DisplayName("Deve devolver 200 OK e a lista de clientes")
     void deveRetornar200AoListarClientes() throws Exception {
         // Arrange
-        ClienteResponseDTO cliente1 = new ClienteResponseDTO(1L, "Ronaldo", "11122233344", "ronaldo@email.com", "11999999999", java.time.LocalDate.now());
-        ClienteResponseDTO cliente2 = new ClienteResponseDTO(2L, "Maria", "22233344455", "maria@email.com", "11988888888", java.time.LocalDate.now());
+        ClienteResponseDTO cliente1 = new ClienteResponseDTO(
+                1L, 
+                "Ronaldo", 
+                "12345678909", 
+                "ronaldo@email.com", 
+                "11999999999",
+                "01001000",
+                "Praça da Sé",
+                "100",
+                "Apto 12",
+                "Sé",
+                "São Paulo",
+                "SP",
+                new BigDecimal("150000.00"),
+                new BigDecimal("5500.00"),
+                NivelRisco.MEDIO,
+                LocalDate.now()
+        );
+        
+        ClienteResponseDTO cliente2 = new ClienteResponseDTO(
+                2L, 
+                "Maria", 
+                "11222333000181", 
+                "maria@email.com", 
+                "11988888888",
+                "01001000",
+                "Praça da Sé",
+                "200",
+                null,
+                "Sé",
+                "São Paulo",
+                "SP",
+                new BigDecimal("200000.00"),
+                new BigDecimal("7500.00"),
+                NivelRisco.BAIXO,
+                LocalDate.now()
+        );
  
         when(clienteService.listarTodos(any(Pageable.class))).thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(cliente1, cliente2)));
  

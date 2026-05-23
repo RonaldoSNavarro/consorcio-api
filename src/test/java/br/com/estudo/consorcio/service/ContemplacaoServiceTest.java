@@ -39,6 +39,15 @@ class ContemplacaoServiceTest {
     @Mock
     private ParcelaRepository parcelaRepository;
 
+    @Mock
+    private MovimentoFinanceiroService movimentoService;
+
+    @Mock
+    private CotaService cotaService;
+
+    @Mock
+    private HistoricoConsorciadoService historicoService;
+
     @org.mockito.Spy
     private br.com.estudo.consorcio.domain.mapper.ContemplacaoMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.ContemplacaoMapper.class);
 
@@ -186,6 +195,12 @@ class ContemplacaoServiceTest {
 
         // Ensina o mock a devolver o próprio objeto ao guardar
         when(contemplacaoRepository.save(any())).thenAnswer(i -> i.getArguments()[0]);
+
+        doAnswer(i -> {
+            Cota c = i.getArgument(0);
+            c.setStatus(StatusCota.CONTEMPLADA);
+            return null;
+        }).when(cotaService).registrarTransicaoVersao(any(Cota.class), any(StatusCota.class), anyString());
 
         // --- ACT ---
         var resultado = service.registrar(request);

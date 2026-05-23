@@ -13,6 +13,13 @@ public interface ClienteMapper {
 
     ClienteMapper INSTANCE = Mappers.getMapper(ClienteMapper.class);
 
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "dataCadastro", ignore = true)
+    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "logradouro", ignore = true)
+    @Mapping(target = "bairro", ignore = true)
+    @Mapping(target = "localidade", ignore = true)
+    @Mapping(target = "uf", ignore = true)
     Cliente toEntity(ClienteRequestDTO dto);
 
     ClienteResponseDTO toResponse(Cliente entity);
@@ -20,5 +27,9 @@ public interface ClienteMapper {
     @Mapping(target = "id", ignore = true) // ID não deve ser atualizado pelo DTO
     @Mapping(target = "dataCadastro", ignore = true) // Data de cadastro não deve ser atualizada
     @Mapping(target = "status", ignore = true) // Status tem método próprio no serviço
+    @Mapping(target = "logradouro", ignore = true)
+    @Mapping(target = "bairro", ignore = true)
+    @Mapping(target = "localidade", ignore = true)
+    @Mapping(target = "uf", ignore = true)
     void updateEntityFromDto(ClienteRequestDTO dto, @MappingTarget Cliente entity);
 }

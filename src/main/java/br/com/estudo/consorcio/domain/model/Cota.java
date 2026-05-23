@@ -42,6 +42,9 @@ public class Cota {
     @Column(nullable = false)
     private Boolean reembolsada = false;
 
+    @Column(nullable = false)
+    private Integer versao = 0;
+
     @PrePersist
     protected void onCreate() {
         if (this.status == null) {
@@ -52,6 +55,9 @@ public class Cota {
         }
         if (this.reembolsada == null) {
             this.reembolsada = false;
+        }
+        if (this.versao == null) {
+            this.versao = 0;
         }
     }
 }

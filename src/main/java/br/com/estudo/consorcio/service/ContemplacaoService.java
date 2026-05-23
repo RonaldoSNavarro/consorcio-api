@@ -9,6 +9,7 @@ import br.com.estudo.consorcio.domain.repository.ContemplacaoRepository;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,13 +26,30 @@ public class ContemplacaoService {
     private final CotaRepository cotaRepository;
     private final ParcelaRepository parcelaRepository;
     private final ContemplacaoMapper mapper; // Injetar o mapper
+    private final MovimentoFinanceiroService movimentoService;
+    private final CotaService cotaService;
+    private final HistoricoConsorciadoService historicoService;
 
-    public ContemplacaoService(ContemplacaoRepository contemplacaoRepository, AssembleiaRepository assembleiaRepository, CotaRepository cotaRepository, ParcelaRepository parcelaRepository, ContemplacaoMapper mapper) { // Adicionar o mapper ao construtor
+    public ContemplacaoService(ContemplacaoRepository contemplacaoRepository, AssembleiaRepository assembleiaRepository,
+                               CotaRepository cotaRepository, ParcelaRepository parcelaRepository,
+                               ContemplacaoMapper mapper, MovimentoFinanceiroService movimentoService,
+                               CotaService cotaService, HistoricoConsorciadoService historicoService) {
         this.contemplacaoRepository = contemplacaoRepository;
         this.assembleiaRepository = assembleiaRepository;
         this.cotaRepository = cotaRepository;
         this.parcelaRepository = parcelaRepository;
         this.mapper = mapper;
+        this.movimentoService = movimentoService;
+        this.cotaService = cotaService;
+        this.historicoService = historicoService;
+    }
+
+    private Usuario getUsuarioAutenticado() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof Usuario) {
+            return (Usuario) authentication.getPrincipal();
+        }
+        return null;
     }
 
     @Transactional
@@ -107,11 +125,63 @@ public class ContemplacaoService {
         // 3. Persistência
         Contemplacao contemplacaoSalva = contemplacaoRepository.save(contemplacao);
 
-        cota.setStatus(StatusCota.CONTEMPLADA);
-        cotaRepository.save(cota);
+        cotaService.registrarTransicaoVersao(cota, StatusCota.CONTEMPLADA, "Cota contemplada na assembleia id " + assembleia.getId());
+
+        // --- Registrar Movimento Financeiro (Módulo 2) ---
+        Usuario usuario = getUsuarioAutenticado();
+        Grupo grupo = assembleia.getGrupo();
+
+        if (Boolean.TRUE.equals(contemplacaoSalva.getLanceEmbutido())) {
+            movimentoService.registrarMovimento(grupo, cota, null, contemplacaoSalva,
+                    TipoMovimentoFinanceiro.LANCE_EMBUTIDO, NaturezaMovimento.CREDITO,
+                    contemplacaoSalva.getValorLance(), "Lance embutido utilizado na contemplação - Cota " + cota.getNumeroCota(), usuario);
+        }
+
+        movimentoService.registrarMovimento(grupo, cota, null, contemplacaoSalva,
+                TipoMovimentoFinanceiro.LIBERACAO_CREDITO, NaturezaMovimento.DEBITO,
+                contemplacaoSalva.getValorCreditoLiberado(), "Liberação de carta de crédito na contemplação - Cota " + cota.getNumeroCota(), usuario);
+
+        // --- Registrar Interação de Histórico (Módulo 4) ---
+        historicoService.registrarInteracao(
+                cota.getCliente(), cota, cota.getGrupo(), null,
+                TipoInteracao.CONTEMPLACAO, "Cota contemplada via " + contemplacaoSalva.getTipoContemplacao(),
+                cota.getGrupo().getValorCredito(), null,
+                null, null, null,
+                null, null, usuario);
 
         // 4. Retorno Mapeado usando o mapper
         return mapper.toResponse(contemplacaoSalva);
+    }
+
+    @Transactional
+    public ContemplacaoResponseDTO pagarBem(Long contemplacaoId) {
+        Contemplacao contemplacao = contemplacaoRepository.findById(contemplacaoId)
+                .orElseThrow(() -> new RegraDeNegocioException("Contemplação não encontrada."));
+
+        // Regra de segurança: evitar duplicidade de pagamento do bem
+        boolean jaPago = movimentoService.listarPorCota(contemplacao.getCota().getId()).stream()
+                .anyMatch(mov -> mov.tipoMovimento() == TipoMovimentoFinanceiro.PAGAMENTO_BEM);
+        if (jaPago) {
+            throw new RegraDeNegocioException("O bem para esta contemplação já foi pago.");
+        }
+
+        Usuario usuario = getUsuarioAutenticado();
+        Grupo grupo = contemplacao.getCota().getGrupo();
+        Cota cota = contemplacao.getCota();
+
+        movimentoService.registrarMovimento(grupo, cota, null, contemplacao,
+                TipoMovimentoFinanceiro.PAGAMENTO_BEM, NaturezaMovimento.DEBITO,
+                contemplacao.getValorCreditoLiberado(), "Pagamento de bem - Cota " + cota.getNumeroCota(), usuario);
+
+        // --- Registrar Interação de Histórico (Módulo 4) ---
+        historicoService.registrarInteracao(
+                cota.getCliente(), cota, cota.getGrupo(), null,
+                TipoInteracao.PAGAMENTO_BEM, "Pagamento de bem no valor de R$ " + contemplacao.getValorCreditoLiberado() + " realizado.",
+                cota.getGrupo().getValorCredito(), null,
+                null, null, null,
+                "Bem faturado", contemplacao.getValorCreditoLiberado(), usuario);
+
+        return mapper.toResponse(contemplacao);
     }
 
     public List<ContemplacaoResponseDTO> listarPorAssembleia(Long assembleiaId) {

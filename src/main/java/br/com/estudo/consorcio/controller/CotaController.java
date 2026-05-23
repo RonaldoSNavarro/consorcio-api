@@ -67,4 +67,10 @@ public class CotaController {
     public ResponseEntity<CotaInadimplenciaResponseDTO> obterInadimplencia(@PathVariable Long id) {
         return ResponseEntity.ok(parcelaService.obterInadimplenciaCota(id));
     }
+
+    @Operation(summary = "Histórico de transições de versões", description = "Retorna todos os logs de mudanças de estado e versionamento de uma cota específica.")
+    @GetMapping("/{id}/versoes")
+    public ResponseEntity<List<HistoricoVersaoCotaResponseDTO>> listarVersoes(@PathVariable Long id) {
+        return ResponseEntity.ok(service.listarVersoes(id));
+    }
 }

@@ -7,6 +7,7 @@ import br.com.estudo.consorcio.domain.mapper.GrupoMapper;
 import br.com.estudo.consorcio.domain.model.*;
 import br.com.estudo.consorcio.domain.repository.*;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,12 +23,29 @@ public class GrupoService {
     private final ParcelaRepository parcelaRepository;
     private final ContemplacaoRepository contemplacaoRepository;
     private final GrupoMapper mapper;
+    private final MovimentoFinanceiroService movimentoService;
+    private final CotaRepository cotaRepository;
+    private final HistoricoConsorciadoService historicoService;
 
-    public GrupoService(GrupoRepository repository, ParcelaRepository parcelaRepository, ContemplacaoRepository contemplacaoRepository, GrupoMapper mapper) {
+    public GrupoService(GrupoRepository repository, ParcelaRepository parcelaRepository,
+                        ContemplacaoRepository contemplacaoRepository, GrupoMapper mapper,
+                        MovimentoFinanceiroService movimentoService, CotaRepository cotaRepository,
+                        HistoricoConsorciadoService historicoService) {
         this.repository = repository;
         this.parcelaRepository = parcelaRepository;
         this.contemplacaoRepository = contemplacaoRepository;
         this.mapper = mapper;
+        this.movimentoService = movimentoService;
+        this.cotaRepository = cotaRepository;
+        this.historicoService = historicoService;
+    }
+
+    private Usuario getUsuarioAutenticado() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof Usuario) {
+            return (Usuario) authentication.getPrincipal();
+        }
+        return null;
     }
 
     @Transactional
@@ -99,6 +117,26 @@ public class GrupoService {
         }
 
         parcelaRepository.saveAll(parcelasParaReajustar);
+
+        // --- Registrar Movimento Financeiro (Módulo 2) ---
+        BigDecimal diferenca = novoValorCredito.subtract(antigoValorCredito).abs();
+        NaturezaMovimento natureza = novoValorCredito.compareTo(antigoValorCredito) > 0 ? NaturezaMovimento.CREDITO : NaturezaMovimento.DEBITO;
+        Usuario usuario = getUsuarioAutenticado();
+
+        movimentoService.registrarMovimento(grupoSalvo, null, null, null,
+                TipoMovimentoFinanceiro.REAJUSTE_CREDITO, natureza,
+                diferenca, "Reajuste do valor do crédito de R$ " + antigoValorCredito + " para R$ " + novoValorCredito, usuario);
+
+        // --- Registrar Interação de Histórico para cada Cota (Módulo 4) ---
+        List<Cota> cotas = cotaRepository.findByGrupoId(grupoId);
+        for (Cota cota : cotas) {
+            historicoService.registrarInteracao(
+                    cota.getCliente(), cota, grupoSalvo, null,
+                    TipoInteracao.REAJUSTE_CREDITO, "Crédito do grupo reajustado de R$ " + antigoValorCredito + " para R$ " + novoValorCredito,
+                    novoValorCredito, null,
+                    null, null, null,
+                    null, null, usuario);
+        }
 
         return mapper.toResponse(grupoSalvo);
     }

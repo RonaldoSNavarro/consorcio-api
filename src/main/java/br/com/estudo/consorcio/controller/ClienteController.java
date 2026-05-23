@@ -2,7 +2,12 @@ package br.com.estudo.consorcio.controller;
 
 import br.com.estudo.consorcio.domain.dto.ClienteRequestDTO;
 import br.com.estudo.consorcio.domain.dto.ClienteResponseDTO;
+import br.com.estudo.consorcio.domain.dto.HistoricoConsorciadoResponseDTO;
+import br.com.estudo.consorcio.domain.dto.ViaCepResponseDTO;
+import br.com.estudo.consorcio.domain.model.TipoInteracao;
 import br.com.estudo.consorcio.service.ClienteService;
+import br.com.estudo.consorcio.service.HistoricoConsorciadoService;
+import br.com.estudo.consorcio.service.ViaCepService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,6 +18,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/clientes")
@@ -20,9 +26,13 @@ import org.springframework.web.bind.annotation.*;
 public class ClienteController {
 
     private final ClienteService service;
+    private final ViaCepService viaCepService;
+    private final HistoricoConsorciadoService historicoService;
 
-    public ClienteController(ClienteService service) {
+    public ClienteController(ClienteService service, ViaCepService viaCepService, HistoricoConsorciadoService historicoService) {
         this.service = service;
+        this.viaCepService = viaCepService;
+        this.historicoService = historicoService;
     }
 
     @Operation(summary = "Registrar novo cliente",
@@ -70,5 +80,26 @@ public class ClienteController {
     public ResponseEntity<Void> inativar(@PathVariable Long id) {
         service.inativar(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Buscar endereço por CEP",
+            description = "Consulta a API externa do ViaCEP para obter os dados completos do endereço.")
+    @GetMapping("/busca-cep/{cep}")
+    public ResponseEntity<ViaCepResponseDTO> buscarCep(
+            @Parameter(description = "CEP com 8 dígitos") @PathVariable String cep) {
+        return ResponseEntity.ok(viaCepService.buscarCep(cep));
+    }
+
+    @Operation(summary = "Obter histórico completo do consorciado",
+            description = "Retorna todas as interações e snapshots financeiros do cliente, filtrados opcionalmente por tipo de interação.")
+    @GetMapping("/{id}/historico")
+    public ResponseEntity<List<HistoricoConsorciadoResponseDTO>> obterHistorico(
+            @Parameter(description = "ID do cliente") @PathVariable Long id,
+            @Parameter(description = "Tipo de interação para filtro") @RequestParam(required = false) TipoInteracao tipo) {
+
+        if (tipo != null) {
+            return ResponseEntity.ok(historicoService.listarPorClienteETipo(id, tipo));
+        }
+        return ResponseEntity.ok(historicoService.listarPorCliente(id));
     }
 }

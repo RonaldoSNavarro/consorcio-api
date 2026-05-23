@@ -38,8 +38,11 @@ public class Parcela {
     @Column(nullable = false)
     private BigDecimal valorFundoReserva; // Fundo de emergência do grupo
 
+    @Column(name = "valor_seguro", nullable = false)
+    private BigDecimal valorSeguro = BigDecimal.ZERO; // Seguro da cota/grupo
+
     @Column(nullable = false)
-    private BigDecimal valorParcela; // Valor total do boleto (Soma dos três acima)
+    private BigDecimal valorParcela; // Valor total do boleto (Soma dos quatro acima)
 
     // --- COLUNAS DE INADIMPLÊNCIA --- //
     @Column(precision = 15, scale = 2)
@@ -66,10 +69,12 @@ public class Parcela {
     @PrePersist
     @PreUpdate
     public void calcularValorTotal() {
-        if (this.valorFundoComum != null && this.valorTaxaAdministracao != null && this.valorFundoReserva != null) {
+        if (this.valorFundoComum != null && this.valorTaxaAdministracao != null 
+                && this.valorFundoReserva != null && this.valorSeguro != null) {
             this.valorParcela = this.valorFundoComum
                     .add(this.valorTaxaAdministracao)
-                    .add(this.valorFundoReserva);
+                    .add(this.valorFundoReserva)
+                    .add(this.valorSeguro);
         }
     }
 }

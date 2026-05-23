@@ -2,6 +2,7 @@ package br.com.estudo.consorcio.service;
 
 import br.com.estudo.consorcio.domain.dto.ClienteRequestDTO;
 import br.com.estudo.consorcio.domain.dto.ClienteResponseDTO;
+import br.com.estudo.consorcio.domain.dto.ViaCepResponseDTO;
 import br.com.estudo.consorcio.domain.model.Cliente;
 import br.com.estudo.consorcio.domain.model.StatusCliente;
 import br.com.estudo.consorcio.domain.mapper.ClienteMapper;
@@ -19,10 +20,12 @@ public class ClienteService {
 
     private final ClienteRepository repository;
     private final ClienteMapper mapper;
+    private final ViaCepService viaCepService;
 
-    public ClienteService(ClienteRepository repository, ClienteMapper mapper) {
+    public ClienteService(ClienteRepository repository, ClienteMapper mapper, ViaCepService viaCepService) {
         this.repository = repository;
         this.mapper = mapper;
+        this.viaCepService = viaCepService;
     }
 
     // -------------------------------------------------------------------------
@@ -33,8 +36,14 @@ public class ClienteService {
     public ClienteResponseDTO salvar(ClienteRequestDTO dto) {
         validarDocumentoUnico(dto.cpfCnpj()); // CORRIGIDO: dto.documento() para dto.cpfCnpj()
 
+        ViaCepResponseDTO viaCep = viaCepService.buscarCep(dto.cep());
+
         Cliente cliente = mapper.toEntity(dto);
         cliente.setStatus(StatusCliente.ATIVO);
+        cliente.setLogradouro(viaCep.logradouro());
+        cliente.setBairro(viaCep.bairro());
+        cliente.setLocalidade(viaCep.localidade());
+        cliente.setUf(viaCep.uf());
 
         return mapper.toResponse(repository.save(cliente));
     }
@@ -75,7 +84,12 @@ public class ClienteService {
                     "O documento (CPF/CNPJ) não pode ser alterado após o cadastro.");
         }
 
+        ViaCepResponseDTO viaCep = viaCepService.buscarCep(dto.cep());
         mapper.updateEntityFromDto(dto, cliente);
+        cliente.setLogradouro(viaCep.logradouro());
+        cliente.setBairro(viaCep.bairro());
+        cliente.setLocalidade(viaCep.localidade());
+        cliente.setUf(viaCep.uf());
 
         return mapper.toResponse(repository.save(cliente));
     }

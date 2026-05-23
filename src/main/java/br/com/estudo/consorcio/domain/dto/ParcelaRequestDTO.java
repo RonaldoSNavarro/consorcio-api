@@ -35,6 +35,11 @@ public record ParcelaRequestDTO(
         @Schema(example = "50.00")
         BigDecimal valorFundoReserva,
 
+        @NotNull(message = "Valor do seguro é obrigatório")
+        @jakarta.validation.constraints.PositiveOrZero(message = "Valor do seguro não pode ser negativo")
+        @Schema(example = "35.00")
+        BigDecimal valorSeguro,
+
         @NotNull(message = "Data de vencimento é obrigatória")
         @FutureOrPresent(message = "Data de vencimento não pode ser no passado")
         @Schema(example = "2026-06-10")

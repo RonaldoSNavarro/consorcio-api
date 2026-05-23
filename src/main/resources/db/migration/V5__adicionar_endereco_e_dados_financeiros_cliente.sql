@@ -1,0 +1,13 @@
+-- Campos de endereço (obrigatórios para novos cadastros)
+ALTER TABLE clientes ADD COLUMN cep VARCHAR(8) NOT NULL DEFAULT '00000000';
+ALTER TABLE clientes ADD COLUMN logradouro VARCHAR(200) NOT NULL DEFAULT '';
+ALTER TABLE clientes ADD COLUMN numero VARCHAR(20) NOT NULL DEFAULT '';
+ALTER TABLE clientes ADD COLUMN complemento VARCHAR(100);
+ALTER TABLE clientes ADD COLUMN bairro VARCHAR(100) NOT NULL DEFAULT '';
+ALTER TABLE clientes ADD COLUMN localidade VARCHAR(100) NOT NULL DEFAULT '';
+ALTER TABLE clientes ADD COLUMN uf VARCHAR(2) NOT NULL DEFAULT '';
+
+-- Dados financeiros do cliente
+ALTER TABLE clientes ADD COLUMN patrimonio NUMERIC(38,2) DEFAULT 0;
+ALTER TABLE clientes ADD COLUMN renda_mensal NUMERIC(38,2) DEFAULT 0;
+ALTER TABLE clientes ADD COLUMN nivel_risco VARCHAR(10) NOT NULL DEFAULT 'MEDIO';

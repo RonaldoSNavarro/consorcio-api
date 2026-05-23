@@ -4,5 +4,9 @@ public enum StatusCota {
     ATIVA,
     CANCELADA,
     CONTEMPLADA,
-    INADIMPLENTE
+    INADIMPLENTE,
+    SUSPENSA,
+    JURIDICO,
+    EXCLUIDA,
+    QUITADA
 }

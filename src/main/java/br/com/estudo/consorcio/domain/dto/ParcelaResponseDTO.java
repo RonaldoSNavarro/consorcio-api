@@ -11,6 +11,7 @@ public record ParcelaResponseDTO(
         BigDecimal valorFundoComum,
         BigDecimal valorTaxaAdministracao,
         BigDecimal valorFundoReserva,
+        BigDecimal valorSeguro,
         BigDecimal valorParcela,
         BigDecimal valorMulta,
         BigDecimal valorJuros,

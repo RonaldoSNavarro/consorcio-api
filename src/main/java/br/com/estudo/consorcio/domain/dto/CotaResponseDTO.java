@@ -7,5 +7,6 @@ public record CotaResponseDTO(
         Integer numeroCota,
         Long clienteId,
         Long grupoId,
-        StatusCota status
+        StatusCota status,
+        Integer versao
 ) {}

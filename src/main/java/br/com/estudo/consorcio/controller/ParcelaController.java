@@ -58,4 +58,11 @@ public class ParcelaController {
         service.amortizarPorDiluicao(cotaId, valorLance);
         return ResponseEntity.ok("Amortização por diluição do valor das parcelas realizada com sucesso!");
     }
+
+    @Operation(summary = "Estornar pagamento da parcela", description = "Realiza o estorno contábil inverso (DÉBITO no fundo do grupo), zera os valores pagos e retorna a parcela para o status PENDENTE.")
+    @PostMapping("/{id}/estornar")
+    public ResponseEntity<ParcelaResponseDTO> estornarParcela(@PathVariable Long id) {
+        ParcelaResponseDTO parcelaEstornada = service.estornar(id);
+        return ResponseEntity.ok(parcelaEstornada);
+    }
 }

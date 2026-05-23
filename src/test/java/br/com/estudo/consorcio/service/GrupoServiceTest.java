@@ -39,6 +39,15 @@ class GrupoServiceTest {
     @Mock
     private ContemplacaoRepository contemplacaoRepository;
 
+    @Mock
+    private br.com.estudo.consorcio.domain.repository.CotaRepository cotaRepository;
+
+    @Mock
+    private MovimentoFinanceiroService movimentoService;
+
+    @Mock
+    private HistoricoConsorciadoService historicoService;
+
     @org.mockito.Spy
     private br.com.estudo.consorcio.domain.mapper.GrupoMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.GrupoMapper.class);
 

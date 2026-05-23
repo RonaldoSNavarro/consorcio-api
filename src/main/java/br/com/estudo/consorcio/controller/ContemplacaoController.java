@@ -37,4 +37,12 @@ public class ContemplacaoController {
     public ResponseEntity<List<ContemplacaoResponseDTO>> listarPorAssembleia(@PathVariable Long assembleiaId) {
         return ResponseEntity.ok(service.listarPorAssembleia(assembleiaId));
     }
+
+    @Operation(summary = "Pagar o bem da contemplação",
+            description = "Realiza o pagamento/faturamento do bem (DÉBITO do valor do crédito liberado no fundo do grupo).")
+    @PostMapping("/{id}/pagamento-bem")
+    public ResponseEntity<ContemplacaoResponseDTO> pagarBem(@PathVariable Long id) {
+        ContemplacaoResponseDTO response = service.pagarBem(id);
+        return ResponseEntity.ok(response);
+    }
 }

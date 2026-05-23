@@ -1,0 +1,15 @@
+package br.com.estudo.consorcio.domain.model;
+
+public enum TipoInteracao {
+    GERACAO_PARCELAS,
+    PAGAMENTO_PARCELA,
+    CONTEMPLACAO,
+    CARTA_CREDITO,
+    PAGAMENTO_BEM,
+    REAJUSTE_CREDITO,
+    CANCELAMENTO_COTA,
+    REEMBOLSO,
+    AMORTIZACAO,
+    ATUALIZACAO_CADASTRAL,
+    COMUNICADO
+}

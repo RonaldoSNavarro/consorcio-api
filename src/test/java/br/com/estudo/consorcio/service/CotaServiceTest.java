@@ -37,6 +37,12 @@ class CotaServiceTest {
     private GrupoRepository grupoRepository;
     @Mock
     private ParcelaRepository parcelaRepository;
+    @Mock
+    private MovimentoFinanceiroService movimentoService;
+    @Mock
+    private br.com.estudo.consorcio.domain.repository.HistoricoVersaoCotaRepository historicoVersaoCotaRepository;
+    @Mock
+    private HistoricoConsorciadoService historicoService;
 
     @org.mockito.Spy
     private br.com.estudo.consorcio.domain.mapper.CotaMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.CotaMapper.class);
@@ -215,6 +221,15 @@ class CotaServiceTest {
         cota.setId(cotaId);
         cota.setStatus(StatusCota.ATIVA);
 
+        Grupo grupo = new Grupo();
+        grupo.setId(10L);
+        grupo.setValorCredito(new BigDecimal("100000.00"));
+        cota.setGrupo(grupo);
+
+        Cliente cliente = new Cliente();
+        cliente.setId(5L);
+        cota.setCliente(cliente);
+
         Parcela p1 = new Parcela();
         p1.setId(10L);
         p1.setStatus(StatusParcela.PENDENTE);
@@ -268,6 +283,15 @@ class CotaServiceTest {
         cota.setNumeroCota(44);
         cota.setStatus(StatusCota.CANCELADA);
         cota.setReembolsada(false);
+
+        Grupo grupo = new Grupo();
+        grupo.setId(10L);
+        grupo.setValorCredito(new BigDecimal("100000.00"));
+        cota.setGrupo(grupo);
+
+        Cliente cliente = new Cliente();
+        cliente.setId(5L);
+        cota.setCliente(cliente);
 
         // Fundo comum pago total: 2000.00
         Parcela p1 = new Parcela();

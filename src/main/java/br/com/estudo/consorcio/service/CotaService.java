@@ -9,8 +9,11 @@ import br.com.estudo.consorcio.domain.repository.ClienteRepository;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.GrupoRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
+import br.com.estudo.consorcio.domain.repository.HistoricoVersaoCotaRepository;
+import br.com.estudo.consorcio.domain.dto.HistoricoVersaoCotaResponseDTO;
 import br.com.estudo.consorcio.exception.ClienteInativoException;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,13 +29,78 @@ public class CotaService {
     private final GrupoRepository grupoRepository;
     private final ParcelaRepository parcelaRepository;
     private final CotaMapper mapper;
+    private final MovimentoFinanceiroService movimentoService;
+    private final HistoricoVersaoCotaRepository historicoVersaoCotaRepository;
+    private final HistoricoConsorciadoService historicoService;
 
-    public CotaService(CotaRepository cotaRepository, ClienteRepository clienteRepository, GrupoRepository grupoRepository, ParcelaRepository parcelaRepository, CotaMapper mapper) {
+    public CotaService(CotaRepository cotaRepository, ClienteRepository clienteRepository,
+                       GrupoRepository grupoRepository, ParcelaRepository parcelaRepository,
+                       CotaMapper mapper, MovimentoFinanceiroService movimentoService,
+                       HistoricoVersaoCotaRepository historicoVersaoCotaRepository,
+                       HistoricoConsorciadoService historicoService) {
         this.cotaRepository = cotaRepository;
         this.clienteRepository = clienteRepository;
         this.grupoRepository = grupoRepository;
         this.parcelaRepository = parcelaRepository;
         this.mapper = mapper;
+        this.movimentoService = movimentoService;
+        this.historicoVersaoCotaRepository = historicoVersaoCotaRepository;
+        this.historicoService = historicoService;
+    }
+
+    private Usuario getUsuarioAutenticado() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof Usuario) {
+            return (Usuario) authentication.getPrincipal();
+        }
+        return null;
+    }
+
+    @Transactional
+    public void registrarTransicaoVersao(Cota cota, StatusCota statusNovo, String motivo) {
+        StatusCota statusAnterior = cota.getStatus();
+
+        // A versão inicial de uma cota deve ser 0, pois corresponde a uma cota em situação normal.
+        // A versão 1 corresponde a uma cota excluída.
+        if (statusNovo == StatusCota.EXCLUIDA) {
+            cota.setVersao(1);
+        }
+
+        cota.setStatus(statusNovo);
+        cotaRepository.save(cota);
+
+        Usuario usuario = getUsuarioAutenticado();
+
+        HistoricoVersaoCota historico = HistoricoVersaoCota.builder()
+                .cota(cota)
+                .versao(cota.getVersao())
+                .statusAnterior(statusAnterior)
+                .statusNovo(statusNovo)
+                .motivo(motivo)
+                .usuario(usuario)
+                .build();
+
+        historicoVersaoCotaRepository.save(historico);
+    }
+
+    @Transactional(readOnly = true)
+    public List<HistoricoVersaoCotaResponseDTO> listarVersoes(Long cotaId) {
+        // Garantir que a cota existe
+        if (!cotaRepository.existsById(cotaId)) {
+            throw new RegraDeNegocioException("Cota não encontrada.");
+        }
+        return historicoVersaoCotaRepository.findByCotaIdOrderByDataTransicaoDesc(cotaId).stream()
+                .map(entity -> new HistoricoVersaoCotaResponseDTO(
+                        entity.getId(),
+                        entity.getCota().getId(),
+                        entity.getVersao(),
+                        entity.getStatusAnterior(),
+                        entity.getStatusNovo(),
+                        entity.getMotivo(),
+                        entity.getDataTransicao(),
+                        entity.getUsuario() != null ? entity.getUsuario().getUsername() : null
+                ))
+                .toList();
     }
 
     @Transactional
@@ -71,9 +139,8 @@ public class CotaService {
             throw new RegraDeNegocioException("Esta cota já está cancelada.");
         }
 
-        // Altera status para CANCELADA
-        cota.setStatus(StatusCota.CANCELADA);
-        Cota cotaSalva = cotaRepository.save(cota);
+        // Altera status para CANCELADA usando a transição controlada
+        registrarTransicaoVersao(cota, StatusCota.CANCELADA, "Cota cancelada pelo administrador.");
 
         // Remove todas as parcelas PENDENTES (ou atrasadas/abertas) da cota
         List<Parcela> parcelasPendentes = parcelaRepository.findByCotaId(cotaId).stream()
@@ -82,7 +149,16 @@ public class CotaService {
 
         parcelaRepository.deleteAll(parcelasPendentes);
 
-        return mapper.toResponse(cotaSalva);
+        // --- Registrar Interação de Histórico (Módulo 4) ---
+        Usuario usuario = getUsuarioAutenticado();
+        historicoService.registrarInteracao(
+                cota.getCliente(), cota, cota.getGrupo(), null,
+                TipoInteracao.CANCELAMENTO_COTA, "Cota cancelada no grupo.",
+                cota.getGrupo().getValorCredito(), null,
+                null, null, null,
+                null, null, usuario);
+
+        return mapper.toResponse(cota);
     }
 
     @Transactional
@@ -115,6 +191,30 @@ public class CotaService {
         cota.setValorReembolsado(valorReembolsado);
         cota.setReembolsada(true);
         cotaRepository.save(cota);
+
+        // --- Registrar Movimentos Financeiros (Módulo 2) ---
+        Usuario usuario = getUsuarioAutenticado();
+        Grupo grupo = cota.getGrupo();
+
+        if (valorReembolsado.compareTo(BigDecimal.ZERO) > 0) {
+            movimentoService.registrarMovimento(grupo, cota, null, null,
+                    TipoMovimentoFinanceiro.REEMBOLSO, NaturezaMovimento.DEBITO,
+                    valorReembolsado, "Reembolso de cota cancelada - Cota " + cota.getNumeroCota(), usuario);
+        }
+
+        if (multaRescisoria.compareTo(BigDecimal.ZERO) > 0) {
+            movimentoService.registrarMovimento(grupo, cota, null, null,
+                    TipoMovimentoFinanceiro.MULTA_RESCISORIA, NaturezaMovimento.CREDITO,
+                    multaRescisoria, "Multa rescisória de cota cancelada - Cota " + cota.getNumeroCota(), usuario);
+        }
+
+        // --- Registrar Interação de Histórico (Módulo 4) ---
+        historicoService.registrarInteracao(
+                cota.getCliente(), cota, cota.getGrupo(), null,
+                TipoInteracao.REEMBOLSO, "Reembolso efetuado para a cota cancelada. Valor pago FC: R$ " + totalFundoComumPago + " | Multa: R$ " + multaRescisoria + " | Reembolsado: R$ " + valorReembolsado,
+                cota.getGrupo().getValorCredito(), totalFundoComumPago,
+                null, null, null,
+                null, null, usuario);
 
         return new CotaReembolsoResponseDTO(
                 cotaId,
