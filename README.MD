@@ -25,11 +25,11 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 
 ## 🧪 Qualidade de Software e Testes
 
-O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras:
+O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura foi expandida para **71 testes unitários e de integração 100% verdes**:
 
-* **Testes Unitários (100% Branch Coverage):** Toda a camada de `Service` possui cobertura total de ramificações. Isso garante que cada `if`, `else` e `throw` das regras de negócio foi validado individualmente com **Mockito**.
-* **Segurança de Tipos em Testes:** Uso de `@MockitoBean` (Spring Boot 4) e `ReflectionTestUtils` para testes de serviços de infraestrutura como o `TokenService`.
-* **Testes de Integração (MockMvc):** Validação dos fluxos de entrada e saída (`Controllers`), garantindo que a serialização JSON, as validações de Bean (`@Valid`) e os filtros de segurança JWT funcionem em conjunto.
+* **Testes Unitários (100% Service & Validator Coverage):** Toda a camada de `Service` possui cobertura total. Criamos suítes de teste de baixo nível como `CpfCnpjValidatorTest` e `ViaCepServiceTest` (usando mocks avançados da API fluente do `RestClient` do Spring).
+* **Módulos de Auditoria e Livro Razão:** Testados exaustivamente em `MovimentoFinanceiroServiceTest` e `HistoricoConsorciadoServiceTest` para validar consistência de saldos contábeis e a fórmula regulatória da categoria.
+* **Testes de Integração (MockMvc):** Validação dos fluxos de entrada e saída (`Controllers`), garantindo que a serialização JSON, as validações de Bean (`@Valid`), os filtros de segurança JWT e os tratamentos do `GlobalExceptionHandler` funcionem perfeitamente.
 
 ## 🛡️ Segurança e Autenticação
 
@@ -40,34 +40,59 @@ A proteção dos recursos financeiros é garantida via **Bearer Token**:
 
 ## 🧩 Regras de Negócio e Motores Financeiros
 
-O sistema implementa regras de negócio financeiras extremamente robustas baseadas na **Lei 11.795/2008**, **Circulares BCB 3.432/2009 e 285/2022**, além do **Código de Defesa do Consumidor (CDC)** e da **LGPD**:
+O sistema implementa regras de negócio financeiras extremamente robustas baseadas na **Lei 11.795/2008**, **Circulares BCB 3.432/2009, 285/2022 e 285/2022**, além do **Código de Defesa do Consumidor (CDC)** e da **LGPD**:
 
-### 1. Motor de Contemplação e Lances
+### 1. Cadastro de Clientes e Validações de Compliance
+* **Integração ViaCEP Autocomplete:** O endpoint `/busca-cep/{cep}` consome a API externa do ViaCEP e preenche automaticamente dados geográficos (`logradouro`, `bairro`, `localidade`, `uf`).
+* **Validação Algorítmica CPF/CNPJ:** Filtro customizado `@ValidCpfCnpj` com cálculo mod 11 completo. Rejeita automaticamente documentos com comprimento inválido ou dígitos repetidos em sequência.
+* **LGPD Mascaramento de Dados:** Dados sensíveis de retorno (como Nome, CPF/CNPJ, Email e Telefone) são automaticamente mascarados na resposta da API para conformidade absoluta de privacidade.
+
+### 2. Motor Financeiro e Composição de Parcela (4 Componentes)
+* **Nova Fórmula de Parcela Base:**
+  $$\text{Parcela base} = \text{Fundo Comum} + \text{Taxa de Administração} + \text{Fundo de Reserva} + \text{Seguros}$$
+  *(Onde Fundo Comum = valor_credito / prazo)*.
+* **Livro Razão (Ledger) do Grupo:** Cada lançamento de entrada e saída é auditado na tabela `movimentos_financeiros` como `CREDITO` ou `DEBITO` da perspectiva do fundo.
+* **Prevenção de Colisão Sequencial:** O saldo acumulado é obtido usando ordenação de chave primária sequencial (`findFirstByGrupoIdOrderByIdDesc`) para prevenir falhas de concorrência e timestamp.
+* **Reversão Contábil Inversa (Estorno de Parcela):** A reabertura de uma parcela `PAGA` reverte de forma idêntica cada componente original em lançamentos de `DEBITO` inversos, retornando o status para `PENDENTE`.
+
+### 3. Motor de Contemplação e Lances
 * **Verificação de Saldo de Caixa:** O Fundo Comum do grupo é validado antes de qualquer liberação de crédito, assegurando que o caixa arrecadado (`PAGA`) possua recursos suficientes.
 * **Lance Embutido Dinâmico:** Limite parametrizado diretamente no grupo (ex: máximo de 30% do valor do crédito) que desconta o lance ofertado diretamente do crédito a ser liberado.
 * **Bloqueio por Inadimplência:** Cotas com qualquer parcela pendente em atraso são sumariamente barradas do sorteio ou lances nas Assembleias Ordinárias.
 
-### 2. Bens, Créditos e Reajuste Proporcional
+### 4. Versionamento de Cotas (Auditoria de Estados)
+* **Versão Incremental:** A cota possui versionamento estruturado.
+  - **Versão 0:** Cota em situação cadastral normal (Ativa, Contemplada, etc.).
+  - **Versão 1:** Cota excluída ou encaminhada ao jurídico.
+* **Rastreabilidade Histórica:** Cada transição de estado da cota (Exclusão, Reingresso, Jurídico) é gravada na tabela `historico_versoes_cota` com o status anterior, novo, motivo da alteração e usuário responsável.
+
+### 5. Histórico e Auditoria do Consorciado (BCB Compliance)
+* **Auditoria de Interações:** Snapshots financeiros persistidos para toda e qualquer interação (geração de parcelas, pagamentos, reajustes, contemplações).
+* **Fórmula de Valor da Categoria:**
+  $$\text{Valor da Categoria} = \text{Parcela base} \times \text{prazo}$$
+  Calculado e persistido dinamicamente a cada movimentação para controle e conformidade regulatória perante fiscalizações.
+
+### 6. Bens, Créditos e Reajuste Proporcional
 * **Reajuste de Crédito Ativo:** Através do endpoint `PUT /api/grupos/{id}/reajuste`, o administrador pode atualizar o valor de crédito do grupo de consórcio.
 * **Rateio de Parcelas em Aberto:** O sistema calcula dinamicamente a variação do crédito e reajusta de forma idêntica e proporcional o `valorFundoComum` de todas as parcelas pendentes (`PENDENTE` ou `ATRASADA`), garantindo que o saldo arrecadado acompanhe a valorização do bem de referência.
 
-### 3. Consolidação Financeira e Encerramento de Grupos
+### 7. Consolidação Financeira e Encerramento de Grupos
 * **Relatório Financeiro Unificado:** O endpoint `GET /api/grupos/{id}/financeiro` calcula de forma agregada a saúde contábil do grupo:
   * **Fundo Comum Arrecadado** e **Saldo Disponível do Fundo Comum** (descontando créditos já pagos).
   * **Taxa de Administração Arrecadada** e **Fundo de Reserva Arrecadado/Disponível**.
 * **Encerramento Seguro (Compliance BCB):** O endpoint `POST /api/grupos/{id}/encerrar` impede o encerramento contábil se houver qualquer parcela em aberto (`PENDENTE` ou `ATRASADA`), assegurando quitação absoluta de passivos e ativos.
 
-### 4. Gestão de Inadimplência e Cobrança
+### 8. Gestão de Inadimplência e Cobrança
 * **Cálculo de Penalidades Legais (Circular 3432 & CDC):** Parcelas pagas após a data de vencimento incorporam automaticamente:
   * **Multa de 2.00%** (limite do CDC) calculada sobre o valor total da parcela.
   * **Juros de mora pro-rata die de 1.00% ao mês** calculados diariamente com base nos dias exatos de atraso.
 * **Relatório de Débitos da Cota:** O endpoint `GET /api/cotas/{id}/inadimplencia` detalha o histórico, quantidade de atrasos, juros acumulados, multa e o saldo devedor exato de uma cota.
 
-### 5. Cotas Excluídas (Desistentes e Cancelados)
+### 9. Cotas Excluídas (Desistentes e Cancelados)
 * **Inativação e Exclusão Segura:** Através de `POST /api/cotas/{id}/cancelar`, a cota é desativada (status `CANCELADA`) e todas as suas parcelas pendentes em aberto são sumariamente excluídas para evitar falsas projeções de arrecadação.
 * **Reembolso Rescisório com Cláusula Penal (10%):** O endpoint `POST /api/cotas/{id}/reembolsar` calcula a restituição dos valores pagos ao Fundo Comum pelo consorciado excluído, retendo uma **multa rescisória de 10%** (cláusula penal) em conformidade com as jurisprudências e regulamentações do BCB.
 
-### 6. Algoritmos de Amortização
+### 10. Algoritmos de Amortização
 * **Redução de Prazo:** Abate o saldo devedor quitando parcelas de trás para frente (da última parcela retroagindo).
 * **Diluição de Valor:** Distribui uniformemente o valor amortizado pelas parcelas pendentes. O motor utiliza a **Regra do Centavo Perdido** para reabsorver discrepâncias e arredondamentos de dízimas na última parcela.
 
