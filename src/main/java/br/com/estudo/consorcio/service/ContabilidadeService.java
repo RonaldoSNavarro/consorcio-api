@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Service
 public class ContabilidadeService {
@@ -26,6 +27,31 @@ public class ContabilidadeService {
     public ContabilidadeService(LancamentoContabilRepository lancamentoRepository, ContaContabilRepository contaRepository) {
         this.lancamentoRepository = lancamentoRepository;
         this.contaRepository = contaRepository;
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal calcularSaldoConta(Grupo grupo, String codigoCosif) {
+        ContaContabil conta = getConta(codigoCosif);
+        
+        List<LancamentoContabil> lancamentos = lancamentoRepository.findByGrupoId(grupo.getId(), org.springframework.data.domain.Pageable.unpaged()).getContent();
+
+        BigDecimal creditos = lancamentos.stream()
+                .filter(l -> l.getContaCredito().getId().equals(conta.getId()))
+                .map(LancamentoContabil::getValor)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal debitos = lancamentos.stream()
+                .filter(l -> l.getContaDebito().getId().equals(conta.getId()))
+                .map(LancamentoContabil::getValor)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Se a conta tem natureza CREDORA (ex: Fundo Comum 2.1.0.01), saldo = Creditos - Debitos
+        if (NaturezaContabil.CREDORA.equals(conta.getNatureza())) {
+            return creditos.subtract(debitos);
+        } else {
+            // Se natureza DEVEDORA (ex: Caixa 1.1.0.00), saldo = Debitos - Creditos
+            return debitos.subtract(creditos);
+        }
     }
 
     private ContaContabil getConta(String codigoCosif) {

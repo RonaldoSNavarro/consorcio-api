@@ -3,6 +3,7 @@ package br.com.estudo.consorcio.domain.model;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "assembleias")
@@ -29,10 +30,26 @@ public class Assembleia {
     @Column(nullable = false)
     private TipoAssembleia tipo;
 
+    @Column(name = "data_inicio_captacao")
+    private LocalDateTime dataInicioCaptacao;
+
+    @Column(name = "data_fim_captacao")
+    private LocalDateTime dataFimCaptacao;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private StatusAssembleia status;
+
+    @Version
+    private Long version;
+
     @PrePersist
     protected void onCreate() {
         if (this.tipo == null) {
             this.tipo = TipoAssembleia.ORDINARIA;
+        }
+        if (this.status == null) {
+            this.status = StatusAssembleia.AGENDADA;
         }
     }
 }

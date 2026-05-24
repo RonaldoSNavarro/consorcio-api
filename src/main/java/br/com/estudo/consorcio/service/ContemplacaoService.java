@@ -26,20 +26,20 @@ public class ContemplacaoService {
     private final CotaRepository cotaRepository;
     private final ParcelaRepository parcelaRepository;
     private final ContemplacaoMapper mapper; // Injetar o mapper
-    private final MovimentoFinanceiroService movimentoService;
+    private final ContabilidadeService contabilidadeService;
     private final CotaService cotaService;
     private final HistoricoConsorciadoService historicoService;
 
     public ContemplacaoService(ContemplacaoRepository contemplacaoRepository, AssembleiaRepository assembleiaRepository,
                                CotaRepository cotaRepository, ParcelaRepository parcelaRepository,
-                               ContemplacaoMapper mapper, MovimentoFinanceiroService movimentoService,
+                               ContemplacaoMapper mapper, ContabilidadeService contabilidadeService,
                                CotaService cotaService, HistoricoConsorciadoService historicoService) {
         this.contemplacaoRepository = contemplacaoRepository;
         this.assembleiaRepository = assembleiaRepository;
         this.cotaRepository = cotaRepository;
         this.parcelaRepository = parcelaRepository;
         this.mapper = mapper;
-        this.movimentoService = movimentoService;
+        this.contabilidadeService = contabilidadeService;
         this.cotaService = cotaService;
         this.historicoService = historicoService;
     }
@@ -109,10 +109,8 @@ public class ContemplacaoService {
         // ---------------------------------------------------------------- //
 
         // --- REGRA DO BANCO CENTRAL: VALIDAÇÃO DO FUNDO COMUM --- //
-        BigDecimal saldoFundoComum = parcelaRepository.somarFundoComumPorGrupoEStatus(
-                assembleia.getGrupo().getId(),
-                StatusParcela.PAGA
-        );
+        // Extrai o Saldo Real via Double-entry Ledger, consertando o bug anterior
+        BigDecimal saldoFundoComum = contabilidadeService.calcularSaldoConta(assembleia.getGrupo(), ContabilidadeService.CONTA_FUNDO_COMUM);
 
         if (saldoFundoComum.compareTo(valorCreditoLiberado) < 0) {
             throw new RegraDeNegocioException("REGRA BCB: Saldo insuficiente no Fundo Comum do grupo. Saldo atual: R$ "
@@ -127,14 +125,15 @@ public class ContemplacaoService {
 
         cotaService.registrarTransicaoVersao(cota, StatusCota.AGUARDANDO_ANALISE, "Cota contemplada na assembleia id " + assembleia.getId() + " - Aguardando Análise de Crédito");
 
-        // --- Registrar Movimento Financeiro (Módulo 2) ---
+        // --- Registrar Movimento Financeiro (Ledger de Partidas Dobradas) ---
         Usuario usuario = getUsuarioAutenticado();
         Grupo grupo = assembleia.getGrupo();
 
         if (Boolean.TRUE.equals(contemplacaoSalva.getLanceEmbutido())) {
-            movimentoService.registrarMovimento(grupo, cota, null, contemplacaoSalva,
-                    TipoMovimentoFinanceiro.LANCE_EMBUTIDO, NaturezaMovimento.CREDITO,
-                    contemplacaoSalva.getValorLance(), "Lance embutido utilizado na contemplação - Cota " + cota.getNumeroCota(), usuario);
+            // O lance embutido reduz o crédito e fica no fundo comum. Como o fundo comum nunca chegou a perder esse montante,
+            // podemos registrar um estorno contra a provisão ou simplesmente uma retenção se for estritamente contábil.
+            contabilidadeService.registrarBaixa(grupo, cota, null, ContabilidadeService.CONTA_DIREITOS_RECEBER, ContabilidadeService.CONTA_FUNDO_COMUM,
+                    contemplacaoSalva.getValorLance(), LocalDate.now(), "Lance embutido retido no Fundo Comum - Cota " + cota.getNumeroCota());
         }
 
         // Movimento de LIBERACAO_CREDITO foi movido para o fluxo de Análise de Crédito (AnaliseCreditoService).
@@ -156,20 +155,22 @@ public class ContemplacaoService {
         Contemplacao contemplacao = contemplacaoRepository.findById(contemplacaoId)
                 .orElseThrow(() -> new RegraDeNegocioException("Contemplação não encontrada."));
 
-        // Regra de segurança: evitar duplicidade de pagamento do bem
-        boolean jaPago = movimentoService.listarPorCota(contemplacao.getCota().getId()).stream()
-                .anyMatch(mov -> mov.tipoMovimento() == TipoMovimentoFinanceiro.PAGAMENTO_BEM);
-        if (jaPago) {
-            throw new RegraDeNegocioException("O bem para esta contemplação já foi pago.");
+        // Regra de segurança simplificada
+        if (contemplacao.getValorCreditoLiberado().compareTo(BigDecimal.ZERO) == 0) {
+            throw new RegraDeNegocioException("O bem para esta contemplação já foi pago ou o valor é zero.");
         }
 
         Usuario usuario = getUsuarioAutenticado();
         Grupo grupo = contemplacao.getCota().getGrupo();
         Cota cota = contemplacao.getCota();
 
-        movimentoService.registrarMovimento(grupo, cota, null, contemplacao,
-                TipoMovimentoFinanceiro.PAGAMENTO_BEM, NaturezaMovimento.DEBITO,
-                contemplacao.getValorCreditoLiberado(), "Pagamento de bem - Cota " + cota.getNumeroCota(), usuario);
+        // O bem faturado sai do Fundo Comum e vai para Fornecedores ou Caixa (liquidação)
+        contabilidadeService.registrarBaixa(grupo, cota, null, ContabilidadeService.CONTA_FUNDO_COMUM, ContabilidadeService.CONTA_CAIXA,
+                contemplacao.getValorCreditoLiberado(), LocalDate.now(), "Pagamento de bem alienado - Cota " + cota.getNumeroCota());
+        
+        // Zera o crédito para impedir duplo pagamento
+        contemplacao.setValorCreditoLiberado(BigDecimal.ZERO);
+        contemplacaoRepository.save(contemplacao);
 
         // --- Registrar Interação de Histórico (Módulo 4) ---
         historicoService.registrarInteracao(

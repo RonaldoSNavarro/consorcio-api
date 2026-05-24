@@ -19,12 +19,15 @@ public class AssembleiaService {
 
     private final AssembleiaRepository assembleiaRepository;
     private final GrupoRepository grupoRepository;
-    private final AssembleiaMapper mapper; // Injetar o mapper
+    private final AssembleiaMapper mapper;
+    private final MotorApuracaoService motorApuracaoService;
 
-    public AssembleiaService(AssembleiaRepository assembleiaRepository, GrupoRepository grupoRepository, AssembleiaMapper mapper) { // Adicionar o mapper ao construtor
+    public AssembleiaService(AssembleiaRepository assembleiaRepository, GrupoRepository grupoRepository, 
+                             AssembleiaMapper mapper, MotorApuracaoService motorApuracaoService) {
         this.assembleiaRepository = assembleiaRepository;
         this.grupoRepository = grupoRepository;
         this.mapper = mapper;
+        this.motorApuracaoService = motorApuracaoService;
     }
 
     @Transactional
@@ -53,5 +56,37 @@ public class AssembleiaService {
                 .toList();
     }
 
-    // O método auxiliar converterParaResponseDTO foi removido, pois o mapper faz esse trabalho.
+    @Transactional
+    public void abrirCaptacao(Long assembleiaId) {
+        Assembleia assembleia = assembleiaRepository.findById(assembleiaId)
+                .orElseThrow(() -> new RegraDeNegocioException("Assembleia não encontrada."));
+
+        if (assembleia.getStatus() != br.com.estudo.consorcio.domain.model.StatusAssembleia.AGENDADA) {
+            throw new RegraDeNegocioException("Apenas assembleias AGENDADAS podem abrir captação de lances.");
+        }
+
+        assembleia.setStatus(br.com.estudo.consorcio.domain.model.StatusAssembleia.CAPTANDO);
+        assembleia.setDataInicioCaptacao(java.time.LocalDateTime.now());
+        assembleiaRepository.save(assembleia);
+    }
+
+    @Transactional
+    public void fecharCaptacao(Long assembleiaId) {
+        Assembleia assembleia = assembleiaRepository.findById(assembleiaId)
+                .orElseThrow(() -> new RegraDeNegocioException("Assembleia não encontrada."));
+
+        if (assembleia.getStatus() != br.com.estudo.consorcio.domain.model.StatusAssembleia.CAPTANDO) {
+            throw new RegraDeNegocioException("Apenas assembleias com status CAPTANDO podem ser fechadas.");
+        }
+
+        assembleia.setStatus(br.com.estudo.consorcio.domain.model.StatusAssembleia.REALIZADA);
+        assembleia.setDataFimCaptacao(java.time.LocalDateTime.now());
+        assembleiaRepository.save(assembleia);
+    }
+
+    @Transactional
+    public void apurarAssembleia(Long assembleiaId) {
+        // Delega para o motor de apuração que cruza saldo contábil vs lances
+        motorApuracaoService.apurarAssembleia(assembleiaId);
+    }
 }

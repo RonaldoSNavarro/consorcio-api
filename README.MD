@@ -60,10 +60,11 @@ O sistema implementa regras de negócio financeiras extremamente robustas basead
 * **Prevenção de Colisão Sequencial:** O saldo acumulado é obtido usando ordenação de chave primária sequencial (`findFirstByGrupoIdOrderByIdDesc`) para prevenir falhas de concorrência e timestamp.
 * **Reversão Contábil Inversa (Estorno de Parcela):** A reabertura de uma parcela `PAGA` reverte de forma idêntica cada componente original em lançamentos de `DEBITO` inversos, retornando o status para `PENDENTE`.
 
-### 3. Motor de Contemplação e Lances
-* **Verificação de Saldo de Caixa:** O Fundo Comum do grupo é validado antes de qualquer liberação de crédito, assegurando que o caixa arrecadado (`PAGA`) possua recursos suficientes.
-* **Lance Embutido Dinâmico:** Limite parametrizado diretamente no grupo (ex: máximo de 30% do valor do crédito) que desconta o lance ofertado diretamente do crédito a ser liberado.
-* **Bloqueio por Inadimplência:** Cotas com qualquer parcela pendente em atraso são sumariamente barradas do sorteio ou lances nas Assembleias Ordinárias.
+### 3. Motor de Assembleia, Contemplação e Lances (Double-Entry Ledger)
+* **Motor Dinâmico de Lances e Sorteios:** A apuração de assembleias (Status: `AGENDADA`, `CAPTANDO`, `REALIZADA`, `FECHADA`) permite receber ofertas (Firme e Embutido) que são ocultadas até o fim da janela de captação.
+* **Cruzamento de Saldo Contábil Real:** O algoritmo de contemplação cruzada bloqueia insolvência de grupos não consultando a "soma isolada de pagamentos" (que mascara despesas antigas). O motor extrai dinamicamente do Ledger o **Saldo Líquido Real** do `2.1.0.01 Fundo Comum` (Créditos - Débitos já faturados) antes de cada conversão de lance vencedor.
+* **Lance Embutido Contábil e Teto Percentual:** O valor ofertado é deduzido do crédito a liberar, respeitando o limite teto parametrizado do grupo (ex: máx. 30%), e os recursos contábeis do lance são integralizados e retidos no Fundo Comum.
+* **Bloqueio por Inadimplência Legal:** Cotas com qualquer parcela `PENDENTE` em atraso não podem ofertar lances ou participar da apuração da assembleia ativa.
 
 ### 4. Versionamento de Cotas (Auditoria de Estados)
 * **Versão Incremental:** A cota possui versionamento estruturado.
