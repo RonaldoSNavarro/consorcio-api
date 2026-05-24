@@ -39,6 +39,9 @@ public class Grupo {
     @Column
     private LocalDate dataInauguracao; // Data da 1ª AGO (pode ser nula no início)
 
+    @Column(name = "data_encerramento")
+    private LocalDate dataEncerramento;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "criterio_desempate_lance", nullable = false)
     private CriterioDesempateLance criterioDesempateLance = CriterioDesempateLance.LOTERIA_FEDERAL;
@@ -73,6 +76,9 @@ public class Grupo {
 
     public LocalDate getDataInauguracao() { return dataInauguracao; }
     public void setDataInauguracao(LocalDate dataInauguracao) { this.dataInauguracao = dataInauguracao; }
+
+    public LocalDate getDataEncerramento() { return dataEncerramento; }
+    public void setDataEncerramento(LocalDate dataEncerramento) { this.dataEncerramento = dataEncerramento; }
 
     public Long getVersion() { return version; }
     public void setVersion(Long version) { this.version = version; }

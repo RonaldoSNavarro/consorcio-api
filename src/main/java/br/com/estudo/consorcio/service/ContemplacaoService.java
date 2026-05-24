@@ -65,8 +65,12 @@ public class ContemplacaoService {
             throw new RegraDeNegocioException("A cota e a assembleia pertencem a grupos diferentes.");
         }
 
-        if (cota.getStatus() != StatusCota.ATIVA) {
-            throw new RegraDeNegocioException("Apenas cotas com status ATIVA podem ser contempladas.");
+        if (cota.getStatus() != StatusCota.ATIVA && cota.getStatus() != StatusCota.CANCELADA) {
+            throw new RegraDeNegocioException("Apenas cotas ATIVAS ou CANCELADAS podem ser contempladas.");
+        }
+
+        if (cota.getStatus() == StatusCota.CANCELADA && dto.tipoContemplacao() != br.com.estudo.consorcio.domain.model.TipoContemplacao.SORTEIO) {
+            throw new RegraDeNegocioException("Cotas canceladas só podem ser contempladas por SORTEIO para fins de restituição.");
         }
 
         // Regra de Compliance Inadimplência: Bloquear contemplação se a cota possuir parcelas vencidas
@@ -87,22 +91,34 @@ public class ContemplacaoService {
         BigDecimal valorCreditoGrupo = assembleia.getGrupo().getValorCredito();
         BigDecimal valorCreditoLiberado = valorCreditoGrupo;
 
-        // --- REGRA DO BANCO CENTRAL: LANCE EMBUTIDO DINÂMICO --- //
-        if (Boolean.TRUE.equals(contemplacao.getLanceEmbutido())) {
+        if (cota.getStatus() == StatusCota.CANCELADA) {
+            // Regra BCB: Excluído recebe o que pagou no Fundo Comum, descontada a multa rescisória (ex: 10%)
+            BigDecimal fundoComumPago = parcelaRepository.findByCotaId(cota.getId()).stream()
+                    .filter(p -> p.getStatus() == StatusParcela.PAGA)
+                    .map(Parcela::getValorFundoComum)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            valorCreditoLiberado = fundoComumPago.multiply(new BigDecimal("0.90")).setScale(2, RoundingMode.HALF_UP);
+            contemplacao.setLanceEmbutido(false);
+            contemplacao.setValorLance(BigDecimal.ZERO);
+        } else {
+            // --- REGRA DO BANCO CENTRAL: LANCE EMBUTIDO DINÂMICO --- //
+            if (Boolean.TRUE.equals(contemplacao.getLanceEmbutido())) {
 
-            if (contemplacao.getValorLance() == null || contemplacao.getValorLance().compareTo(BigDecimal.ZERO) <= 0) {
-                throw new RegraDeNegocioException("Para lances embutidos, o valor do lance deve ser informado.");
+                if (contemplacao.getValorLance() == null || contemplacao.getValorLance().compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new RegraDeNegocioException("Para lances embutidos, o valor do lance deve ser informado.");
+                }
+
+                BigDecimal limitePercentual = assembleia.getGrupo().getPercentualLanceEmbutidoMaximo();
+                BigDecimal limiteEmbutido = valorCreditoGrupo.multiply(limitePercentual).setScale(2, RoundingMode.HALF_UP);
+
+                if (contemplacao.getValorLance().compareTo(limiteEmbutido) > 0) {
+                    BigDecimal percentualFormatado = limitePercentual.multiply(new BigDecimal("100")).setScale(0, RoundingMode.HALF_UP);
+                    throw new RegraDeNegocioException("O valor do lance embutido não pode ultrapassar " + percentualFormatado + "% do crédito (Máximo permitido: R$ " + limiteEmbutido + ").");
+                }
+
+                valorCreditoLiberado = valorCreditoGrupo.subtract(contemplacao.getValorLance());
             }
-
-            BigDecimal limitePercentual = assembleia.getGrupo().getPercentualLanceEmbutidoMaximo();
-            BigDecimal limiteEmbutido = valorCreditoGrupo.multiply(limitePercentual).setScale(2, RoundingMode.HALF_UP);
-
-            if (contemplacao.getValorLance().compareTo(limiteEmbutido) > 0) {
-                BigDecimal percentualFormatado = limitePercentual.multiply(new BigDecimal("100")).setScale(0, RoundingMode.HALF_UP);
-                throw new RegraDeNegocioException("O valor do lance embutido não pode ultrapassar " + percentualFormatado + "% do crédito (Máximo permitido: R$ " + limiteEmbutido + ").");
-            }
-
-            valorCreditoLiberado = valorCreditoGrupo.subtract(contemplacao.getValorLance());
         }
 
         contemplacao.setValorCreditoLiberado(valorCreditoLiberado);

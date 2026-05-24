@@ -108,6 +108,11 @@ O sistema implementa regras de negócio financeiras extremamente robustas basead
 * **Validação de Garantias:** Exige aprovação explícita (fiador/bens) antes da liberação.
 * **Efetivação Contábil:** Apenas quando a análise recebe `status: APROVADA`, a cota avança para o estado `APROVADO` e o `MovimentoFinanceiro` de `LIBERACAO_CREDITO` é registrado no livro razão.
 
+### 12. Regulatório BCB e Retenção LGPD
+* **Arquivamento e Retenção Contábil (Legal Hold):** Garantia de retenção de dados financeiros de consorciados por no mínimo 10 anos após a decretação de encerramento do Grupo, blindando auditorias do Banco Central do Brasil.
+* **Expurgo e Anonimização Irreversível:** Um *Cron Job* (`LgpdAnonymizationJob`) varre diariamente e de forma autônoma os grupos cujo encerramento excedeu a janela de 10 anos, anonimizando irreversivelmente os dados PII (Nome, CPF/CNPJ, Email, Telefones e Endereços) de todos os membros (Art. 16, LGPD), mas retendo com integridade a estrutura relacional do *Double-Entry Ledger* financeiro para as declarações finais dos fundos administrados.
+* **Direito à Restituição na Exclusão:** Cotas com status `CANCELADA` participam estatutariamente dos sorteios (mas são vetadas de dar lances). Quando sorteadas, a API as contempla bloqueando a alocação de crédito da cota e procedendo unicamente com a restituição em dinheiro do Fundo Comum pago, retendo a **Multa Rescisória de 10%**.
+
 ## ⚙️ Configuração e Setup
 
 ### Pré-requisitos
