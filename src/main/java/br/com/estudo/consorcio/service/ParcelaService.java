@@ -26,15 +26,17 @@ public class ParcelaService {
     private final ParcelaMapper mapper; // Injetar o mapper
     private final MovimentoFinanceiroService movimentoService;
     private final HistoricoConsorciadoService historicoService;
+    private final ContabilidadeService contabilidadeService;
 
     public ParcelaService(ParcelaRepository parcelaRepository, CotaRepository cotaRepository,
                           ParcelaMapper mapper, MovimentoFinanceiroService movimentoService,
-                          HistoricoConsorciadoService historicoService) {
+                          HistoricoConsorciadoService historicoService, ContabilidadeService contabilidadeService) {
         this.parcelaRepository = parcelaRepository;
         this.cotaRepository = cotaRepository;
         this.mapper = mapper;
         this.movimentoService = movimentoService;
         this.historicoService = historicoService;
+        this.contabilidadeService = contabilidadeService;
     }
 
     private Usuario getUsuarioAutenticado() {
@@ -104,37 +106,41 @@ public class ParcelaService {
         parcela.setStatus(StatusParcela.PAGA);
         Parcela parcelaMapeada = parcelaRepository.save(parcela);
 
-        // --- Registrar Movimentos Financeiros (Módulo 2) ---
+        // --- Registrar Movimentos Financeiros (Ledger de Partidas Dobradas) ---
         Usuario usuario = getUsuarioAutenticado();
         Grupo grupo = parcelaMapeada.getCota().getGrupo();
         Cota cota = parcelaMapeada.getCota();
 
-        movimentoService.registrarMovimento(grupo, cota, parcelaMapeada, null,
-                TipoMovimentoFinanceiro.FUNDO_COMUM, NaturezaMovimento.CREDITO,
-                parcelaMapeada.getValorFundoComum(), "Fundo comum pago - Parcela " + parcelaMapeada.getNumeroParcela(), usuario);
+        // 1. Baixas (Recebimentos de Principal no Caixa)
+        contabilidadeService.registrarBaixa(grupo, cota, parcelaMapeada, ContabilidadeService.CONTA_CAIXA, ContabilidadeService.CONTA_FUNDO_COMUM,
+                parcelaMapeada.getValorFundoComum(), parcelaMapeada.getDataPagamento(), "Baixa de Fundo comum - Parcela " + parcelaMapeada.getNumeroParcela());
 
-        movimentoService.registrarMovimento(grupo, cota, parcelaMapeada, null,
-                TipoMovimentoFinanceiro.TAXA_ADMINISTRACAO, NaturezaMovimento.CREDITO,
-                parcelaMapeada.getValorTaxaAdministracao(), "Taxa de administração paga - Parcela " + parcelaMapeada.getNumeroParcela(), usuario);
+        contabilidadeService.registrarBaixa(grupo, cota, parcelaMapeada, ContabilidadeService.CONTA_CAIXA, ContabilidadeService.CONTA_TAXA_ADM,
+                parcelaMapeada.getValorTaxaAdministracao(), parcelaMapeada.getDataPagamento(), "Baixa de Taxa de administração - Parcela " + parcelaMapeada.getNumeroParcela());
 
-        movimentoService.registrarMovimento(grupo, cota, parcelaMapeada, null,
-                TipoMovimentoFinanceiro.FUNDO_RESERVA, NaturezaMovimento.CREDITO,
-                parcelaMapeada.getValorFundoReserva(), "Fundo de reserva pago - Parcela " + parcelaMapeada.getNumeroParcela(), usuario);
+        contabilidadeService.registrarBaixa(grupo, cota, parcelaMapeada, ContabilidadeService.CONTA_CAIXA, ContabilidadeService.CONTA_FUNDO_RESERVA,
+                parcelaMapeada.getValorFundoReserva(), parcelaMapeada.getDataPagamento(), "Baixa de Fundo de reserva - Parcela " + parcelaMapeada.getNumeroParcela());
 
-        movimentoService.registrarMovimento(grupo, cota, parcelaMapeada, null,
-                TipoMovimentoFinanceiro.SEGURO, NaturezaMovimento.CREDITO,
-                parcelaMapeada.getValorSeguro(), "Seguro pago - Parcela " + parcelaMapeada.getNumeroParcela(), usuario);
+        contabilidadeService.registrarBaixa(grupo, cota, parcelaMapeada, ContabilidadeService.CONTA_CAIXA, ContabilidadeService.CONTA_SEGURO,
+                parcelaMapeada.getValorSeguro(), parcelaMapeada.getDataPagamento(), "Baixa de Seguro - Parcela " + parcelaMapeada.getNumeroParcela());
 
+        // 2. Regime de Competência para Multa e Juros (CFC Compliance)
         if (parcelaMapeada.getValorMulta() != null && parcelaMapeada.getValorMulta().compareTo(BigDecimal.ZERO) > 0) {
-            movimentoService.registrarMovimento(grupo, cota, parcelaMapeada, null,
-                    TipoMovimentoFinanceiro.MULTA_ATRASO, NaturezaMovimento.CREDITO,
-                    parcelaMapeada.getValorMulta(), "Multa por atraso paga - Parcela " + parcelaMapeada.getNumeroParcela(), usuario);
+            // Provisão na data de vencimento
+            contabilidadeService.registrarProvisao(grupo, cota, parcelaMapeada, ContabilidadeService.CONTA_DIREITOS_RECEBER, ContabilidadeService.CONTA_FUNDO_COMUM,
+                    parcelaMapeada.getValorMulta(), parcelaMapeada.getDataVencimento(), "Provisão de Multa por atraso - Parcela " + parcelaMapeada.getNumeroParcela());
+            // Baixa no caixa na data de pagamento real
+            contabilidadeService.registrarBaixa(grupo, cota, parcelaMapeada, ContabilidadeService.CONTA_CAIXA, ContabilidadeService.CONTA_DIREITOS_RECEBER,
+                    parcelaMapeada.getValorMulta(), parcelaMapeada.getDataPagamento(), "Baixa de Multa por atraso - Parcela " + parcelaMapeada.getNumeroParcela());
         }
 
         if (parcelaMapeada.getValorJuros() != null && parcelaMapeada.getValorJuros().compareTo(BigDecimal.ZERO) > 0) {
-            movimentoService.registrarMovimento(grupo, cota, parcelaMapeada, null,
-                    TipoMovimentoFinanceiro.JUROS_MORA, NaturezaMovimento.CREDITO,
-                    parcelaMapeada.getValorJuros(), "Juros de mora pago - Parcela " + parcelaMapeada.getNumeroParcela(), usuario);
+            // Provisão na data de vencimento
+            contabilidadeService.registrarProvisao(grupo, cota, parcelaMapeada, ContabilidadeService.CONTA_DIREITOS_RECEBER, ContabilidadeService.CONTA_FUNDO_COMUM,
+                    parcelaMapeada.getValorJuros(), parcelaMapeada.getDataVencimento(), "Provisão de Juros de mora - Parcela " + parcelaMapeada.getNumeroParcela());
+            // Baixa no caixa na data de pagamento real
+            contabilidadeService.registrarBaixa(grupo, cota, parcelaMapeada, ContabilidadeService.CONTA_CAIXA, ContabilidadeService.CONTA_DIREITOS_RECEBER,
+                    parcelaMapeada.getValorJuros(), parcelaMapeada.getDataPagamento(), "Baixa de Juros de mora - Parcela " + parcelaMapeada.getNumeroParcela());
         }
 
         // --- Registrar Interação de Histórico (Módulo 4) ---
@@ -161,33 +167,36 @@ public class ParcelaService {
         Grupo grupo = parcela.getCota().getGrupo();
         Cota cota = parcela.getCota();
 
-        // 1. Cria lançamentos inversos (DEBITO) para cada componente original
-        movimentoService.registrarMovimento(grupo, cota, parcela, null,
-                TipoMovimentoFinanceiro.ESTORNO_PAGAMENTO, NaturezaMovimento.DEBITO,
-                parcela.getValorFundoComum(), "Estorno de Fundo comum - Parcela " + parcela.getNumeroParcela(), usuario);
+        // 1. Cria lançamentos inversos contábeis (ESTORNO) para cada componente
+        LocalDate hoje = LocalDate.now();
+        contabilidadeService.registrarEstorno(grupo, cota, parcela, ContabilidadeService.CONTA_FUNDO_COMUM, ContabilidadeService.CONTA_CAIXA,
+                parcela.getValorFundoComum(), hoje, "Estorno de Fundo comum - Parcela " + parcela.getNumeroParcela());
 
-        movimentoService.registrarMovimento(grupo, cota, parcela, null,
-                TipoMovimentoFinanceiro.ESTORNO_PAGAMENTO, NaturezaMovimento.DEBITO,
-                parcela.getValorTaxaAdministracao(), "Estorno de Taxa de administração - Parcela " + parcela.getNumeroParcela(), usuario);
+        contabilidadeService.registrarEstorno(grupo, cota, parcela, ContabilidadeService.CONTA_TAXA_ADM, ContabilidadeService.CONTA_CAIXA,
+                parcela.getValorTaxaAdministracao(), hoje, "Estorno de Taxa de administração - Parcela " + parcela.getNumeroParcela());
 
-        movimentoService.registrarMovimento(grupo, cota, parcela, null,
-                TipoMovimentoFinanceiro.ESTORNO_PAGAMENTO, NaturezaMovimento.DEBITO,
-                parcela.getValorFundoReserva(), "Estorno de Fundo de reserva - Parcela " + parcela.getNumeroParcela(), usuario);
+        contabilidadeService.registrarEstorno(grupo, cota, parcela, ContabilidadeService.CONTA_FUNDO_RESERVA, ContabilidadeService.CONTA_CAIXA,
+                parcela.getValorFundoReserva(), hoje, "Estorno de Fundo de reserva - Parcela " + parcela.getNumeroParcela());
 
-        movimentoService.registrarMovimento(grupo, cota, parcela, null,
-                TipoMovimentoFinanceiro.ESTORNO_PAGAMENTO, NaturezaMovimento.DEBITO,
-                parcela.getValorSeguro(), "Estorno de Seguro - Parcela " + parcela.getNumeroParcela(), usuario);
+        contabilidadeService.registrarEstorno(grupo, cota, parcela, ContabilidadeService.CONTA_SEGURO, ContabilidadeService.CONTA_CAIXA,
+                parcela.getValorSeguro(), hoje, "Estorno de Seguro - Parcela " + parcela.getNumeroParcela());
 
         if (parcela.getValorMulta() != null && parcela.getValorMulta().compareTo(BigDecimal.ZERO) > 0) {
-            movimentoService.registrarMovimento(grupo, cota, parcela, null,
-                    TipoMovimentoFinanceiro.ESTORNO_PAGAMENTO, NaturezaMovimento.DEBITO,
-                    parcela.getValorMulta(), "Estorno de Multa por atraso - Parcela " + parcela.getNumeroParcela(), usuario);
+            // Estorna a baixa do caixa
+            contabilidadeService.registrarEstorno(grupo, cota, parcela, ContabilidadeService.CONTA_DIREITOS_RECEBER, ContabilidadeService.CONTA_CAIXA,
+                    parcela.getValorMulta(), hoje, "Estorno de Baixa de Multa - Parcela " + parcela.getNumeroParcela());
+            // Estorna a provisão original
+            contabilidadeService.registrarEstorno(grupo, cota, parcela, ContabilidadeService.CONTA_FUNDO_COMUM, ContabilidadeService.CONTA_DIREITOS_RECEBER,
+                    parcela.getValorMulta(), parcela.getDataVencimento(), "Estorno de Provisão de Multa - Parcela " + parcela.getNumeroParcela());
         }
 
         if (parcela.getValorJuros() != null && parcela.getValorJuros().compareTo(BigDecimal.ZERO) > 0) {
-            movimentoService.registrarMovimento(grupo, cota, parcela, null,
-                    TipoMovimentoFinanceiro.ESTORNO_PAGAMENTO, NaturezaMovimento.DEBITO,
-                    parcela.getValorJuros(), "Estorno de Juros de mora - Parcela " + parcela.getNumeroParcela(), usuario);
+            // Estorna a baixa do caixa
+            contabilidadeService.registrarEstorno(grupo, cota, parcela, ContabilidadeService.CONTA_DIREITOS_RECEBER, ContabilidadeService.CONTA_CAIXA,
+                    parcela.getValorJuros(), hoje, "Estorno de Baixa de Juros - Parcela " + parcela.getNumeroParcela());
+            // Estorna a provisão original
+            contabilidadeService.registrarEstorno(grupo, cota, parcela, ContabilidadeService.CONTA_FUNDO_COMUM, ContabilidadeService.CONTA_DIREITOS_RECEBER,
+                    parcela.getValorJuros(), parcela.getDataVencimento(), "Estorno de Provisão de Juros - Parcela " + parcela.getNumeroParcela());
         }
 
         // 2. Altera status da parcela para PENDENTE (reabrir cobrança)
