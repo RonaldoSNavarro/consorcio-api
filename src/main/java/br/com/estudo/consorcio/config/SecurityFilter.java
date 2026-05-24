@@ -4,6 +4,7 @@ import br.com.estudo.consorcio.domain.repository.UsuarioRepository;
 import br.com.estudo.consorcio.service.TokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -50,11 +51,20 @@ public class SecurityFilter extends OncePerRequestFilter {
     }
 
     private String recuperarToken(HttpServletRequest request) {
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("token".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+        
+        // Fallback for tools/swagger that might still send it via Authorization header
         var authorizationHeader = request.getHeader("Authorization");
         if (authorizationHeader != null) {
-            // O padrão de mercado é enviar o token com o prefixo "Bearer "
             return authorizationHeader.replace("Bearer ", "");
         }
+        
         return null;
     }
 }

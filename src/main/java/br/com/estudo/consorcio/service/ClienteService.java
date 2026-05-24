@@ -12,6 +12,8 @@ import br.com.estudo.consorcio.exception.RecursoNaoEncontradoException;
 import br.com.estudo.consorcio.domain.repository.ClienteRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -119,9 +121,20 @@ public class ClienteService {
     // -------------------------------------------------------------------------
 
     Cliente buscarEntidadePorId(Long id) {
-        return repository.findById(id)
+        Cliente cliente = repository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Cliente não encontrado com id: " + id));
+
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getName() != null) {
+            String username = auth.getName();
+            // IDOR Protection: allow admin or the owner
+            if (!username.equals("admin") && !username.equals(cliente.getCpfCnpj()) && !username.equals(cliente.getEmail())) {
+                throw new AccessDeniedException("Acesso negado. Você só pode acessar seus próprios dados.");
+            }
+        }
+
+        return cliente;
     }
 
     private void validarDocumentoUnico(String documento) {

@@ -65,6 +65,9 @@ public class Parcela {
     @Column(nullable = false)
     private StatusParcela status;
 
+    @Version
+    private Long version;
+
     // Método do JPA: Antes de salvar ou atualizar no banco, ele soma tudo sozinho!
     @PrePersist
     @PreUpdate

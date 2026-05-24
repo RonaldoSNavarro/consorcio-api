@@ -97,6 +97,9 @@ public class ClienteController {
             @Parameter(description = "ID do cliente") @PathVariable Long id,
             @Parameter(description = "Tipo de interação para filtro") @RequestParam(required = false) TipoInteracao tipo) {
 
+        // Valida acesso via IDOR internamente no ClienteService
+        service.buscarPorId(id);
+
         if (tipo != null) {
             return ResponseEntity.ok(historicoService.listarPorClienteETipo(id, tipo));
         }

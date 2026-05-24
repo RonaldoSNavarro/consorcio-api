@@ -39,6 +39,9 @@ public class Grupo {
     @Column
     private LocalDate dataInauguracao; // Data da 1ª AGO (pode ser nula no início)
 
+    @Version
+    private Long version;
+
     // Getters e Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -66,4 +69,7 @@ public class Grupo {
 
     public LocalDate getDataInauguracao() { return dataInauguracao; }
     public void setDataInauguracao(LocalDate dataInauguracao) { this.dataInauguracao = dataInauguracao; }
+
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
 }

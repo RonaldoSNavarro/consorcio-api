@@ -15,6 +15,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Service
 public class GrupoService {
@@ -196,10 +198,8 @@ public class GrupoService {
         return mapper.toResponse(grupoSalvo);
     }
 
-    public List<GrupoResponseDTO> listarTodos() {
-        return repository.findAll()
-                .stream()
-                .map(mapper::toResponse)
-                .toList();
+    public Page<GrupoResponseDTO> listarTodos(Pageable pageable) {
+        return repository.findAll(pageable)
+                .map(mapper::toResponse);
     }
 }

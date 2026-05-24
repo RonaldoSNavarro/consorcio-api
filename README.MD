@@ -22,6 +22,8 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 * **Global Exception Handling:** Centralização do tratamento de erros com respostas HTTP padronizadas.
 * **Inativação Lógica em Conformidade Legal:** A exclusão física de clientes é substituída por inativação lógica para conformidade regulatória (LGPD Art. 16, II & IV, e Resolução 285 do Banco Central do Brasil).
 * **Mapeamento Declarativo com MapStruct:** Camada de conversão compilada de alta performance entre entidades e DTOs, garantindo separação rígida e eliminando boilerplate.
+* **Bloqueio Otimista (Optimistic Locking):** Prevenção de concorrência e race conditions (condições de corrida) por meio do mapeamento de atributos `@Version` nas tabelas críticas (`cotas`, `grupos` e `parcelas`), impedindo sobrescrita de dados financeiros por requisições concorrentes.
+* **Paginação Robusta de Recursos:** Migração de listagens gerais para o padrão `Pageable` do Spring Data nos endpoints de Clientes, Grupos e Cotas, protegendo a memória Heap contra gargalos de volume massivo.
 
 ## 🧪 Qualidade de Software e Testes
 
@@ -33,10 +35,13 @@ O projeto segue a pirâmide de testes para garantir que nenhuma alteração no c
 
 ## 🛡️ Segurança e Autenticação
 
-A proteção dos recursos financeiros é garantida via **Bearer Token**:
-* **Autenticação:** O usuário obtém acesso via `/api/login`.
-* **Autorização:** Um `SecurityFilter` customizado valida a assinatura JWT e as permissões antes de liberar o acesso aos `Services`.
-* **Segredo JWT:** Gerenciado exclusivamente via variável de ambiente — nenhuma credencial é armazenada no código-fonte.
+A proteção da aplicação segue os mais altos padrões de cibersegurança e conformidade regulatória:
+
+* **Sessão Segura com JWT em Cookies HttpOnly:** A autenticação é stateless, mas evita armazenamento inseguro no LocalStorage/SessionStorage do navegador. O token JWT gerado no `/api/login` é retornado através de um cookie HTTP seguro com atributos `HttpOnly`, `Secure` (em produção), `SameSite=Strict` e `Path=/`.
+* **Revogação Local (Logout):** Um endpoint dedicado `/api/logout` invalida a sessão local no cliente limpando o cookie com expiração imediata.
+* **Filtro de Segurança Adaptativo:** O `SecurityFilter` intercepta requisições lendo o token prioritariamente a partir do cookie HttpOnly `jwt`, mantendo retrocompatibilidade transparente com o cabeçalho tradicional `Authorization: Bearer <token>` para integrações M2M (Machine-to-Machine) ou ferramentas de teste (Postman/Swagger).
+* **Proteção Ativa contra IDOR (Insecure Direct Object Reference):** Camada rigorosa de validação de propriedade na camada de serviço (`ClienteService` e `CotaService`). O usuário autenticado só pode obter, visualizar ou modificar recursos associados diretamente à sua identidade (comparando o subject do token com `cpfCnpj` ou `email`). Tentativas de acesso a registros alheios através de IDs sequenciais ou aleatórios são bloqueadas imediatamente, a menos que o usuário possua perfil administrativo (`ROLE_ADMIN`).
+* **Segredo JWT:** Gerenciado exclusivamente via variável de ambiente — nenhuma credencial sensível é exposta no código-fonte.
 
 ## 🧩 Regras de Negócio e Motores Financeiros
 

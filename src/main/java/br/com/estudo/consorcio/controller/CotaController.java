@@ -10,6 +10,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+
 import java.util.List;
 
 @RestController
@@ -32,22 +36,22 @@ public class CotaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(cotaSalva);
     }
 
-    @Operation(summary = "Listar cotas", description = "Exibe todas as cotas.")
+    @Operation(summary = "Listar cotas", description = "Exibe cotas com paginação.")
     @GetMapping
-    public ResponseEntity<List<CotaResponseDTO>> listar() {
-        return ResponseEntity.ok(service.listarTodas());
+    public ResponseEntity<Page<CotaResponseDTO>> listar(@PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(service.listarTodas(pageable));
     }
 
     @Operation(summary = "Listar por cliente", description = "Lista cotas por cliente")
     @GetMapping("/cliente/{clienteId}")
-    public ResponseEntity<List<CotaResponseDTO>> listarPorCliente(@PathVariable Long clienteId) {
-        return ResponseEntity.ok(service.listarPorCliente(clienteId));
+    public ResponseEntity<Page<CotaResponseDTO>> listarPorCliente(@PathVariable Long clienteId, @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(service.listarPorCliente(clienteId, pageable));
     }
 
     @Operation(summary = "Listar por grupo", description = "Lista cotas por grupo.")
     @GetMapping("/grupo/{grupoId}")
-    public ResponseEntity<List<CotaResponseDTO>> listarPorGrupo(@PathVariable Long grupoId) {
-        return ResponseEntity.ok(service.listarPorGrupo(grupoId));
+    public ResponseEntity<Page<CotaResponseDTO>> listarPorGrupo(@PathVariable Long grupoId, @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(service.listarPorGrupo(grupoId, pageable));
     }
 
     @Operation(summary = "Cancelar cota", description = "Cancela uma cota ativa ou inadimplente, excluindo suas parcelas pendentes.")

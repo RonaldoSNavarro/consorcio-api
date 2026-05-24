@@ -14,12 +14,15 @@ import br.com.estudo.consorcio.domain.dto.HistoricoVersaoCotaResponseDTO;
 import br.com.estudo.consorcio.exception.ClienteInativoException;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Service
 public class CotaService {
@@ -226,22 +229,30 @@ public class CotaService {
         );
     }
 
-    public List<CotaResponseDTO> listarTodas() {
-        return cotaRepository.findAll().stream()
-                .map(mapper::toResponse)
-                .toList();
+    public Page<CotaResponseDTO> listarTodas(Pageable pageable) {
+        return cotaRepository.findAll(pageable)
+                .map(mapper::toResponse);
     }
 
-    public List<CotaResponseDTO> listarPorCliente(Long clienteId) {
-        return cotaRepository.findByClienteId(clienteId).stream()
-                .map(mapper::toResponse)
-                .toList();
+    public Page<CotaResponseDTO> listarPorCliente(Long clienteId, Pageable pageable) {
+        Cliente cliente = clienteRepository.findById(clienteId)
+                .orElseThrow(() -> new RegraDeNegocioException("Cliente não encontrado."));
+
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getName() != null) {
+            String username = auth.getName();
+            if (!username.equals("admin") && !username.equals(cliente.getCpfCnpj()) && !username.equals(cliente.getEmail())) {
+                throw new AccessDeniedException("Acesso negado. Você só pode acessar seus próprios dados.");
+            }
+        }
+
+        return cotaRepository.findByClienteId(clienteId, pageable)
+                .map(mapper::toResponse);
     }
 
-    public List<CotaResponseDTO> listarPorGrupo(Long grupoId) {
-        return cotaRepository.findByGrupoId(grupoId).stream()
-                .map(mapper::toResponse)
-                .toList();
+    public Page<CotaResponseDTO> listarPorGrupo(Long grupoId, Pageable pageable) {
+        return cotaRepository.findByGrupoId(grupoId, pageable)
+                .map(mapper::toResponse);
     }
 
     private void validarClienteAtivo(Cliente cliente) {

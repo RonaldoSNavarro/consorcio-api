@@ -11,6 +11,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -33,10 +37,10 @@ public class GrupoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(grupoSalvo);
     }
 
-    @Operation(summary = "Listar Grupos", description = "Lista todos os grupos cadastrados no sistema com seus respectivos dados financeiros e status.")
+    @Operation(summary = "Listar Grupos", description = "Lista grupos cadastrados no sistema de forma paginada.")
     @GetMapping
-    public ResponseEntity<List<GrupoResponseDTO>> listar() {
-        return ResponseEntity.ok(service.listarTodos());
+    public ResponseEntity<Page<GrupoResponseDTO>> listar(@PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(service.listarTodos(pageable));
     }
 
     @Operation(summary = "Inaugurar grupo", description = "Altera o status do grupo para 'EM_ANDAMENTO'. Esta operação valida se o grupo está em formação e registra a data da 1ª AGO.")

@@ -7,6 +7,8 @@ import br.com.estudo.consorcio.service.TokenService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
@@ -25,14 +27,36 @@ public class AutenticacaoController {
     }
 
     @PostMapping
-    public ResponseEntity<DadosTokenJWT> efetuarLogin(@Valid @RequestBody DadosAutenticacao dados) {
+    public ResponseEntity<Void> efetuarLogin(@Valid @RequestBody DadosAutenticacao dados) {
         var authenticationToken = new UsernamePasswordAuthenticationToken(dados.login(), dados.senha());
-
-        // O Spring Security vai pegar esse token, ir no AutenticacaoService, buscar no banco e comparar as senhas (Hashes)
         var authentication = manager.authenticate(authenticationToken);
-
         var tokenJWT = tokenService.gerarToken((Usuario) authentication.getPrincipal());
 
-        return ResponseEntity.ok(new DadosTokenJWT(tokenJWT));
+        ResponseCookie cookie = ResponseCookie.from("token", tokenJWT)
+                .httpOnly(true)
+                .secure(false) // Para produção usar true com HTTPS
+                .path("/")
+                .maxAge(7200) // 2 horas
+                .sameSite("Strict")
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .build();
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> efetuarLogout() {
+        ResponseCookie cookie = ResponseCookie.from("token", "")
+                .httpOnly(true)
+                .secure(false)
+                .path("/")
+                .maxAge(0)
+                .sameSite("Strict")
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .build();
     }
 }

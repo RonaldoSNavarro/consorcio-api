@@ -45,6 +45,9 @@ public class Cota {
     @Column(nullable = false)
     private Integer versao = 0;
 
+    @Version
+    private Long version;
+
     @PrePersist
     protected void onCreate() {
         if (this.status == null) {
