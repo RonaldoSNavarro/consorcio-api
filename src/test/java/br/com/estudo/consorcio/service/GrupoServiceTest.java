@@ -22,6 +22,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -145,17 +149,17 @@ class GrupoServiceTest {
         Grupo g1 = new Grupo(); g1.setId(1L); g1.setCodigo("G-01");
         Grupo g2 = new Grupo(); g2.setId(2L); g2.setCodigo("G-02");
 
-        when(repository.findAll()).thenReturn(List.of(g1, g2));
+        when(repository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(g1, g2)));
 
         // --- ACT ---
-        List<GrupoResponseDTO> lista = service.listarTodos();
+        Page<GrupoResponseDTO> lista = service.listarTodos(PageRequest.of(0, 10));
 
         // --- ASSERT ---
         assertNotNull(lista);
-        assertEquals(2, lista.size());
-        assertEquals("G-01", lista.get(0).codigo());
-        assertEquals("G-02", lista.get(1).codigo());
-        verify(repository, times(1)).findAll();
+        assertEquals(2, lista.getContent().size());
+        assertEquals("G-01", lista.getContent().get(0).codigo());
+        assertEquals("G-02", lista.getContent().get(1).codigo());
+        verify(repository, times(1)).findAll(any(Pageable.class));
     }
 
     @Test

@@ -48,6 +48,9 @@ class ContemplacaoServiceTest {
     @Mock
     private HistoricoConsorciadoService historicoService;
 
+    @Mock
+    private ContabilidadeService contabilidadeService;
+
     @org.mockito.Spy
     private br.com.estudo.consorcio.domain.mapper.ContemplacaoMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.ContemplacaoMapper.class);
 
@@ -144,7 +147,7 @@ class ContemplacaoServiceTest {
         when(parcelaRepository.existsByCotaIdAndStatusAndDataVencimentoBefore(eq(idCota), eq(StatusParcela.PENDENTE), any())).thenReturn(false);
 
         // A MÁGICA ACONTECE AQUI: Simulamos que o grupo só tem 10.000 em caixa (insuficiente para os 50k)
-        when(parcelaRepository.somarFundoComumPorGrupoEStatus(idGrupo, StatusParcela.PAGA))
+        when(contabilidadeService.calcularSaldoConta(eq(grupo), anyString()))
                 .thenReturn(new BigDecimal("10000.00"));
 
         // --- ACT & ASSERT ---
@@ -190,7 +193,7 @@ class ContemplacaoServiceTest {
         when(parcelaRepository.existsByCotaIdAndStatusAndDataVencimentoBefore(eq(idCota), eq(StatusParcela.PENDENTE), any())).thenReturn(false);
 
         // Simulamos que o grupo tem dinheiro de sobra (100.000 em caixa)
-        when(parcelaRepository.somarFundoComumPorGrupoEStatus(idGrupo, StatusParcela.PAGA))
+        when(contabilidadeService.calcularSaldoConta(eq(grupo), anyString()))
                 .thenReturn(new BigDecimal("100000.00"));
 
         // Ensina o mock a devolver o próprio objeto ao guardar

@@ -37,6 +37,9 @@ class ParcelaServiceTest {
     @Mock
     private HistoricoConsorciadoService historicoService;
 
+    @Mock
+    private ContabilidadeService contabilidadeService;
+
     @org.mockito.Spy
     private br.com.estudo.consorcio.domain.mapper.ParcelaMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.ParcelaMapper.class);
 

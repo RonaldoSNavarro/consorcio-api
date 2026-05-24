@@ -21,6 +21,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -141,19 +145,19 @@ class CotaServiceTest {
         Cota cota1 = new Cota(); cota1.setId(100L); cota1.setNumeroCota(10); cota1.setCliente(cliente); cota1.setGrupo(grupo); cota1.setStatus(StatusCota.ATIVA);
         Cota cota2 = new Cota(); cota2.setId(101L); cota2.setNumeroCota(20); cota2.setCliente(cliente); cota2.setGrupo(grupo); cota2.setStatus(StatusCota.ATIVA);
 
-        when(cotaRepository.findAll()).thenReturn(List.of(cota1, cota2));
+        when(cotaRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cota1, cota2)));
 
         // --- ACT ---
-        List<CotaResponseDTO> resultado = service.listarTodas();
+        Page<CotaResponseDTO> resultado = service.listarTodas(PageRequest.of(0, 10));
 
         // --- ASSERT ---
         assertNotNull(resultado);
-        assertEquals(2, resultado.size());
-        assertEquals(100L, resultado.get(0).id());
-        assertEquals(10, resultado.get(0).numeroCota());
-        assertEquals(1L, resultado.get(0).clienteId());
+        assertEquals(2, resultado.getContent().size());
+        assertEquals(100L, resultado.getContent().get(0).id());
+        assertEquals(10, resultado.getContent().get(0).numeroCota());
+        assertEquals(1L, resultado.getContent().get(0).clienteId());
 
-        verify(cotaRepository, times(1)).findAll();
+        verify(cotaRepository, times(1)).findAll(any(Pageable.class));
     }
 
     @Test
@@ -166,15 +170,16 @@ class CotaServiceTest {
 
         Cota cota = new Cota(); cota.setId(100L); cota.setCliente(cliente); cota.setGrupo(grupo);
 
-        when(cotaRepository.findByClienteId(idClientePesquisado)).thenReturn(List.of(cota));
+        when(clienteRepository.findById(idClientePesquisado)).thenReturn(Optional.of(cliente));
+        when(cotaRepository.findByClienteId(eq(idClientePesquisado), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cota)));
 
         // --- ACT ---
-        List<CotaResponseDTO> resultado = service.listarPorCliente(idClientePesquisado);
+        Page<CotaResponseDTO> resultado = service.listarPorCliente(idClientePesquisado, PageRequest.of(0, 10));
 
         // --- ASSERT ---
-        assertEquals(1, resultado.size());
-        assertEquals(idClientePesquisado, resultado.get(0).clienteId());
-        verify(cotaRepository, times(1)).findByClienteId(idClientePesquisado);
+        assertEquals(1, resultado.getContent().size());
+        assertEquals(idClientePesquisado, resultado.getContent().get(0).clienteId());
+        verify(cotaRepository, times(1)).findByClienteId(eq(idClientePesquisado), any(Pageable.class));
     }
 
     @Test
@@ -187,25 +192,25 @@ class CotaServiceTest {
 
         Cota cota = new Cota(); cota.setId(100L); cota.setCliente(cliente); cota.setGrupo(grupo);
 
-        when(cotaRepository.findByGrupoId(idGrupoPesquisado)).thenReturn(List.of(cota));
+        when(cotaRepository.findByGrupoId(eq(idGrupoPesquisado), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cota)));
 
         // --- ACT ---
-        List<CotaResponseDTO> resultado = service.listarPorGrupo(idGrupoPesquisado);
+        Page<CotaResponseDTO> resultado = service.listarPorGrupo(idGrupoPesquisado, PageRequest.of(0, 10));
 
         // --- ASSERT ---
-        assertEquals(1, resultado.size());
-        assertEquals(idGrupoPesquisado, resultado.get(0).grupoId());
-        verify(cotaRepository, times(1)).findByGrupoId(idGrupoPesquisado);
+        assertEquals(1, resultado.getContent().size());
+        assertEquals(idGrupoPesquisado, resultado.getContent().get(0).grupoId());
+        verify(cotaRepository, times(1)).findByGrupoId(eq(idGrupoPesquisado), any(Pageable.class));
     }
 
     @Test
     @DisplayName("Deve retornar uma lista vazia caso não encontre cotas")
     void deveRetornarListaVaziaQuandoNaoHouverCotas() {
         // --- ARRANGE ---
-        when(cotaRepository.findAll()).thenReturn(List.of());
+        when(cotaRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
 
         // --- ACT ---
-        List<CotaResponseDTO> resultado = service.listarTodas();
+        Page<CotaResponseDTO> resultado = service.listarTodas(PageRequest.of(0, 10));
 
         // --- ASSERT ---
         assertNotNull(resultado);
