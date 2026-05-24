@@ -125,7 +125,7 @@ public class ContemplacaoService {
         // 3. Persistência
         Contemplacao contemplacaoSalva = contemplacaoRepository.save(contemplacao);
 
-        cotaService.registrarTransicaoVersao(cota, StatusCota.CONTEMPLADA, "Cota contemplada na assembleia id " + assembleia.getId());
+        cotaService.registrarTransicaoVersao(cota, StatusCota.AGUARDANDO_ANALISE, "Cota contemplada na assembleia id " + assembleia.getId() + " - Aguardando Análise de Crédito");
 
         // --- Registrar Movimento Financeiro (Módulo 2) ---
         Usuario usuario = getUsuarioAutenticado();
@@ -137,9 +137,7 @@ public class ContemplacaoService {
                     contemplacaoSalva.getValorLance(), "Lance embutido utilizado na contemplação - Cota " + cota.getNumeroCota(), usuario);
         }
 
-        movimentoService.registrarMovimento(grupo, cota, null, contemplacaoSalva,
-                TipoMovimentoFinanceiro.LIBERACAO_CREDITO, NaturezaMovimento.DEBITO,
-                contemplacaoSalva.getValorCreditoLiberado(), "Liberação de carta de crédito na contemplação - Cota " + cota.getNumeroCota(), usuario);
+        // Movimento de LIBERACAO_CREDITO foi movido para o fluxo de Análise de Crédito (AnaliseCreditoService).
 
         // --- Registrar Interação de Histórico (Módulo 4) ---
         historicoService.registrarInteracao(

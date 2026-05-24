@@ -9,6 +9,7 @@ import java.util.List;
 @Repository
 public interface ContemplacaoRepository extends JpaRepository<Contemplacao, Long> {
     List<Contemplacao> findByAssembleiaId(Long assembleiaId);
+    java.util.Optional<Contemplacao> findTopByCotaIdOrderByDataContemplacaoDesc(Long cotaId);
 
     // Módulo 2: Soma todos os créditos liberados nas contemplações do grupo
     @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(c.valorCreditoLiberado), 0) FROM Contemplacao c WHERE c.assembleia.grupo.id = :grupoId")

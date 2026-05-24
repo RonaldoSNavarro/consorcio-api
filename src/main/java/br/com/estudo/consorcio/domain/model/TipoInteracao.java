@@ -11,5 +11,6 @@ public enum TipoInteracao {
     REEMBOLSO,
     AMORTIZACAO,
     ATUALIZACAO_CADASTRAL,
-    COMUNICADO
+    COMUNICADO,
+    ANALISE_CREDITO
 }

@@ -96,6 +96,12 @@ O sistema implementa regras de negócio financeiras extremamente robustas basead
 * **Redução de Prazo:** Abate o saldo devedor quitando parcelas de trás para frente (da última parcela retroagindo).
 * **Diluição de Valor:** Distribui uniformemente o valor amortizado pelas parcelas pendentes. O motor utiliza a **Regra do Centavo Perdido** para reabsorver discrepâncias e arredondamentos de dízimas na última parcela.
 
+### 11. Análise de Crédito Pós-Contemplação (Retenção e Validação)
+* **Retenção de Crédito:** Uma vez contemplada, a cota não gera liberação automática de recursos. O status transita de `ATIVA` para `AGUARDANDO_ANALISE`.
+* **Margem Consignável:** Regra alinhada às normativas do BCB: a parcela da cota não pode comprometer mais que **30% da renda comprovada** do consorciado. O cálculo é feito de forma dinâmica recuperando o valor atualizado da Parcela Base.
+* **Validação de Garantias:** Exige aprovação explícita (fiador/bens) antes da liberação.
+* **Efetivação Contábil:** Apenas quando a análise recebe `status: APROVADA`, a cota avança para o estado `APROVADO` e o `MovimentoFinanceiro` de `LIBERACAO_CREDITO` é registrado no livro razão.
+
 ## ⚙️ Configuração e Setup
 
 ### Pré-requisitos

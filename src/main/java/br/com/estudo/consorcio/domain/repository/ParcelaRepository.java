@@ -16,6 +16,9 @@ public interface ParcelaRepository extends JpaRepository<Parcela, Long> {
     // Lista parcelas pelo id da cota
     List<Parcela> findByCotaId(Long cotaId);
 
+    // Busca a última parcela gerada da cota
+    java.util.Optional<Parcela> findTopByCotaIdOrderByNumeroParcelaDesc(Long cotaId);
+
     // Busca as parcelas de uma cota por status, ordenando da última para a primeira
     List<Parcela> findByCotaIdAndStatusOrderByNumeroParcelaDesc(Long cotaId, StatusParcela status);
 

@@ -4,6 +4,8 @@ public enum StatusCota {
     ATIVA,
     CANCELADA,
     CONTEMPLADA,
+    AGUARDANDO_ANALISE,
+    APROVADO,
     INADIMPLENTE,
     SUSPENSA,
     JURIDICO,
