@@ -87,7 +87,8 @@ class ClienteControllerTest {
                 new BigDecimal("150000.00"),
                 new BigDecimal("5500.00"),
                 NivelRisco.MEDIO,
-                LocalDate.now()
+                LocalDate.now(),
+                br.com.estudo.consorcio.domain.model.StatusCliente.ATIVO
         );
  
         when(clienteService.salvar(any(ClienteRequestDTO.class))).thenReturn(response);
@@ -154,7 +155,8 @@ class ClienteControllerTest {
                 new BigDecimal("150000.00"),
                 new BigDecimal("5500.00"),
                 NivelRisco.MEDIO,
-                LocalDate.now()
+                LocalDate.now(),
+                br.com.estudo.consorcio.domain.model.StatusCliente.ATIVO
         );
         
         ClienteResponseDTO cliente2 = new ClienteResponseDTO(
@@ -173,7 +175,8 @@ class ClienteControllerTest {
                 new BigDecimal("200000.00"),
                 new BigDecimal("7500.00"),
                 NivelRisco.BAIXO,
-                LocalDate.now()
+                LocalDate.now(),
+                br.com.estudo.consorcio.domain.model.StatusCliente.ATIVO
         );
  
         when(clienteService.listarTodos(any(Pageable.class))).thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(cliente1, cliente2)));

@@ -41,11 +41,20 @@ class RegrasDeNegocioIntegrationTest {
     @Autowired
     private MovimentoFinanceiroRepository movimentoRepository;
 
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private ViaCepService viaCepService;
+
     private Long idCliente;
     private Long idGrupo;
 
     @BeforeEach
     void setUp() {
+        // Mock do ViaCEP para evitar chamadas de rede externas e erros de PKIX no teste
+        org.mockito.Mockito.when(viaCepService.buscarCep(org.mockito.Mockito.anyString()))
+                .thenReturn(new br.com.estudo.consorcio.domain.dto.ViaCepResponseDTO(
+                        "01001000", "Praça da Sé", "Apto 12", "Sé", "São Paulo", "SP", false
+                ));
+
         // 1. Criar Cliente Mockado (CPF dinâmico para evitar colisão no banco H2)
         String cpf = String.valueOf(System.currentTimeMillis()).substring(2, 13);
         String email = "joao" + System.currentTimeMillis() + "@email.com";

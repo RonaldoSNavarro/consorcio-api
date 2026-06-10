@@ -2,6 +2,7 @@ package br.com.estudo.consorcio.controller;
 
 import br.com.estudo.consorcio.domain.dto.DadosAutenticacao;
 import br.com.estudo.consorcio.domain.dto.DadosTokenJWT;
+import br.com.estudo.consorcio.domain.dto.DadosUsuarioLogado;
 import br.com.estudo.consorcio.domain.model.Usuario;
 import br.com.estudo.consorcio.service.TokenService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -58,5 +59,15 @@ public class AutenticacaoController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .build();
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<DadosUsuarioLogado> obterUsuarioLogado() {
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).build();
+        }
+        var usuario = (Usuario) authentication.getPrincipal();
+        return ResponseEntity.ok(new DadosUsuarioLogado(usuario.getUsername(), usuario.getRole()));
     }
 }

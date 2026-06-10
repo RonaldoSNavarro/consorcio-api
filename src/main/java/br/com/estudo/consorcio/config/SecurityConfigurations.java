@@ -15,6 +15,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
+@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 public class SecurityConfigurations {
 
     private final SecurityFilter securityFilter;
@@ -30,11 +31,25 @@ public class SecurityConfigurations {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(req -> {
+                    // Rotas públicas
                     req.requestMatchers(HttpMethod.POST, "/api/login").permitAll();
                     req.requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll();
+
+                    // Permissões específicas para GESTOR e ADMIN
+                    req.requestMatchers(HttpMethod.POST, "/api/contemplacoes/lances/{id}/integralizar").hasAnyRole("ADMIN", "GESTOR");
+                    req.requestMatchers(HttpMethod.POST, "/api/cotas/{id}/reembolsar").hasAnyRole("ADMIN", "GESTOR");
+
+                    // FC-04 FIX: RBAC granular — operações de escrita requerem ADMIN
+                    req.requestMatchers(HttpMethod.POST, "/api/**").hasRole("ADMIN");
+                    req.requestMatchers(HttpMethod.PUT, "/api/**").hasRole("ADMIN");
+                    req.requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("ADMIN");
+
+                    // Leituras: ADMIN e AUDITOR
+                    req.requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole("ADMIN", "AUDITOR", "CONSORCIADO");
+
+                    // Qualquer outra rota requer autenticação
                     req.anyRequest().authenticated();
                 })
-                // ADICIONE ESTA LINHA: Coloca o nosso filtro antes do filtro padrão do Spring
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

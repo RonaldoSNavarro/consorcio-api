@@ -22,6 +22,7 @@ public interface ClienteMapper {
     @Mapping(target = "uf", ignore = true)
     Cliente toEntity(ClienteRequestDTO dto);
 
+    @Mapping(source = "status", target = "statusCliente")
     ClienteResponseDTO toResponse(Cliente entity);
 
     @Mapping(target = "id", ignore = true) // ID não deve ser atualizado pelo DTO

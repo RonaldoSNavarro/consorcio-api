@@ -10,5 +10,6 @@ public enum StatusCota {
     SUSPENSA,
     JURIDICO,
     EXCLUIDA,
-    QUITADA
+    QUITADA,
+    PENDENTE_INTEGRALIZACAO
 }

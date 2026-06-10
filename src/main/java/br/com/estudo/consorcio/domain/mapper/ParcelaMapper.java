@@ -20,6 +20,7 @@ public interface ParcelaMapper {
     @Mapping(target = "valorPago", ignore = true) // Definido no serviço
     @Mapping(target = "dataPagamento", ignore = true) // Definido no serviço
     @Mapping(target = "status", ignore = true) // Definido no serviço
+    @Mapping(target = "percentualFundoComum", ignore = true) // Calculado no serviço
     Parcela toEntity(ParcelaRequestDTO dto);
 
     // Mapeia Parcela para ParcelaResponseDTO, extraindo apenas o ID da Cota

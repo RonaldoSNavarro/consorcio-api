@@ -9,6 +9,7 @@ public record ParcelaResponseDTO(
         Long cotaId,
         Integer numeroParcela,
         BigDecimal valorFundoComum,
+        BigDecimal percentualFundoComum,
         BigDecimal valorTaxaAdministracao,
         BigDecimal valorFundoReserva,
         BigDecimal valorSeguro,

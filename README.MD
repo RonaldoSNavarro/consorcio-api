@@ -27,7 +27,7 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 
 ## 🧪 Qualidade de Software e Testes
 
-O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura foi expandida para **71 testes unitários e de integração 100% verdes**:
+O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura foi expandida para **88 testes unitários e de integração 100% verdes**:
 
 * **Testes Unitários (100% Service & Validator Coverage):** Toda a camada de `Service` possui cobertura total. Criamos suítes de teste de baixo nível como `CpfCnpjValidatorTest` e `ViaCepServiceTest` (usando mocks avançados da API fluente do `RestClient` do Spring).
 * **Módulos de Auditoria e Livro Razão:** Testados exaustivamente em `MovimentoFinanceiroServiceTest` e `HistoricoConsorciadoServiceTest` para validar consistência de saldos contábeis e a fórmula regulatória da categoria.
@@ -45,7 +45,7 @@ A proteção da aplicação segue os mais altos padrões de cibersegurança e co
 
 ## 🧩 Regras de Negócio e Motores Financeiros
 
-O sistema implementa regras de negócio financeiras extremamente robustas baseadas na **Lei 11.795/2008**, **Circulares BCB 3.432/2009, 285/2022 e 285/2022**, além do **Código de Defesa do Consumidor (CDC)** e da **LGPD**:
+O sistema implementa regras de negócio financeiras extremamente robustas baseadas na **Lei 11.795/2008**, **Resolução BCB nº 285/2023** (que revogou a antiga Circular BCB 3.432/2009), além do **Código de Defesa do Consumidor (CDC)** e da **LGPD**:
 
 ### 1. Cadastro de Clientes e Validações de Compliance
 * **Integração ViaCEP Autocomplete:** O endpoint `/busca-cep/{cep}` consome a API externa do ViaCEP e preenche automaticamente dados geográficos (`logradouro`, `bairro`, `localidade`, `uf`).
@@ -62,6 +62,7 @@ O sistema implementa regras de negócio financeiras extremamente robustas basead
 
 ### 3. Motor de Assembleia, Contemplação e Lances (Double-Entry Ledger)
 * **Motor Dinâmico de Lances e Sorteios:** A apuração de assembleias (Status: `AGENDADA`, `CAPTANDO`, `REALIZADA`, `FECHADA`) permite receber ofertas (Firme e Embutido) que são ocultadas até o fim da janela de captação.
+* **Homologação em Duas Etapas (ADR 004):** Lances livres vencedores entram inicialmente no status `PENDENTE_INTEGRALIZACAO` para aguardar a compensação bancária real do lance. O valor é creditado na conta contábil de transição COSIF `2.1.2.30.10-0` (Lances a Integralizar). Ao confirmar o pagamento, a cota transita para `AGUARDANDO_ANALISE` e o valor é transferido para a conta definitiva `2.1.2.20.10-3`. Caso o pagamento não ocorra em 5 dias úteis, a contemplação é cancelada, os lançamentos contábeis estornados e a cota retorna ao status `ATIVA`.
 * **Cruzamento de Saldo Contábil Real:** O algoritmo de contemplação cruzada bloqueia insolvência de grupos não consultando a "soma isolada de pagamentos" (que mascara despesas antigas). O motor extrai dinamicamente do Ledger o **Saldo Líquido Real** do `2.1.0.01 Fundo Comum` (Créditos - Débitos já faturados) antes de cada conversão de lance vencedor.
 * **Lance Embutido Contábil e Teto Percentual:** O valor ofertado é deduzido do crédito a liberar, respeitando o limite teto parametrizado do grupo (ex: máx. 30%), e os recursos contábeis do lance são integralizados e retidos no Fundo Comum.
 * **Bloqueio por Inadimplência Legal:** Cotas com qualquer parcela `PENDENTE` em atraso não podem ofertar lances ou participar da apuração da assembleia ativa.
@@ -89,14 +90,14 @@ O sistema implementa regras de negócio financeiras extremamente robustas basead
 * **Encerramento Seguro (Compliance BCB):** O endpoint `POST /api/grupos/{id}/encerrar` impede o encerramento contábil se houver qualquer parcela em aberto (`PENDENTE` ou `ATRASADA`), assegurando quitação absoluta de passivos e ativos.
 
 ### 8. Gestão de Inadimplência e Cobrança
-* **Cálculo de Penalidades Legais (Circular 3432 & CDC):** Parcelas pagas após a data de vencimento incorporam automaticamente:
+* **Cálculo de Penalidades Legais (Resolução BCB nº 285/2023 & CDC):** Parcelas pagas após a data de vencimento incorporam automaticamente:
   * **Multa de 2.00%** (limite do CDC) calculada sobre o valor total da parcela.
   * **Juros de mora pro-rata die de 1.00% ao mês** calculados diariamente com base nos dias exatos de atraso.
 * **Relatório de Débitos da Cota:** O endpoint `GET /api/cotas/{id}/inadimplencia` detalha o histórico, quantidade de atrasos, juros acumulados, multa e o saldo devedor exato de uma cota.
 
 ### 9. Cotas Excluídas (Desistentes e Cancelados)
 * **Inativação e Exclusão Segura:** Através de `POST /api/cotas/{id}/cancelar`, a cota é desativada (status `CANCELADA`) e todas as suas parcelas pendentes em aberto são sumariamente excluídas para evitar falsas projeções de arrecadação.
-* **Reembolso Rescisório com Cláusula Penal (10%):** O endpoint `POST /api/cotas/{id}/reembolsar` calcula a restituição dos valores pagos ao Fundo Comum pelo consorciado excluído, retendo uma **multa rescisória de 10%** (cláusula penal) em conformidade com as jurisprudências e regulamentações do BCB.
+* **Reembolso Rescisório Reajustado (ADR 005 - Lei 11.795/08):** O cálculo de reembolso do consorciado excluído foi atualizado para reajustar os valores com base no preço atualizado do bem na data de sua assembleia de contemplação por sorteio. O cálculo computa o PAFC (Percentual Amortizado de Fundo Comum) acumulado das parcelas pagas, multiplica pelo valor atualizado do bem do grupo, e retém a multa rescisória de 10% (cláusula penal). Impede múltiplos reembolsos gerando erro de regra de negócio se a cota já foi reembolsada.
 
 ### 10. Algoritmos de Amortização
 * **Redução de Prazo:** Abate o saldo devedor quitando parcelas de trás para frente (da última parcela retroagindo).

@@ -32,6 +32,9 @@ public class Parcela {
     @Column(nullable = false)
     private BigDecimal valorFundoComum; // Dinheiro que vai para o fundo de contemplações
 
+    @Column(name = "percentual_fundo_comum", precision = 10, scale = 6)
+    private BigDecimal percentualFundoComum;
+
     @Column(nullable = false)
     private BigDecimal valorTaxaAdministracao; // Remuneração da administradora
 

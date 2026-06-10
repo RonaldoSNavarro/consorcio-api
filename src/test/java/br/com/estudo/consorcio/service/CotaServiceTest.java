@@ -8,6 +8,7 @@ import br.com.estudo.consorcio.domain.repository.ClienteRepository;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.GrupoRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
+import br.com.estudo.consorcio.domain.repository.ContemplacaoRepository;
 import br.com.estudo.consorcio.exception.ClienteInativoException;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.junit.jupiter.api.DisplayName;
@@ -19,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -47,6 +49,10 @@ class CotaServiceTest {
     private br.com.estudo.consorcio.domain.repository.HistoricoVersaoCotaRepository historicoVersaoCotaRepository;
     @Mock
     private HistoricoConsorciadoService historicoService;
+    @Mock
+    private ContemplacaoRepository contemplacaoRepository;
+    @Mock
+    private ContabilidadeService contabilidadeService;
 
     @org.mockito.Spy
     private br.com.estudo.consorcio.domain.mapper.CotaMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.CotaMapper.class);
@@ -357,5 +363,68 @@ class CotaServiceTest {
 
         assertThrows(RegraDeNegocioException.class, () -> service.reembolsarCota(cotaId));
         verify(cotaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Cenário 1: Reembolso de Cota Cancelada com Base no Valor do Bem Atualizado (ADR 005)")
+    void deveCalcularReembolsoComValorBemAtualizado() {
+        // --- ARRANGE ---
+        Long cotaId = 1L;
+        Cota cota = new Cota();
+        cota.setId(cotaId);
+        cota.setNumeroCota(44);
+        cota.setStatus(StatusCota.CANCELADA);
+        cota.setReembolsada(false);
+
+        Grupo grupo = new Grupo();
+        grupo.setId(10L);
+        grupo.setValorCredito(new BigDecimal("120000.00")); // Valor reajustado (vigente na contemplação)
+        cota.setGrupo(grupo);
+
+        Cliente cliente = new Cliente();
+        cliente.setId(5L);
+        cota.setCliente(cliente);
+
+        // 3 parcelas pagas de 1000.00 cada sob crédito de 100000.00 (ou seja, 1% de PAFC cada = 3.00% total)
+        Parcela p1 = new Parcela();
+        p1.setStatus(StatusParcela.PAGA);
+        p1.setValorFundoComum(new BigDecimal("1000.00"));
+        p1.setPercentualFundoComum(new BigDecimal("0.010000"));
+
+        Parcela p2 = new Parcela();
+        p2.setStatus(StatusParcela.PAGA);
+        p2.setValorFundoComum(new BigDecimal("1000.00"));
+        p2.setPercentualFundoComum(new BigDecimal("0.010000"));
+
+        Parcela p3 = new Parcela();
+        p3.setStatus(StatusParcela.PAGA);
+        p3.setValorFundoComum(new BigDecimal("1000.00"));
+        p3.setPercentualFundoComum(new BigDecimal("0.010000"));
+
+        // Contemplação por sorteio que fixou o valor líquido no passivo de excluídos
+        // PAFC = 3%
+        // Valor Bruto = 3% de 120000.00 = 3600.00
+        // Multa rescisória = 10% de 3600.00 = 360.00
+        // Valor Líquido (liberado) = 3240.00
+        Contemplacao contemplacao = new Contemplacao();
+        contemplacao.setCota(cota);
+        contemplacao.setValorCreditoLiberado(new BigDecimal("3240.00"));
+
+        when(cotaRepository.findById(cotaId)).thenReturn(Optional.of(cota));
+        when(contemplacaoRepository.findTopByCotaIdOrderByDataContemplacaoDesc(cotaId)).thenReturn(Optional.of(contemplacao));
+        when(cotaRepository.save(any(Cota.class))).thenAnswer(i -> i.getArgument(0));
+
+        // Act
+        CotaReembolsoResponseDTO response = service.reembolsarCota(cotaId);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(new BigDecimal("3600.00"), response.totalFundoComumPago()); // Valor bruto calculado
+        assertEquals(new BigDecimal("360.00"), response.multaRescisoria()); // 10%
+        assertEquals(new BigDecimal("3240.00"), response.valorReembolsado()); // Líquido fixado
+        assertTrue(response.reembolsada());
+
+        // Verifica o Ledger contábil: Débito de 3240.00 na conta de excluídos e Crédito em Caixa
+        verify(contabilidadeService, times(1)).registrarBaixa(grupo, cota, null, ContabilidadeService.CONTA_EXCLUIDOS_DEVOLVER, ContabilidadeService.CONTA_CAIXA, new BigDecimal("3240.00"), LocalDate.now(), "Desembolso de reembolso de excluído - Cota 44");
     }
 }

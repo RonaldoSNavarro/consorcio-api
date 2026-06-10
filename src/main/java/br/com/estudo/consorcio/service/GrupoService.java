@@ -191,8 +191,9 @@ public class GrupoService {
             throw new RegraDeNegocioException("Não é possível encerrar o grupo: existem " + parcelasAbertas + " parcelas em aberto.");
         }
 
-        // Altera status para ENCERRADO
+        // Altera status para ENCERRADO e registra a data para controle de retenção legal (LGPD 10 anos)
         grupo.setStatus(StatusGrupo.ENCERRADO);
+        grupo.setDataEncerramento(LocalDate.now());
         Grupo grupoSalvo = repository.save(grupo);
 
         return mapper.toResponse(grupoSalvo);

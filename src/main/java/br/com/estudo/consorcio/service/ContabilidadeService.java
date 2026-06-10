@@ -8,7 +8,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
 
 @Service
 public class ContabilidadeService {
@@ -16,13 +15,15 @@ public class ContabilidadeService {
     private final LancamentoContabilRepository lancamentoRepository;
     private final ContaContabilRepository contaRepository;
 
-    public static final String CONTA_CAIXA = "1.1.0.00";
-    public static final String CONTA_DIREITOS_RECEBER = "1.2.0.00";
-    public static final String CONTA_FUNDO_COMUM = "2.1.0.01";
-    public static final String CONTA_FUNDO_RESERVA = "2.1.0.02";
-    public static final String CONTA_TAXA_ADM = "2.1.0.03";
-    public static final String CONTA_SEGURO = "2.1.0.04";
-    public static final String CONTA_RENDIMENTO = "3.1.0.01";
+    public static final String CONTA_CAIXA = "1.1.1.10.00-2";
+    public static final String CONTA_DIREITOS_RECEBER = "1.2.1.10.00-8";
+    public static final String CONTA_FUNDO_COMUM = "2.1.2.10.10-6";
+    public static final String CONTA_FUNDO_RESERVA = "2.1.2.10.20-9";
+    public static final String CONTA_TAXA_ADM = "2.1.2.10.30-2";
+    public static final String CONTA_SEGURO = "2.1.2.10.40-5";
+    public static final String CONTA_RENDIMENTO = "2.1.2.10.50-8";
+    public static final String CONTA_EXCLUIDOS_DEVOLVER = "2.1.2.20.10-3";
+    public static final String CONTA_CREDITOS_LIBERAR = "2.1.2.30.10-0";
 
     public ContabilidadeService(LancamentoContabilRepository lancamentoRepository, ContaContabilRepository contaRepository) {
         this.lancamentoRepository = lancamentoRepository;
@@ -32,18 +33,10 @@ public class ContabilidadeService {
     @Transactional(readOnly = true)
     public BigDecimal calcularSaldoConta(Grupo grupo, String codigoCosif) {
         ContaContabil conta = getConta(codigoCosif);
-        
-        List<LancamentoContabil> lancamentos = lancamentoRepository.findByGrupoId(grupo.getId(), org.springframework.data.domain.Pageable.unpaged()).getContent();
 
-        BigDecimal creditos = lancamentos.stream()
-                .filter(l -> l.getContaCredito().getId().equals(conta.getId()))
-                .map(LancamentoContabil::getValor)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal debitos = lancamentos.stream()
-                .filter(l -> l.getContaDebito().getId().equals(conta.getId()))
-                .map(LancamentoContabil::getValor)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // FC-05 FIX: Queries agregadas no PostgreSQL — O(1) heap ao invés de carregar milhões de registros
+        BigDecimal creditos = lancamentoRepository.somarCreditosPorGrupoEConta(grupo.getId(), conta.getId());
+        BigDecimal debitos = lancamentoRepository.somarDebitosPorGrupoEConta(grupo.getId(), conta.getId());
 
         // Se a conta tem natureza CREDORA (ex: Fundo Comum 2.1.0.01), saldo = Creditos - Debitos
         if (NaturezaContabil.CREDORA.equals(conta.getNatureza())) {

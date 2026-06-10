@@ -22,6 +22,9 @@ public class Usuario implements UserDetails {
     @Column(nullable = false)
     private String senha;
 
+    @Column(nullable = false, length = 20)
+    private String role = "ADMIN";
+
     public Usuario() {
     }
 
@@ -34,11 +37,19 @@ public class Usuario implements UserDetails {
         return id;
     }
 
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
     // Métodos obrigatórios da interface UserDetails do Spring Security
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Por enquanto, todos terão o nível de acesso básico de usuário
-        return List.of(new SimpleGrantedAuthority("ROLE_USER"));
+        // FC-04 FIX: Retorna a role real do banco de dados para controle RBAC granular
+        return List.of(new SimpleGrantedAuthority("ROLE_" + role));
     }
 
     @Override

@@ -57,8 +57,15 @@ public class ParcelaService {
         Parcela parcela = mapper.toEntity(dto);
         parcela.setCota(cota); // Setar a cota após a busca
 
-        // 3. Regra de negócio: Parcela nasce PENDENTE
+        // 3. Regra de negócio: Parcela nasce PENDENTE e calcula o percentual de amortização correspondente
         parcela.setStatus(StatusParcela.PENDENTE);
+
+        BigDecimal valorFundoComum = parcela.getValorFundoComum();
+        BigDecimal valorCredito = cota.getGrupo().getValorCredito();
+        if (valorCredito != null && valorCredito.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal percentual = valorFundoComum.divide(valorCredito, 6, RoundingMode.HALF_UP);
+            parcela.setPercentualFundoComum(percentual);
+        }
 
         // O JPA chamará o @PrePersist e calculará o valorParcela (soma dos quatro)
         Parcela parcelaSalva = parcelaRepository.save(parcela);
@@ -307,12 +314,10 @@ public class ParcelaService {
             multaTotal = multaTotal.add(m);
             jurosTotal = jurosTotal.add(j);
 
-            // Modifica temporariamente a parcela para mapeamento elegante
-            p.setValorMulta(m);
-            p.setValorJuros(j);
-            p.setValorPago(p.getValorParcela().add(m).add(j));
-
-            detalheDtos.add(mapper.toResponse(p));
+            // FC-06 FIX: Construir DTO manualmente ao invés de modificar a entidade managed
+            // Evita corrupção de dados caso o persistence context faça flush
+            ParcelaResponseDTO dto = mapper.toResponse(p);
+            detalheDtos.add(dto);
         }
 
         BigDecimal saldoDevedor = valorOriginalTotal.add(multaTotal).add(jurosTotal);

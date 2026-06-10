@@ -1,6 +1,7 @@
 package br.com.estudo.consorcio.domain.dto;
 
 import br.com.estudo.consorcio.domain.model.NivelRisco;
+import br.com.estudo.consorcio.domain.model.StatusCliente;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -20,13 +21,15 @@ public record ClienteResponseDTO(
         BigDecimal patrimonio,
         BigDecimal rendaMensal,
         NivelRisco nivelRisco,
-        LocalDate dataCadastro
+        LocalDate dataCadastro,
+        StatusCliente statusCliente
 ) {
     // Construtor canônico para aplicar mascaramento automático de conformidade LGPD
     public ClienteResponseDTO(Long id, String nome, String cpfCnpj, String email, String telefone,
                               String cep, String logradouro, String numero, String complemento,
                               String bairro, String localidade, String uf, BigDecimal patrimonio,
-                              BigDecimal rendaMensal, NivelRisco nivelRisco, LocalDate dataCadastro) {
+                              BigDecimal rendaMensal, NivelRisco nivelRisco, LocalDate dataCadastro,
+                              StatusCliente statusCliente) {
         this.id = id;
         this.nome = maskName(nome);
         this.cpfCnpj = maskCpfCnpj(cpfCnpj);
@@ -43,6 +46,7 @@ public record ClienteResponseDTO(
         this.rendaMensal = rendaMensal;
         this.nivelRisco = nivelRisco;
         this.dataCadastro = dataCadastro;
+        this.statusCliente = statusCliente;
     }
 
     private static String maskName(String name) {

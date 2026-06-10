@@ -2,6 +2,7 @@ package br.com.estudo.consorcio.controller;
 
 import br.com.estudo.consorcio.domain.dto.ContemplacaoRequestDTO;
 import br.com.estudo.consorcio.domain.dto.ContemplacaoResponseDTO;
+import br.com.estudo.consorcio.domain.dto.CotaResponseDTO;
 import br.com.estudo.consorcio.service.ContemplacaoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,6 +44,14 @@ public class ContemplacaoController {
     @PostMapping("/{id}/pagamento-bem")
     public ResponseEntity<ContemplacaoResponseDTO> pagarBem(@PathVariable Long id) {
         ContemplacaoResponseDTO response = service.pagarBem(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Confirmar integralização de lance livre",
+            description = "Registra a compensação bancária do lance livre. Transita o status da cota para AGUARDANDO_ANALISE e gera os lançamentos contábeis no Ledger.")
+    @PostMapping("/lances/{id}/integralizar")
+    public ResponseEntity<CotaResponseDTO> confirmarIntegralizacao(@PathVariable Long id) {
+        CotaResponseDTO response = service.confirmarPagamentoLance(id);
         return ResponseEntity.ok(response);
     }
 }

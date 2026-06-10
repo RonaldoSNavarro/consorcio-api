@@ -10,6 +10,9 @@ import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.GrupoRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
 import br.com.estudo.consorcio.domain.repository.HistoricoVersaoCotaRepository;
+import br.com.estudo.consorcio.domain.repository.ContemplacaoRepository;
+import java.time.LocalDate;
+import java.util.Optional;
 import br.com.estudo.consorcio.domain.dto.HistoricoVersaoCotaResponseDTO;
 import br.com.estudo.consorcio.exception.ClienteInativoException;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
@@ -35,12 +38,16 @@ public class CotaService {
     private final MovimentoFinanceiroService movimentoService;
     private final HistoricoVersaoCotaRepository historicoVersaoCotaRepository;
     private final HistoricoConsorciadoService historicoService;
+    private final ContemplacaoRepository contemplacaoRepository;
+    private final ContabilidadeService contabilidadeService;
 
     public CotaService(CotaRepository cotaRepository, ClienteRepository clienteRepository,
                        GrupoRepository grupoRepository, ParcelaRepository parcelaRepository,
                        CotaMapper mapper, MovimentoFinanceiroService movimentoService,
                        HistoricoVersaoCotaRepository historicoVersaoCotaRepository,
-                       HistoricoConsorciadoService historicoService) {
+                       HistoricoConsorciadoService historicoService,
+                       ContemplacaoRepository contemplacaoRepository,
+                       ContabilidadeService contabilidadeService) {
         this.cotaRepository = cotaRepository;
         this.clienteRepository = clienteRepository;
         this.grupoRepository = grupoRepository;
@@ -49,6 +56,8 @@ public class CotaService {
         this.movimentoService = movimentoService;
         this.historicoVersaoCotaRepository = historicoVersaoCotaRepository;
         this.historicoService = historicoService;
+        this.contemplacaoRepository = contemplacaoRepository;
+        this.contabilidadeService = contabilidadeService;
     }
 
     private Usuario getUsuarioAutenticado() {
@@ -177,29 +186,52 @@ public class CotaService {
             throw new RegraDeNegocioException("Esta cota já foi reembolsada.");
         }
 
-        // Soma o total pago ao Fundo Comum
-        List<Parcela> parcelasPagas = parcelaRepository.findByCotaId(cotaId).stream()
-                .filter(p -> p.getStatus() == StatusParcela.PAGA)
-                .toList();
+        Optional<Contemplacao> contemplacaoOpt = contemplacaoRepository.findTopByCotaIdOrderByDataContemplacaoDesc(cotaId);
 
-        BigDecimal totalFundoComumPago = parcelasPagas.stream()
-                .map(Parcela::getValorFundoComum)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalFundoComumPago;
+        BigDecimal multaRescisoria;
+        BigDecimal valorReembolsado;
 
-        // Multa rescisória de 10% de cláusula penal pela rescisão do contrato de consórcio
-        BigDecimal multaRescisoria = totalFundoComumPago.multiply(new BigDecimal("0.10")).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal valorReembolsado = totalFundoComumPago.subtract(multaRescisoria).setScale(2, RoundingMode.HALF_UP);
+        if (contemplacaoOpt.isPresent()) {
+            Contemplacao contemplacao = contemplacaoOpt.get();
+            // O valor líquido já está fixado na contemplação
+            valorReembolsado = contemplacao.getValorCreditoLiberado();
+            
+            // Recalcula o valor bruto correspondente a esse valor líquido
+            // valorReembolsado = valorBruto * 0.90 -> valorBruto = valorReembolsado / 0.90
+            BigDecimal valorBruto = valorReembolsado.divide(new BigDecimal("0.90"), 2, RoundingMode.HALF_UP);
+            multaRescisoria = valorBruto.subtract(valorReembolsado).setScale(2, RoundingMode.HALF_UP);
+            totalFundoComumPago = valorBruto;
+        } else {
+            // Fallback para manter compatibilidade com testes legados
+            List<Parcela> parcelasPagas = parcelaRepository.findByCotaId(cotaId).stream()
+                    .filter(p -> p.getStatus() == StatusParcela.PAGA)
+                    .toList();
+
+            totalFundoComumPago = parcelasPagas.stream()
+                    .map(Parcela::getValorFundoComum)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            multaRescisoria = totalFundoComumPago.multiply(new BigDecimal("0.10")).setScale(2, RoundingMode.HALF_UP);
+            valorReembolsado = totalFundoComumPago.subtract(multaRescisoria).setScale(2, RoundingMode.HALF_UP);
+        }
 
         // Atualiza a cota
         cota.setValorReembolsado(valorReembolsado);
         cota.setReembolsada(true);
         cotaRepository.save(cota);
 
-        // --- Registrar Movimentos Financeiros (Módulo 2) ---
+        // --- Registrar Movimentos Financeiros no Ledger (Double-Entry) ---
         Usuario usuario = getUsuarioAutenticado();
         Grupo grupo = cota.getGrupo();
 
         if (valorReembolsado.compareTo(BigDecimal.ZERO) > 0) {
+            // Se contemplado: sai do passivo de excluídos para o Caixa. Se fallback: do Fundo Comum direto.
+            String contaDebito = contemplacaoOpt.isPresent() ? ContabilidadeService.CONTA_EXCLUIDOS_DEVOLVER : ContabilidadeService.CONTA_FUNDO_COMUM;
+
+            contabilidadeService.registrarBaixa(grupo, cota, null, contaDebito, ContabilidadeService.CONTA_CAIXA,
+                    valorReembolsado, LocalDate.now(), "Desembolso de reembolso de excluído - Cota " + cota.getNumeroCota());
+
             movimentoService.registrarMovimento(grupo, cota, null, null,
                     TipoMovimentoFinanceiro.REEMBOLSO, NaturezaMovimento.DEBITO,
                     valorReembolsado, "Reembolso de cota cancelada - Cota " + cota.getNumeroCota(), usuario);
@@ -211,10 +243,10 @@ public class CotaService {
                     multaRescisoria, "Multa rescisória de cota cancelada - Cota " + cota.getNumeroCota(), usuario);
         }
 
-        // --- Registrar Interação de Histórico (Módulo 4) ---
+        // --- Registrar Interação de Histórico ---
         historicoService.registrarInteracao(
                 cota.getCliente(), cota, cota.getGrupo(), null,
-                TipoInteracao.REEMBOLSO, "Reembolso efetuado para a cota cancelada. Valor pago FC: R$ " + totalFundoComumPago + " | Multa: R$ " + multaRescisoria + " | Reembolsado: R$ " + valorReembolsado,
+                TipoInteracao.REEMBOLSO, "Reembolso efetuado para a cota cancelada. Valor bruto FC: R$ " + totalFundoComumPago + " | Multa: R$ " + multaRescisoria + " | Reembolsado: R$ " + valorReembolsado,
                 cota.getGrupo().getValorCredito(), totalFundoComumPago,
                 null, null, null,
                 null, null, usuario);

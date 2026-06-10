@@ -2,11 +2,13 @@ package br.com.estudo.consorcio.service;
 
 import br.com.estudo.consorcio.domain.dto.ContemplacaoRequestDTO;
 import br.com.estudo.consorcio.domain.dto.ContemplacaoResponseDTO;
+import br.com.estudo.consorcio.domain.dto.CotaResponseDTO;
 import br.com.estudo.consorcio.domain.model.*;
 import br.com.estudo.consorcio.domain.repository.AssembleiaRepository;
 import br.com.estudo.consorcio.domain.repository.ContemplacaoRepository;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
+import br.com.estudo.consorcio.domain.repository.LanceRepository;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -50,6 +52,12 @@ class ContemplacaoServiceTest {
 
     @Mock
     private ContabilidadeService contabilidadeService;
+
+    @Mock
+    private LanceRepository lanceRepository;
+
+    @Mock
+    private br.com.estudo.consorcio.domain.mapper.CotaMapper cotaMapper;
 
     @org.mockito.Spy
     private br.com.estudo.consorcio.domain.mapper.ContemplacaoMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.ContemplacaoMapper.class);
@@ -254,5 +262,139 @@ class ContemplacaoServiceTest {
 
         assertEquals("Não é possível contemplar a cota: existem parcelas em atraso.", exception.getMessage());
         verify(contemplacaoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Cenário 1: Classificação e Contemplação Inicial por Lance Livre")
+    void deveContemplarLanceLivreComStatusPendente() {
+        // --- ARRANGE ---
+        Long idCota = 1L;
+        Long idAssembleia = 2L;
+
+        Grupo grupo = new Grupo();
+        grupo.setId(10L);
+        grupo.setValorCredito(new BigDecimal("100000.00"));
+        grupo.setPercentualLanceEmbutidoMaximo(new BigDecimal("0.30"));
+
+        Assembleia assembleia = new Assembleia();
+        assembleia.setId(idAssembleia);
+        assembleia.setGrupo(grupo);
+        assembleia.setDataAssembleia(LocalDate.now());
+
+        Cota cota = new Cota();
+        cota.setId(idCota);
+        cota.setGrupo(grupo);
+        cota.setStatus(StatusCota.ATIVA);
+
+        ContemplacaoRequestDTO request = new ContemplacaoRequestDTO(
+                idCota, idAssembleia, TipoContemplacao.LANCE_LIVRE, new BigDecimal("20000.00"), false
+        );
+
+        when(assembleiaRepository.findById(idAssembleia)).thenReturn(Optional.of(assembleia));
+        when(cotaRepository.findById(idCota)).thenReturn(Optional.of(cota));
+        when(parcelaRepository.existsByCotaIdAndStatusAndDataVencimentoBefore(eq(idCota), eq(StatusParcela.PENDENTE), any())).thenReturn(false);
+        when(contabilidadeService.calcularSaldoConta(eq(grupo), anyString())).thenReturn(new BigDecimal("100000.00"));
+        when(contemplacaoRepository.save(any())).thenAnswer(i -> i.getArguments()[0]);
+
+        // --- ACT ---
+        ContemplacaoResponseDTO response = service.registrar(request);
+
+        // --- ASSERT ---
+        assertNotNull(response);
+        assertEquals(new BigDecimal("100000.00"), response.valorCreditoLiberado());
+        verify(cotaService, times(1)).registrarTransicaoVersao(cota, StatusCota.PENDENTE_INTEGRALIZACAO, "Cota contemplada via Lance Livre - Aguardando Integralização do Lance");
+        verify(contabilidadeService, never()).registrarBaixa(any(), any(), any(), eq(ContabilidadeService.CONTA_FUNDO_COMUM), eq(ContabilidadeService.CONTA_CREDITOS_LIBERAR), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Cenário 2: Confirmação e Compensação Bancária do Lance (Integralização)")
+    void deveConfirmarPagamentoLanceComSucesso() {
+        // --- ARRANGE ---
+        Long idLance = 5L;
+        Long idCota = 1L;
+
+        Grupo grupo = new Grupo();
+        grupo.setId(10L);
+        grupo.setValorCredito(new BigDecimal("100000.00"));
+
+        Cota cota = new Cota();
+        cota.setId(idCota);
+        cota.setNumeroCota(44);
+        cota.setGrupo(grupo);
+        cota.setStatus(StatusCota.PENDENTE_INTEGRALIZACAO);
+
+        Cliente cliente = new Cliente();
+        cliente.setId(3L);
+        cota.setCliente(cliente);
+
+        Lance lance = new Lance();
+        lance.setId(idLance);
+        lance.setCota(cota);
+        lance.setStatusApuracao(StatusApuracaoLance.VENCEDOR);
+        lance.setValorOferta(new BigDecimal("20000.00"));
+
+        Contemplacao contemplacao = new Contemplacao();
+        contemplacao.setCota(cota);
+        contemplacao.setValorCreditoLiberado(new BigDecimal("100000.00"));
+
+        when(lanceRepository.findById(idLance)).thenReturn(Optional.of(lance));
+        when(contemplacaoRepository.findTopByCotaIdOrderByDataContemplacaoDesc(idCota)).thenReturn(Optional.of(contemplacao));
+        when(cotaMapper.toResponse(any(Cota.class))).thenReturn(new CotaResponseDTO(idCota, 44, 3L, 10L, StatusCota.AGUARDANDO_ANALISE, 0));
+
+        // --- ACT ---
+        CotaResponseDTO response = service.confirmarPagamentoLance(idLance);
+
+        // --- ASSERT ---
+        assertNotNull(response);
+        verify(cotaService, times(1)).registrarTransicaoVersao(cota, StatusCota.AGUARDANDO_ANALISE, "Integralização do lance efetuada - Cota aguardando análise de crédito");
+        
+        // Verifica se fez os dois lançamentos contábeis no Ledger
+        verify(contabilidadeService, times(1)).registrarBaixa(grupo, cota, null, ContabilidadeService.CONTA_CAIXA, ContabilidadeService.CONTA_FUNDO_COMUM, new BigDecimal("20000.00"), LocalDate.now(), "Integralização física de lance livre - Cota 44");
+        verify(contabilidadeService, times(1)).registrarBaixa(grupo, cota, null, ContabilidadeService.CONTA_FUNDO_COMUM, ContabilidadeService.CONTA_CREDITOS_LIBERAR, new BigDecimal("100000.00"), LocalDate.now(), "Trânsito de crédito contemplado pós-integralização - Cota 44");
+    }
+
+    @Test
+    @DisplayName("Cenário 3: Cancelamento de Lance por Expiração do Prazo (Inadimplência de Integralização)")
+    void deveCancelarContemplacaoPorAtrasoComSucesso() {
+        // --- ARRANGE ---
+        Long idContemplacao = 7L;
+        Long idCota = 1L;
+        Long idAssembleia = 2L;
+
+        Grupo grupo = new Grupo();
+        grupo.setId(10L);
+        grupo.setValorCredito(new BigDecimal("100000.00"));
+
+        Assembleia assembleia = new Assembleia();
+        assembleia.setId(idAssembleia);
+
+        Cota cota = new Cota();
+        cota.setId(idCota);
+        cota.setGrupo(grupo);
+        cota.setStatus(StatusCota.PENDENTE_INTEGRALIZACAO);
+
+        Cliente cliente = new Cliente();
+        cliente.setId(3L);
+        cota.setCliente(cliente);
+
+        Contemplacao contemplacao = new Contemplacao();
+        contemplacao.setId(idContemplacao);
+        contemplacao.setCota(cota);
+        contemplacao.setAssembleia(assembleia);
+
+        Lance lance = new Lance();
+        lance.setCota(cota);
+        lance.setStatusApuracao(StatusApuracaoLance.VENCEDOR);
+
+        when(contemplacaoRepository.findById(idContemplacao)).thenReturn(Optional.of(contemplacao));
+        when(lanceRepository.findByCotaIdAndAssembleiaId(idCota, idAssembleia)).thenReturn(Optional.of(lance));
+
+        // --- ACT ---
+        service.cancelarContemplacaoPorAtraso(idContemplacao);
+
+        // --- ASSERT ---
+        verify(cotaService, times(1)).registrarTransicaoVersao(cota, StatusCota.ATIVA, "Contemplação cancelada por atraso na integralização do lance.");
+        assertEquals(StatusApuracaoLance.INVALIDO, lance.getStatusApuracao());
+        verify(contemplacaoRepository, times(1)).delete(contemplacao);
     }
 }

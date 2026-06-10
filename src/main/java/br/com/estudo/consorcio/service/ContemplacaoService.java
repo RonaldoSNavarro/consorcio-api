@@ -2,12 +2,16 @@ package br.com.estudo.consorcio.service;
 
 import br.com.estudo.consorcio.domain.dto.ContemplacaoRequestDTO;
 import br.com.estudo.consorcio.domain.dto.ContemplacaoResponseDTO;
+import br.com.estudo.consorcio.domain.dto.CotaResponseDTO;
 import br.com.estudo.consorcio.domain.mapper.ContemplacaoMapper; // Importar o mapper
+import br.com.estudo.consorcio.domain.mapper.CotaMapper;
 import br.com.estudo.consorcio.domain.model.*;
 import br.com.estudo.consorcio.domain.repository.AssembleiaRepository;
 import br.com.estudo.consorcio.domain.repository.ContemplacaoRepository;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
+import br.com.estudo.consorcio.domain.repository.LanceRepository;
+import java.util.Optional;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -29,11 +33,14 @@ public class ContemplacaoService {
     private final ContabilidadeService contabilidadeService;
     private final CotaService cotaService;
     private final HistoricoConsorciadoService historicoService;
+    private final LanceRepository lanceRepository;
+    private final CotaMapper cotaMapper;
 
     public ContemplacaoService(ContemplacaoRepository contemplacaoRepository, AssembleiaRepository assembleiaRepository,
                                CotaRepository cotaRepository, ParcelaRepository parcelaRepository,
                                ContemplacaoMapper mapper, ContabilidadeService contabilidadeService,
-                               CotaService cotaService, HistoricoConsorciadoService historicoService) {
+                               CotaService cotaService, HistoricoConsorciadoService historicoService,
+                               LanceRepository lanceRepository, CotaMapper cotaMapper) {
         this.contemplacaoRepository = contemplacaoRepository;
         this.assembleiaRepository = assembleiaRepository;
         this.cotaRepository = cotaRepository;
@@ -42,6 +49,8 @@ public class ContemplacaoService {
         this.contabilidadeService = contabilidadeService;
         this.cotaService = cotaService;
         this.historicoService = historicoService;
+        this.lanceRepository = lanceRepository;
+        this.cotaMapper = cotaMapper;
     }
 
     private Usuario getUsuarioAutenticado() {
@@ -92,13 +101,25 @@ public class ContemplacaoService {
         BigDecimal valorCreditoLiberado = valorCreditoGrupo;
 
         if (cota.getStatus() == StatusCota.CANCELADA) {
-            // Regra BCB: Excluído recebe o que pagou no Fundo Comum, descontada a multa rescisória (ex: 10%)
-            BigDecimal fundoComumPago = parcelaRepository.findByCotaId(cota.getId()).stream()
+            // Nova Regra ADR 005: Devolução baseada no percentual amortizado do fundo comum aplicado sobre o crédito atual do grupo
+            List<Parcela> parcelasPagas = parcelaRepository.findByCotaId(cota.getId()).stream()
                     .filter(p -> p.getStatus() == StatusParcela.PAGA)
-                    .map(Parcela::getValorFundoComum)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-            
-            valorCreditoLiberado = fundoComumPago.multiply(new BigDecimal("0.90")).setScale(2, RoundingMode.HALF_UP);
+                    .toList();
+
+            BigDecimal PAFC = BigDecimal.ZERO;
+            for (Parcela p : parcelasPagas) {
+                BigDecimal pct = p.getPercentualFundoComum();
+                if (pct == null) {
+                    // Fallback para parcelas antigas legadas
+                    pct = p.getValorFundoComum().divide(valorCreditoGrupo, 6, RoundingMode.HALF_UP);
+                }
+                PAFC = PAFC.add(pct);
+            }
+
+            BigDecimal valorBruto = PAFC.multiply(valorCreditoGrupo).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal multaRescisoria = valorBruto.multiply(new BigDecimal("0.10")).setScale(2, RoundingMode.HALF_UP);
+            valorCreditoLiberado = valorBruto.subtract(multaRescisoria).setScale(2, RoundingMode.HALF_UP);
+
             contemplacao.setLanceEmbutido(false);
             contemplacao.setValorLance(BigDecimal.ZERO);
         } else {
@@ -139,11 +160,39 @@ public class ContemplacaoService {
         // 3. Persistência
         Contemplacao contemplacaoSalva = contemplacaoRepository.save(contemplacao);
 
-        cotaService.registrarTransicaoVersao(cota, StatusCota.AGUARDANDO_ANALISE, "Cota contemplada na assembleia id " + assembleia.getId() + " - Aguardando Análise de Crédito");
-
         // --- Registrar Movimento Financeiro (Ledger de Partidas Dobradas) ---
         Usuario usuario = getUsuarioAutenticado();
         Grupo grupo = assembleia.getGrupo();
+
+        if (cota.getStatus() == StatusCota.CANCELADA) {
+            // Registrar trânsito de recursos da cota cancelada: Fundo Comum -> Recursos de Excluídos a Devolver
+            contabilidadeService.registrarBaixa(
+                    grupo, cota, null,
+                    ContabilidadeService.CONTA_FUNDO_COMUM,
+                    ContabilidadeService.CONTA_EXCLUIDOS_DEVOLVER,
+                    valorCreditoLiberado,
+                    LocalDate.now(),
+                    "Restituição de cota excluída sorteada - Cota " + cota.getNumeroCota()
+            );
+        } else {
+            // Se for Lance Livre (não embutido): vai para PENDENTE_INTEGRALIZACAO e não transita crédito contábil
+            if (dto.tipoContemplacao() == TipoContemplacao.LANCE_LIVRE && !Boolean.TRUE.equals(contemplacaoSalva.getLanceEmbutido())) {
+                cotaService.registrarTransicaoVersao(cota, StatusCota.PENDENTE_INTEGRALIZACAO, "Cota contemplada via Lance Livre - Aguardando Integralização do Lance");
+            } else {
+                // Sorteio ou Lance Embutido: vai direto para AGUARDANDO_ANALISE e transita o crédito para Créditos a Liberar
+                cotaService.registrarTransicaoVersao(cota, StatusCota.AGUARDANDO_ANALISE, "Cota contemplada na assembleia id " + assembleia.getId() + " - Aguardando Análise de Crédito");
+
+                // Trânsito contábil do crédito liberado para o passivo de Créditos a Liberar
+                contabilidadeService.registrarBaixa(
+                        grupo, cota, null,
+                        ContabilidadeService.CONTA_FUNDO_COMUM,
+                        ContabilidadeService.CONTA_CREDITOS_LIBERAR,
+                        valorCreditoLiberado,
+                        LocalDate.now(),
+                        "Trânsito de crédito contemplado - Cota " + cota.getNumeroCota()
+                );
+            }
+        }
 
         if (Boolean.TRUE.equals(contemplacaoSalva.getLanceEmbutido())) {
             // O lance embutido reduz o crédito e fica no fundo comum. Como o fundo comum nunca chegou a perder esse montante,
@@ -205,5 +254,91 @@ public class ContemplacaoService {
                 .toList();
     }
 
-    // O método auxiliar converterParaResponseDTO foi removido, pois o mapper faz esse trabalho.
+    @Transactional
+    public CotaResponseDTO confirmarPagamentoLance(Long lanceId) {
+        Lance lance = lanceRepository.findById(lanceId)
+                .orElseThrow(() -> new RegraDeNegocioException("Lance não encontrado."));
+
+        if (lance.getStatusApuracao() != StatusApuracaoLance.VENCEDOR) {
+            throw new RegraDeNegocioException("Este lance não foi classificado como vencedor.");
+        }
+
+        Cota cota = lance.getCota();
+        if (cota.getStatus() != StatusCota.PENDENTE_INTEGRALIZACAO) {
+            throw new RegraDeNegocioException("Esta cota não está pendente de integralização.");
+        }
+
+        Contemplacao contemplacao = contemplacaoRepository.findTopByCotaIdOrderByDataContemplacaoDesc(cota.getId())
+                .orElseThrow(() -> new RegraDeNegocioException("Contemplação não encontrada para a cota."));
+
+        Grupo grupo = cota.getGrupo();
+
+        // 1. Recebimento do lance livre: Débito em CONTA_CAIXA e Crédito em CONTA_FUNDO_COMUM pelo valor do lance
+        contabilidadeService.registrarBaixa(
+                grupo, cota, null,
+                ContabilidadeService.CONTA_CAIXA,
+                ContabilidadeService.CONTA_FUNDO_COMUM,
+                lance.getValorOferta(),
+                LocalDate.now(),
+                "Integralização física de lance livre - Cota " + cota.getNumeroCota()
+        );
+
+        // 2. Trânsito do crédito liberado: Débito em CONTA_FUNDO_COMUM e Crédito em CONTA_CREDITOS_LIBERAR pelo valor líquido liberado
+        contabilidadeService.registrarBaixa(
+                grupo, cota, null,
+                ContabilidadeService.CONTA_FUNDO_COMUM,
+                ContabilidadeService.CONTA_CREDITOS_LIBERAR,
+                contemplacao.getValorCreditoLiberado(),
+                LocalDate.now(),
+                "Trânsito de crédito contemplado pós-integralização - Cota " + cota.getNumeroCota()
+        );
+
+        // 3. Transitar status da cota para AGUARDANDO_ANALISE
+        cotaService.registrarTransicaoVersao(cota, StatusCota.AGUARDANDO_ANALISE, "Integralização do lance efetuada - Cota aguardando análise de crédito");
+
+        // --- Registrar Interação de Histórico ---
+        Usuario usuario = getUsuarioAutenticado();
+        historicoService.registrarInteracao(
+                cota.getCliente(), cota, grupo, null,
+                TipoInteracao.PAGAMENTO_PARCELA, "Integralização do lance livre no valor de R$ " + lance.getValorOferta() + " confirmada.",
+                grupo.getValorCredito(), null,
+                null, null, null,
+                "Lance integralizado", lance.getValorOferta(), usuario);
+
+        return cotaMapper.toResponse(cota);
+    }
+
+    @Transactional
+    public void cancelarContemplacaoPorAtraso(Long contemplacaoId) {
+        Contemplacao contemplacao = contemplacaoRepository.findById(contemplacaoId)
+                .orElseThrow(() -> new RegraDeNegocioException("Contemplação não encontrada."));
+
+        Cota cota = contemplacao.getCota();
+        if (cota.getStatus() != StatusCota.PENDENTE_INTEGRALIZACAO) {
+            throw new RegraDeNegocioException("Esta cota não está pendente de integralização.");
+        }
+
+        // Retorna a cota para ATIVA
+        cotaService.registrarTransicaoVersao(cota, StatusCota.ATIVA, "Contemplação cancelada por atraso na integralização do lance.");
+
+        // Atualiza o lance para INVALIDO
+        Assembleia assembleia = contemplacao.getAssembleia();
+        lanceRepository.findByCotaIdAndAssembleiaId(cota.getId(), assembleia.getId())
+                .ifPresent(lance -> {
+                    lance.setStatusApuracao(StatusApuracaoLance.INVALIDO);
+                    lanceRepository.save(lance);
+                });
+
+        // Exclui a contemplação do banco
+        contemplacaoRepository.delete(contemplacao);
+
+        // --- Registrar Interação de Histórico ---
+        Usuario usuario = getUsuarioAutenticado();
+        historicoService.registrarInteracao(
+                cota.getCliente(), cota, cota.getGrupo(), null,
+                TipoInteracao.CANCELAMENTO_COTA, "Contemplação por lance livre cancelada por atraso na integralização do lance.",
+                cota.getGrupo().getValorCredito(), null,
+                null, null, null,
+                null, null, usuario);
+    }
 }
