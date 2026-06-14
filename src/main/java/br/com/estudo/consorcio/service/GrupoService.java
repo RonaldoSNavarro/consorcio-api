@@ -1,5 +1,6 @@
 package br.com.estudo.consorcio.service;
 
+import br.com.estudo.consorcio.domain.dto.GrupoEncerrarResponseDTO;
 import br.com.estudo.consorcio.domain.dto.GrupoFinanceiroResponseDTO;
 import br.com.estudo.consorcio.domain.dto.GrupoRequestDTO;
 import br.com.estudo.consorcio.domain.dto.GrupoResponseDTO;
@@ -28,11 +29,12 @@ public class GrupoService {
     private final MovimentoFinanceiroService movimentoService;
     private final CotaRepository cotaRepository;
     private final HistoricoConsorciadoService historicoService;
+    private final ContabilidadeService contabilidadeService;
 
     public GrupoService(GrupoRepository repository, ParcelaRepository parcelaRepository,
                         ContemplacaoRepository contemplacaoRepository, GrupoMapper mapper,
                         MovimentoFinanceiroService movimentoService, CotaRepository cotaRepository,
-                        HistoricoConsorciadoService historicoService) {
+                        HistoricoConsorciadoService historicoService, ContabilidadeService contabilidadeService) {
         this.repository = repository;
         this.parcelaRepository = parcelaRepository;
         this.contemplacaoRepository = contemplacaoRepository;
@@ -40,6 +42,7 @@ public class GrupoService {
         this.movimentoService = movimentoService;
         this.cotaRepository = cotaRepository;
         this.historicoService = historicoService;
+        this.contabilidadeService = contabilidadeService;
     }
 
     private Usuario getUsuarioAutenticado() {
@@ -174,8 +177,19 @@ public class GrupoService {
         );
     }
 
+    /**
+     * ADR 006 — Encerramento de grupo com baixa de inadimplência e provisão de perdas.
+     * 
+     * Conforme Resolução BCB nº 285/2023, o encerramento do grupo deve ocorrer no prazo
+     * máximo de 120 dias após a última AGO. Parcelas inadimplentes são baixadas contabilmente
+     * (PDD) e enviadas para cobrança judicial extracontábil.
+     * 
+     * Lançamentos contábeis gerados:
+     * 1. Provisão PDD: Débito 3.1.8.10.00-1 (Despesa PDD) → Crédito 1.6.9.10.00-5 (PDD)
+     * 2. Baixa do crédito: Débito 1.6.9.10.00-5 (PDD) → Crédito 1.2.1.10.00-8 (Valores a Receber)
+     */
     @Transactional
-    public GrupoResponseDTO encerrarGrupo(Long grupoId) {
+    public GrupoEncerrarResponseDTO encerrarGrupo(Long grupoId) {
         Grupo grupo = repository.findById(grupoId)
                 .orElseThrow(() -> new RegraDeNegocioException("Grupo não encontrado."));
 
@@ -183,20 +197,65 @@ public class GrupoService {
             throw new RegraDeNegocioException("Este grupo já está encerrado.");
         }
 
-        // Regra BCB: Verificar se há parcelas pendentes ou atrasadas (inadimplentes) no grupo
-        List<StatusParcela> statusesAbertos = List.of(StatusParcela.PENDENTE, StatusParcela.ATRASADA);
-        long parcelasAbertas = parcelaRepository.countByCotaGrupoIdAndStatusIn(grupoId, statusesAbertos);
-
-        if (parcelasAbertas > 0) {
-            throw new RegraDeNegocioException("Não é possível encerrar o grupo: existem " + parcelasAbertas + " parcelas em aberto.");
+        if (grupo.getStatus() == StatusGrupo.EM_FORMACAO) {
+            throw new RegraDeNegocioException("Não é possível encerrar um grupo que ainda está em formação.");
         }
 
-        // Altera status para ENCERRADO e registra a data para controle de retenção legal (LGPD 10 anos)
-        grupo.setStatus(StatusGrupo.ENCERRADO);
-        grupo.setDataEncerramento(LocalDate.now());
-        Grupo grupoSalvo = repository.save(grupo);
+        LocalDate dataEncerramento = LocalDate.now();
+        BigDecimal valorTotalPDD = BigDecimal.ZERO;
+        long totalParcelasBaixadas = 0;
 
-        return mapper.toResponse(grupoSalvo);
+        // --- Fase 1: Identificar e baixar parcelas inadimplentes (PENDENTE/ATRASADA) ---
+        List<StatusParcela> statusesAbertos = List.of(StatusParcela.PENDENTE, StatusParcela.ATRASADA);
+        List<Parcela> parcelasInadimplentes = parcelaRepository.findByCotaGrupoIdAndStatusIn(grupoId, statusesAbertos);
+
+        for (Parcela parcela : parcelasInadimplentes) {
+            BigDecimal valorDevido = parcela.getValorParcela();
+
+            // 1. Provisão PDD: Débito em Despesa PDD → Crédito em (-) PDD
+            contabilidadeService.registrarEncerramento(
+                    grupo, parcela.getCota(), parcela,
+                    ContabilidadeService.CONTA_DESPESA_PDD,
+                    ContabilidadeService.CONTA_PDD,
+                    valorDevido, dataEncerramento,
+                    "Provisão PDD — Parcela " + parcela.getNumeroParcela() + " da Cota " + parcela.getCota().getNumeroCota()
+            );
+
+            // 2. Baixa do crédito: Débito em (-) PDD → Crédito em Valores a Receber
+            contabilidadeService.registrarEncerramento(
+                    grupo, parcela.getCota(), parcela,
+                    ContabilidadeService.CONTA_PDD,
+                    ContabilidadeService.CONTA_DIREITOS_RECEBER,
+                    valorDevido, dataEncerramento,
+                    "Baixa de crédito — Parcela " + parcela.getNumeroParcela() + " enviada para cobrança judicial"
+            );
+
+            // 3. Alterar status da parcela para BAIXADA
+            parcela.setStatus(StatusParcela.BAIXADA);
+            valorTotalPDD = valorTotalPDD.add(valorDevido);
+            totalParcelasBaixadas++;
+        }
+
+        if (!parcelasInadimplentes.isEmpty()) {
+            parcelaRepository.saveAll(parcelasInadimplentes);
+        }
+
+        // --- Fase 2: Encerrar o grupo ---
+        grupo.setStatus(StatusGrupo.ENCERRADO);
+        grupo.setDataEncerramento(dataEncerramento);
+        repository.save(grupo);
+
+        // Valor de RNP é zero nesta versão (funcionalidade de credores não procurados será implementada futuramente)
+        BigDecimal valorTransferidoRNP = BigDecimal.ZERO;
+
+        return new GrupoEncerrarResponseDTO(
+                grupoId,
+                grupo.getCodigo(),
+                totalParcelasBaixadas,
+                valorTotalPDD,
+                valorTransferidoRNP,
+                dataEncerramento
+        );
     }
 
     public Page<GrupoResponseDTO> listarTodos(Pageable pageable) {

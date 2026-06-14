@@ -81,8 +81,8 @@ O `AuthContext.jsx` inicializa o token a partir do `localStorage.getItem('consor
 
 ## 📈 4. Estado Atual do Projeto
 
-- **Fase Atual:** Sprint 3 — Contemplações e Reembolsos de Excluídos (Concluída).
-- **Status:** Implementação das regras de lance livre com status intermediário (ADR 004) e reembolso reajustado de cotas excluídas (ADR 005) concluída e validada em ambiente de testes. Todos os 88 testes unitários, de integração e de segurança do Spring Security passaram com sucesso.
+- **Fase Atual:** Sprint 4 — Encerramento de Grupo, F5-Safety e Relatórios BCB (Concluída).
+- **Status:** Implementação do encerramento de grupo com baixa de parcelas inadimplentes para a conta de PDD (ADR 006), implementação da rota /api/auth/me para revalidação F5-safety no frontend (ADR 007) e entrega dos motores de relatório do BCB (Docs 4110, 2080, PLD/FT) com RBAC integrado. Todos os testes unitários, de integração e de segurança do Spring Security (97 no total) passaram com sucesso.
 - **Artefatos Gerados:** 
   - [REQUIREMENTS.md](file:///f:/Dev/Projetos/consorcio-api/docs/REQUIREMENTS.md) (Especificações de negócio).
   - [PROJECT_CONTEXT.md](file:///f:/Dev/Projetos/consorcio-api/docs/PROJECT_CONTEXT.md) (Este documento atualizado).

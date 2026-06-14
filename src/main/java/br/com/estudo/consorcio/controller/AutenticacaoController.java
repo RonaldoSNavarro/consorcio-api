@@ -68,6 +68,6 @@ public class AutenticacaoController {
             return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).build();
         }
         var usuario = (Usuario) authentication.getPrincipal();
-        return ResponseEntity.ok(new DadosUsuarioLogado(usuario.getUsername(), usuario.getRole()));
+        return ResponseEntity.ok(new DadosUsuarioLogado(usuario.getUsername(), usuario.getRole(), usuario.getNome(), usuario.getEmail()));
     }
 }

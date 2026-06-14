@@ -27,7 +27,7 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 
 ## 🧪 Qualidade de Software e Testes
 
-O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura foi expandida para **88 testes unitários e de integração 100% verdes**:
+O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura foi expandida para **97 testes unitários e de integração 100% verdes**:
 
 * **Testes Unitários (100% Service & Validator Coverage):** Toda a camada de `Service` possui cobertura total. Criamos suítes de teste de baixo nível como `CpfCnpjValidatorTest` e `ViaCepServiceTest` (usando mocks avançados da API fluente do `RestClient` do Spring).
 * **Módulos de Auditoria e Livro Razão:** Testados exaustivamente em `MovimentoFinanceiroServiceTest` e `HistoricoConsorciadoServiceTest` para validar consistência de saldos contábeis e a fórmula regulatória da categoria.
@@ -40,6 +40,7 @@ A proteção da aplicação segue os mais altos padrões de cibersegurança e co
 * **Sessão Segura com JWT em Cookies HttpOnly:** A autenticação é stateless, mas evita armazenamento inseguro no LocalStorage/SessionStorage do navegador. O token JWT gerado no `/api/login` é retornado através de um cookie HTTP seguro com atributos `HttpOnly`, `Secure` (em produção), `SameSite=Strict` e `Path=/`.
 * **Revogação Local (Logout):** Um endpoint dedicado `/api/logout` invalida a sessão local no cliente limpando o cookie com expiração imediata.
 * **Filtro de Segurança Adaptativo:** O `SecurityFilter` intercepta requisições lendo o token prioritariamente a partir do cookie HttpOnly `jwt`, mantendo retrocompatibilidade transparente com o cabeçalho tradicional `Authorization: Bearer <token>` para integrações M2M (Machine-to-Machine) ou ferramentas de teste (Postman/Swagger).
+* **Mecanismo F5-Safety (ADR 007):** Endpoint `/api/auth/me` para validação ativa em tempo real do cookie de sessão seguro no frontend, retornando as informações do operador autenticado (`nome`, `email`, `role`) e impedindo redirecionamentos indesejados para login ao atualizar a tela.
 * **Proteção Ativa contra IDOR (Insecure Direct Object Reference):** Camada rigorosa de validação de propriedade na camada de serviço (`ClienteService` e `CotaService`). O usuário autenticado só pode obter, visualizar ou modificar recursos associados diretamente à sua identidade (comparando o subject do token com `cpfCnpj` ou `email`). Tentativas de acesso a registros alheios através de IDs sequenciais ou aleatórios são bloqueadas imediatamente, a menos que o usuário possua perfil administrativo (`ROLE_ADMIN`).
 * **Segredo JWT:** Gerenciado exclusivamente via variável de ambiente — nenhuma credencial sensível é exposta no código-fonte.
 
@@ -108,6 +109,14 @@ O sistema implementa regras de negócio financeiras extremamente robustas basead
 * **Margem Consignável:** Regra alinhada às normativas do BCB: a parcela da cota não pode comprometer mais que **30% da renda comprovada** do consorciado. O cálculo é feito de forma dinâmica recuperando o valor atualizado da Parcela Base.
 * **Validação de Garantias:** Exige aprovação explícita (fiador/bens) antes da liberação.
 * **Efetivação Contábil:** Apenas quando a análise recebe `status: APROVADA`, a cota avança para o estado `APROVADO` e o `MovimentoFinanceiro` de `LIBERACAO_CREDITO` é registrado no livro razão.
+
+### 12. Encerramento de Grupo com PDD e Relatórios BCB (ADR 006)
+* **Encerramento de Grupo com PDD:** O encerramento é processado formalmente no prazo legal de 120 dias da última AGO. Parcelas inadimplentes de cotas ativas são baixadas contabilisticamente para contas de Provisão para Devedores Duvidosos (PDD) e direcionadas à cobrança extrajudicial, sem impedir a homologação do fim do grupo.
+* **Relatórios Regulatórios do BCB:**
+  * **Documento 4110 (Balancete de Grupos):** Consolidação periódica de contas ativas e passivas sob a estrutura do COSIF por grupo.
+  * **Documento 2080 (Informações Estatísticas):** Relatórios de dados de adesão, exclusão, lances e contemplações.
+  * **Relatório PLD/FT:** Rastreabilidade e monitoramento automatizado de potenciais transações de lavagem de dinheiro, sinalizando lances de cotas e amortizações em espécie que excedam o valor de R$ 50.000,00.
+  * **Segurança e RBAC:** Acesso restrito a usuários com perfis `ROLE_ADMIN` e `ROLE_DIRETOR`.
 
 ### 12. Regulatório BCB e Retenção LGPD
 * **Arquivamento e Retenção Contábil (Legal Hold):** Garantia de retenção de dados financeiros de consorciados por no mínimo 10 anos após a decretação de encerramento do Grupo, blindando auditorias do Banco Central do Brasil.

@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Service
 public class ContabilidadeService {
@@ -15,8 +16,11 @@ public class ContabilidadeService {
     private final LancamentoContabilRepository lancamentoRepository;
     private final ContaContabilRepository contaRepository;
 
+    // --- Contas COSIF do Ativo ---
     public static final String CONTA_CAIXA = "1.1.1.10.00-2";
     public static final String CONTA_DIREITOS_RECEBER = "1.2.1.10.00-8";
+
+    // --- Contas COSIF do Passivo ---
     public static final String CONTA_FUNDO_COMUM = "2.1.2.10.10-6";
     public static final String CONTA_FUNDO_RESERVA = "2.1.2.10.20-9";
     public static final String CONTA_TAXA_ADM = "2.1.2.10.30-2";
@@ -24,6 +28,11 @@ public class ContabilidadeService {
     public static final String CONTA_RENDIMENTO = "2.1.2.10.50-8";
     public static final String CONTA_EXCLUIDOS_DEVOLVER = "2.1.2.20.10-3";
     public static final String CONTA_CREDITOS_LIBERAR = "2.1.2.30.10-0";
+    public static final String CONTA_RECURSOS_NAO_PROCURADOS = "2.1.2.90.10-8";
+
+    // --- Contas COSIF de Provisão (Sprint 4 — ADR 006) ---
+    public static final String CONTA_PDD = "1.6.9.10.00-5";
+    public static final String CONTA_DESPESA_PDD = "3.1.8.10.00-1";
 
     public ContabilidadeService(LancamentoContabilRepository lancamentoRepository, ContaContabilRepository contaRepository) {
         this.lancamentoRepository = lancamentoRepository;
@@ -45,6 +54,11 @@ public class ContabilidadeService {
             // Se natureza DEVEDORA (ex: Caixa 1.1.0.00), saldo = Debitos - Creditos
             return debitos.subtract(creditos);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<ContaContabil> listarTodasContas() {
+        return contaRepository.findAll();
     }
 
     private ContaContabil getConta(String codigoCosif) {
@@ -70,6 +84,12 @@ public class ContabilidadeService {
         registrarLancamento(grupo, cota, parcela, contaDebitoCosif, contaCreditoCosif, valor, dataCompetencia, TipoOperacaoContabil.ESTORNO, historico);
     }
 
+    @Transactional
+    public void registrarEncerramento(Grupo grupo, Cota cota, Parcela parcela, String contaDebitoCosif, String contaCreditoCosif, BigDecimal valor, LocalDate dataCompetencia, String historico) {
+        if (valor == null || valor.compareTo(BigDecimal.ZERO) <= 0) return;
+        registrarLancamento(grupo, cota, parcela, contaDebitoCosif, contaCreditoCosif, valor, dataCompetencia, TipoOperacaoContabil.ENCERRAMENTO, historico);
+    }
+
     private void registrarLancamento(Grupo grupo, Cota cota, Parcela parcela, String contaDebitoCosif, String contaCreditoCosif, BigDecimal valor, LocalDate dataCompetencia, TipoOperacaoContabil tipo, String historico) {
         LancamentoContabil lancamento = new LancamentoContabil();
         lancamento.setGrupo(grupo);
@@ -85,3 +105,4 @@ public class ContabilidadeService {
         lancamentoRepository.save(lancamento);
     }
 }
+

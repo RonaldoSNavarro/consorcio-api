@@ -4,5 +4,6 @@ public enum TipoOperacaoContabil {
     PROVISAO,
     BAIXA,
     RENDIMENTO,
-    ESTORNO
+    ESTORNO,
+    ENCERRAMENTO
 }

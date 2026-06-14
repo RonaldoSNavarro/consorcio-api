@@ -33,6 +33,8 @@ public class SecurityConfigurations {
                 .authorizeHttpRequests(req -> {
                     // Rotas públicas
                     req.requestMatchers(HttpMethod.POST, "/api/login").permitAll();
+                    req.requestMatchers(HttpMethod.POST, "/api/login/logout").permitAll();
+                    req.requestMatchers(HttpMethod.GET, "/api/login/me").permitAll();
                     req.requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll();
 
                     // Permissões específicas para GESTOR e ADMIN
@@ -43,6 +45,9 @@ public class SecurityConfigurations {
                     req.requestMatchers(HttpMethod.POST, "/api/**").hasRole("ADMIN");
                     req.requestMatchers(HttpMethod.PUT, "/api/**").hasRole("ADMIN");
                     req.requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("ADMIN");
+
+                    // Relatórios BCB: Apenas ADMIN e AUDITOR
+                    req.requestMatchers(HttpMethod.GET, "/api/relatorios/**").hasAnyRole("ADMIN", "AUDITOR");
 
                     // Leituras: ADMIN e AUDITOR
                     req.requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole("ADMIN", "AUDITOR", "CONSORCIADO");

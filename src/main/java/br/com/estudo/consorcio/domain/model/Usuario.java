@@ -25,12 +25,26 @@ public class Usuario implements UserDetails {
     @Column(nullable = false, length = 20)
     private String role = "ADMIN";
 
+    @Column(length = 100)
+    private String nome;
+
+    @Column(length = 100)
+    private String email;
+
     public Usuario() {
     }
 
     public Usuario(String login, String senha) {
         this.login = login;
         this.senha = senha;
+    }
+
+    public Usuario(String login, String senha, String role, String nome, String email) {
+        this.login = login;
+        this.senha = senha;
+        this.role = role;
+        this.nome = nome;
+        this.email = email;
     }
 
     public Long getId() {
@@ -43,6 +57,22 @@ public class Usuario implements UserDetails {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public String getNome() {
+        return nome;
+    }
+
+    public void setNome(String nome) {
+        this.nome = nome;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     // Métodos obrigatórios da interface UserDetails do Spring Security

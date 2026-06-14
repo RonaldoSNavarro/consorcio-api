@@ -1,5 +1,6 @@
 package br.com.estudo.consorcio.controller;
 
+import br.com.estudo.consorcio.domain.dto.GrupoEncerrarResponseDTO;
 import br.com.estudo.consorcio.domain.dto.GrupoFinanceiroResponseDTO;
 import br.com.estudo.consorcio.domain.dto.GrupoRequestDTO;
 import br.com.estudo.consorcio.domain.dto.GrupoResponseDTO;
@@ -65,8 +66,8 @@ public class GrupoController {
 
     @Operation(summary = "Encerrar grupo", description = "Encerra as atividades do grupo de consórcio caso todas as obrigações financeiras de todas as cotas tenham sido quitadas.")
     @PostMapping("/{id}/encerrar")
-    public ResponseEntity<GrupoResponseDTO> encerrar(@PathVariable Long id) {
-        GrupoResponseDTO grupoEncerrado = service.encerrarGrupo(id);
+    public ResponseEntity<GrupoEncerrarResponseDTO> encerrar(@PathVariable Long id) {
+        GrupoEncerrarResponseDTO grupoEncerrado = service.encerrarGrupo(id);
         return ResponseEntity.ok(grupoEncerrado);
     }
 }

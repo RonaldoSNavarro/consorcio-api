@@ -44,6 +44,9 @@ class GrupoServiceTest {
     private ContemplacaoRepository contemplacaoRepository;
 
     @Mock
+    private ContabilidadeService contabilidadeService;
+
+    @Mock
     private br.com.estudo.consorcio.domain.repository.CotaRepository cotaRepository;
 
     @Mock
@@ -287,33 +290,56 @@ class GrupoServiceTest {
         grupo.setStatus(StatusGrupo.EM_ANDAMENTO);
 
         when(repository.findById(grupoId)).thenReturn(Optional.of(grupo));
-        when(parcelaRepository.countByCotaGrupoIdAndStatusIn(eq(grupoId), anyList())).thenReturn(0L);
         when(repository.save(any(Grupo.class))).thenAnswer(i -> i.getArgument(0));
 
         // --- ACT ---
-        GrupoResponseDTO response = service.encerrarGrupo(grupoId);
+        br.com.estudo.consorcio.domain.dto.GrupoEncerrarResponseDTO response = service.encerrarGrupo(grupoId);
 
         // --- ASSERT ---
         assertNotNull(response);
-        assertEquals(StatusGrupo.ENCERRADO, response.status());
+        assertEquals(StatusGrupo.ENCERRADO, grupo.getStatus());
         verify(repository, times(1)).save(grupo);
     }
 
     @Test
-    @DisplayName("Deve lançar exceção ao tentar encerrar grupo com parcelas em aberto")
-    void deveLancarExcecaoAoEncerrarGrupoComParcelasEmAberto() {
+    @DisplayName("Deve encerrar grupo com parcelas em aberto, baixando-as para PDD (ADR 006)")
+    void deveEncerrarGrupoComInadimplenciaBaixandoParaPdd() {
         // --- ARRANGE ---
         Long grupoId = 1L;
         Grupo grupo = new Grupo();
         grupo.setId(grupoId);
+        grupo.setCodigo("G-001");
         grupo.setStatus(StatusGrupo.EM_ANDAMENTO);
 
-        when(repository.findById(grupoId)).thenReturn(Optional.of(grupo));
-        // Simulamos que existem 2 parcelas em aberto
-        when(parcelaRepository.countByCotaGrupoIdAndStatusIn(eq(grupoId), anyList())).thenReturn(2L);
+        br.com.estudo.consorcio.domain.model.Cota cota = new br.com.estudo.consorcio.domain.model.Cota();
+        cota.setNumeroCota(123);
 
-        // --- ACT & ASSERT ---
-        assertThrows(RegraDeNegocioException.class, () -> service.encerrarGrupo(grupoId));
-        verify(repository, never()).save(any());
+        Parcela p1 = new Parcela();
+        p1.setNumeroParcela(1);
+        p1.setCota(cota);
+        p1.setValorFundoComum(new BigDecimal("1000.00"));
+        p1.setValorTaxaAdministracao(new BigDecimal("100.00"));
+        p1.setValorFundoReserva(new BigDecimal("50.00"));
+        p1.setValorSeguro(new BigDecimal("10.00"));
+        p1.calcularValorTotal(); // Simula o PrePersist do JPA
+        // Total = 1160.00
+
+        when(repository.findById(grupoId)).thenReturn(Optional.of(grupo));
+        when(parcelaRepository.findByCotaGrupoIdAndStatusIn(eq(grupoId), anyList())).thenReturn(List.of(p1));
+        when(repository.save(any(Grupo.class))).thenAnswer(i -> i.getArgument(0));
+
+        // --- ACT ---
+        br.com.estudo.consorcio.domain.dto.GrupoEncerrarResponseDTO response = service.encerrarGrupo(grupoId);
+
+        // --- ASSERT ---
+        assertNotNull(response);
+        assertEquals(StatusGrupo.ENCERRADO, grupo.getStatus());
+        assertEquals(1, response.totalParcelasBaixadas());
+        assertEquals(new BigDecimal("1160.00"), response.valorTotalPDD());
+        assertEquals(StatusParcela.BAIXADA, p1.getStatus());
+
+        verify(contabilidadeService, times(2)).registrarEncerramento(any(), any(), any(), anyString(), anyString(), any(), any(), anyString());
+        verify(parcelaRepository, times(1)).saveAll(anyList());
+        verify(repository, times(1)).save(grupo);
     }
 }
