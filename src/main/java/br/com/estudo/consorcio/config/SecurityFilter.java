@@ -1,6 +1,7 @@
 package br.com.estudo.consorcio.config;
 
 import br.com.estudo.consorcio.domain.repository.UsuarioRepository;
+import br.com.estudo.consorcio.domain.model.Usuario;
 import br.com.estudo.consorcio.service.TokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -32,18 +33,57 @@ public class SecurityFilter extends OncePerRequestFilter {
 
         // 2. Se tiver um token, valida e autentica o usuário para essa requisição
         if (tokenJWT != null) {
-            var subject = tokenService.getSubject(tokenJWT);
-            var usuario = repository.findByLogin(subject);
+            String subject = null;
+            String role = "ADMIN";
+            String nome = "";
+            String email = "";
+            Long id = null;
 
-            // Adicionado: aborta silenciosamente se o usuário não existir mais no banco
-            if (usuario == null) {
-                filterChain.doFilter(request, response);
-                return;
+            try {
+                var decodedJWT = tokenService.verificarToken(tokenJWT);
+                if (decodedJWT != null) {
+                    subject = decodedJWT.getSubject();
+                    var claimId = decodedJWT.getClaim("id");
+                    id = (claimId != null && !claimId.isNull()) ? claimId.asLong() : null;
+                    var claimRole = decodedJWT.getClaim("role");
+                    role = (claimRole != null && !claimRole.isNull()) ? claimRole.asString() : "ADMIN";
+                    var claimNome = decodedJWT.getClaim("nome");
+                    nome = (claimNome != null && !claimNome.isNull()) ? claimNome.asString() : "";
+                    var claimEmail = decodedJWT.getClaim("email");
+                    email = (claimEmail != null && !claimEmail.isNull()) ? claimEmail.asString() : "";
+                } else {
+                    subject = tokenService.getSubject(tokenJWT);
+                }
+            } catch (Exception e) {
+                try {
+                    subject = tokenService.getSubject(tokenJWT);
+                } catch (Exception ex) {
+                    // Ignore
+                }
             }
 
-            // Força a autenticação no contexto do Spring Security
-            var authentication = new UsernamePasswordAuthenticationToken(usuario, null, usuario.getAuthorities());
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            if (subject != null) {
+                Usuario usuario;
+                if (id == null) {
+                    try {
+                        var userDetails = repository.findByLogin(subject);
+                        if (userDetails instanceof Usuario) {
+                            usuario = (Usuario) userDetails;
+                        } else {
+                            usuario = new Usuario(subject, "", role, nome, email);
+                        }
+                    } catch (Exception e) {
+                        usuario = new Usuario(subject, "", role, nome, email);
+                    }
+                } else {
+                    usuario = new Usuario(subject, "", role, nome, email);
+                    usuario.setId(id);
+                }
+
+                // Força a autenticação no contexto do Spring Security
+                var authentication = new UsernamePasswordAuthenticationToken(usuario, null, usuario.getAuthorities());
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
         }
 
         // 3. Continua o fluxo da requisição (se não tiver token, vai bater no bloqueio 403 depois)

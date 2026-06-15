@@ -87,6 +87,10 @@ public class Usuario implements UserDetails {
         return senha;
     }
 
+    public void setSenha(String senha) {
+        this.senha = senha;
+    }
+
     @Override
     public String getUsername() {
         return login;

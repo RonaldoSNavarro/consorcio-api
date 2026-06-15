@@ -14,6 +14,13 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ExecutionException;
+import org.springframework.security.core.Authentication;
+import br.com.estudo.consorcio.exception.RegraDeNegocioException;
+
 @RestController
 @RequestMapping("/api/login")
 @Tag(name = "Autenticação", description = "Endpoint para login e geração de Token JWT")
@@ -21,16 +28,44 @@ public class AutenticacaoController {
 
     private final AuthenticationManager manager;
     private final TokenService tokenService;
+    private final ExecutorService platformExecutor = Executors.newFixedThreadPool(
+            Math.max(1, Runtime.getRuntime().availableProcessors()),
+            r -> {
+                Thread t = new Thread(r);
+                t.setName("bcrypt-auth-thread");
+                t.setDaemon(true);
+                return t;
+            }
+    );
 
     public AutenticacaoController(AuthenticationManager manager, TokenService tokenService) {
         this.manager = manager;
         this.tokenService = tokenService;
     }
 
+    @jakarta.annotation.PreDestroy
+    public void shutdown() {
+        platformExecutor.shutdown();
+    }
+
     @PostMapping
     public ResponseEntity<Void> efetuarLogin(@Valid @RequestBody DadosAutenticacao dados) {
         var authenticationToken = new UsernamePasswordAuthenticationToken(dados.login(), dados.senha());
-        var authentication = manager.authenticate(authenticationToken);
+        
+        // Delegação para Platform Threads (BCrypt) para evitar Starvation no Loom
+        Authentication authentication;
+        try {
+            authentication = platformExecutor.submit(() -> manager.authenticate(authenticationToken)).get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RegraDeNegocioException("Processamento de login interrompido");
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof org.springframework.security.core.AuthenticationException) {
+                throw (org.springframework.security.core.AuthenticationException) e.getCause();
+            }
+            throw new RegraDeNegocioException("Erro na autenticação: " + e.getCause().getMessage());
+        }
+
         var tokenJWT = tokenService.gerarToken((Usuario) authentication.getPrincipal());
 
         ResponseCookie cookie = ResponseCookie.from("token", tokenJWT)

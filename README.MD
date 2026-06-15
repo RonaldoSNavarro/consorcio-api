@@ -32,6 +32,7 @@ O projeto segue a pirâmide de testes para garantir que nenhuma alteração no c
 * **Testes Unitários (100% Service & Validator Coverage):** Toda a camada de `Service` possui cobertura total. Criamos suítes de teste de baixo nível como `CpfCnpjValidatorTest` e `ViaCepServiceTest` (usando mocks avançados da API fluente do `RestClient` do Spring).
 * **Módulos de Auditoria e Livro Razão:** Testados exaustivamente em `MovimentoFinanceiroServiceTest` e `HistoricoConsorciadoServiceTest` para validar consistência de saldos contábeis e a fórmula regulatória da categoria.
 * **Testes de Integração (MockMvc):** Validação dos fluxos de entrada e saída (`Controllers`), garantindo que a serialização JSON, as validações de Bean (`@Valid`), os filtros de segurança JWT e os tratamentos do `GlobalExceptionHandler` funcionem perfeitamente.
+* **Testes End-to-End no Navegador (Playwright):** Suíte completa de teste em navegador Chrome real (`e2e_agent.cjs` no repositório frontend) simulando todo o ciclo de vida operacional (login, cadastros PF/PJ, inauguração de grupo, emissão de cotas, injeção contábil Postgres, baixa física de parcelas, assembleias, apuração de sorteio/lances e relatórios BCB).
 
 ## 🛡️ Segurança e Autenticação
 

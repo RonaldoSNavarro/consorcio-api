@@ -21,7 +21,15 @@ public class TokenService {
     public String gerarToken(Usuario usuario) {
         try {
             var algoritmo = Algorithm.HMAC256(secret);
-            return JWT.create().withIssuer("API Consorcio").withSubject(usuario.getUsername()).withExpiresAt(dataExpiracao()).sign(algoritmo);
+            return JWT.create()
+                    .withIssuer("API Consorcio")
+                    .withSubject(usuario.getUsername())
+                    .withClaim("id", usuario.getId())
+                    .withClaim("role", usuario.getRole())
+                    .withClaim("nome", usuario.getNome())
+                    .withClaim("email", usuario.getEmail())
+                    .withExpiresAt(dataExpiracao())
+                    .sign(algoritmo);
         } catch (JWTCreationException exception) {
             throw new RegraDeNegocioException("Erro ao gerar token JWT");
         }
@@ -32,16 +40,19 @@ public class TokenService {
         return LocalDateTime.now().plusHours(2).toInstant(ZoneOffset.of("-03:00"));
     }
 
-    public String getSubject(String tokenJWT) {
+    public com.auth0.jwt.interfaces.DecodedJWT verificarToken(String tokenJWT) {
         try {
             var algoritmo = Algorithm.HMAC256(secret);
             return JWT.require(algoritmo)
                     .withIssuer("API Consorcio")
                     .build()
-                    .verify(tokenJWT)
-                    .getSubject();
+                    .verify(tokenJWT);
         } catch (Exception exception) {
             throw new RegraDeNegocioException("Token JWT inválido ou expirado!");
         }
+    }
+
+    public String getSubject(String tokenJWT) {
+        return verificarToken(tokenJWT).getSubject();
     }
 }

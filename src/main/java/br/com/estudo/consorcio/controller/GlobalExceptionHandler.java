@@ -65,9 +65,17 @@ public class GlobalExceptionHandler {
                 .body(new ExceptionDTO("Erro de validação", String.join("; ", errors)));
     }
 
+    // 409 — Conflito de concorrência (Lock Otimista)
+    @ExceptionHandler(org.springframework.orm.ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ExceptionDTO> handleOptimisticLock(org.springframework.orm.ObjectOptimisticLockingFailureException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ExceptionDTO("Conflito de concorrência", "O registro foi alterado por outro usuário. Por favor, recarregue os dados e tente novamente."));
+    }
+
     // 500 — Fallback para erros inesperados (não deve ser atingido em fluxos normais)
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ExceptionDTO> handleRuntimeException(RuntimeException ex) {
+        ex.printStackTrace();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ExceptionDTO("Erro interno do servidor",
                         "Ocorreu um erro inesperado. Entre em contato com o suporte."));
