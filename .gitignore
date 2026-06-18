@@ -35,4 +35,7 @@ build/
 ### .env ###
 .env
 
-.docs
+/docs
+/.agents
+.agents
+

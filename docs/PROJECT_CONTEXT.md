@@ -81,22 +81,19 @@ O `AuthContext.jsx` inicializa o token a partir do `localStorage.getItem('consor
 
 ## 📈 4. Estado Atual do Projeto
 
-- **Fase Atual:** Sprint 4 — Encerramento de Grupo, F5-Safety e Relatórios BCB (Concluída).
-- **Status: **Implementação do encerramento de grupo com baixa de parcelas inadimplentes para a conta de PDD (ADR 006), implementação da rota /api/auth/me para revalidação F5-safety no frontend (ADR 007) e entrega dos motores de relatório do BCB (Docs 4110, 2080, PLD/FT) com RBAC integrado. Todos os testes unitários, de integração e de segurança do Spring Security (97 no total) passaram com sucesso. Adicionalmente, a suíte de testes E2E em navegador real Chrome (`e2e_agent.cjs` no frontend) validou 100% dos fluxos operacionais integrados com sucesso.
+- **Fase Atual:** Sprint 5 — Lance Fixo e Motor de Apuração com Desempate (Concluída).
+- **Status:** Implementação do motor de cadastro de Lance Fixo com cálculo automático de percentual do grupo e validações (imutabilidade de ofertas), roteamento contábil para `PENDENTE_INTEGRALIZACAO` para lances livres e fixos não-embutidos, e motor de apuração segregado com desempate por Loteria Federal (distância absoluta à pedra fundamental/cota sorteada). Todos os 107 testes unitários e de integração passaram com sucesso.
 - **Artefatos Gerados:** 
   - [constitution.md](file:///f:/Dev/Projetos/consorcio-api/docs/constitution.md) (Princípios e regras técnicas inegociáveis).
   - [REQUIREMENTS.md](file:///f:/Dev/Projetos/consorcio-api/docs/REQUIREMENTS.md) (Índice geral e modelos de dados compartilhados).
   - [PROJECT_CONTEXT.md](file:///f:/Dev/Projetos/consorcio-api/docs/PROJECT_CONTEXT.md) (Este documento).
-  - [specs/](file:///f:/Dev/Projetos/consorcio-api/docs/specs/) (Diretório contendo as 9 especificações modulares de capabilities).
-  - [ata_sprint3_review_retrospective_20260609.md](file:///f:/Dev/Projetos/consorcio-api/docs/atas/ata_sprint3_review_retrospective_20260609.md) (Ata de Review e Retrospectiva da Sprint 3).
+  - [specs/](file:///f:/Dev/Projetos/consorcio-api/docs/specs/) (Diretório contendo as 9 especificações modulares — cada uma com `spec.md`, `api-contract.md` e `tasks.md`).
+  - [atas/](file:///f:/Dev/Projetos/consorcio-api/docs/atas/) (Registro cronológico das retrospectivas de sprint).
+  - [templates/](file:///f:/Dev/Projetos/consorcio-api/docs/templates/) (Templates padronizados para spec, api-contract e tasks).
+  - [traceability-matrix.md](file:///f:/Dev/Projetos/consorcio-api/docs/traceability-matrix.md) (Matriz de rastreabilidade REQ-ID → Código → Teste).
 
 ---
 
 ## ⚠️ Padrões de Código Inegociáveis
 
-1.  **Lógica de Negócio em @Service:** Controllers, Mappers, DTOs e Repositories devem ser stateless e sem lógica de regras operacionais. Toda regra de cálculo de encargos, reajustes e validação de lances reside no respectivo `@Service`.
-2.  **Java Records:** Todos os DTOs de entrada e saída no backend são Java Records, garantindo imutabilidade e facilidade de serialização.
-3.  **Mapeamento Declarativo:** Conversões entre entidades e DTOs devem utilizar mappers compilados MapStruct 1.6 para evitar overhead de reflexão em runtime e queries N+1 por carregamento ansioso.
-4.  **Tratamento Global de Exceções:** Lançar exceções de negócio na camada `@Service` e tratá-las de forma centralizada no `@ControllerAdvice` para evitar vazamento de stack traces internos do Hibernate ou da JVM.
-5.  **Transacionalidade Explicita:** Operações financeiras complexas que geram lançamentos contábeis concomitantes devem utilizar anotações `@Transactional` com definição precisa de isolamento e rollback para exceções em runtime.
-6.  **TanStack Query no Frontend:** Gerenciamento absoluto do estado do servidor através de cache do TanStack Query, com hooks customizados de consulta e mutação, proibindo uso de `useState` local para dados replicados da API.
+> Para a lista completa e detalhada de padrões inegociáveis, consulte [constitution.md](file:///f:/Dev/Projetos/consorcio-api/docs/constitution.md) (Seções 3, 4, 5 e 6).

@@ -1,9 +1,9 @@
 # 📋 Especificação Funcional — Apuração e Contemplações (contemplacao)
 
 *   **Status**: IMPLEMENTED
-*   **Versão**: v1.0 (Baseline Retroativo)
-*   **Aprovações**: Especialista Consórcios [✅] (2026-06-14) | Especialista Contabilidade [✅] (2026-06-14)
-*   **Última alteração**: Baseline de motores de apuração de lances, integração com Ledger Contábil e status intermediário de integralização.
+*   **Versão**: v1.1
+*   **Aprovações**: Especialista Consórcios [✅] (2026-06-16) | Especialista Contabilidade [✅] (2026-06-16)
+*   **Última alteração**: Inclusão do motor de apuração de Lance Fixo e parametrização do percentual no grupo (DRIFT-001).
 
 ---
 
@@ -17,7 +17,6 @@ Reger o motor de apuração da assembleia ordinária para classificar ofertas de
 ### REQ-CON-001: Motor de Apuração e Ordenação
 - **Regra**: Durante a AGO, as propostas de lances são ordenadas pelo percentual ofertado em relação ao saldo devedor da cota (do maior para o menor).
 - **Desempate**: Se houver empate nos percentuais, aplica-se o critério configurado no grupo (`criterioDesempateLance`), como o número de cota mais próximo do número sorteado naquela assembleia.
-- **⚠️ LACUNA IDENTIFICADA**: O REQUIREMENTS.md original define o tipo de contemplação `LANCE_FIXO`, mas não descreve seu motor de apuração ou como o percentual fixado do grupo é determinado para o sorteio do fixo. Atualmente, o sistema assume que o Lance Fixo segue o critério do sorteio entre os habilitados.
 
 ### REQ-CON-002: Checagem de Saldo em Tempo Real (Ledger Contábil)
 - **Regra**: O sistema só homologa uma contemplação se o saldo de caixa do Fundo Comum do grupo comportar a liberação do crédito. O motor calcula:
@@ -43,6 +42,17 @@ Reger o motor de apuração da assembleia ordinária para classificar ofertas de
    - Débito: `2.1.2.30.10-0` - Créditos a Liberar
    - Crédito: `1.1.1.10.00-2` - Bancos - Recursos de Grupos
 
+### REQ-CON-005: Parametrização e Oferta de Lance Fixo
+- **Percentual Fixo**: O grupo possui uma parametrização opcional `percentualLanceFixo` (BigDecimal, default `0.2000` / 20%).
+- **Elegibilidade**: Apenas cotas `ATIVA` e 100% adimplentes podem ofertar lance na modalidade `FIXO`.
+- **Cálculo da Oferta**: O valor ofertado é gerado automaticamente pelo sistema multiplicando o `percentualLanceFixo` do grupo pelo seu `valorCredito`. O consorciado não pode alterar o valor da oferta.
+
+### REQ-CON-006: Motor de Apuração do Lance Fixo
+- **Fila de Apuração**: Na assembleia ordinária, a apuração deve processar a fila de Lances Fixos de forma segregada dos Lances Livres.
+- **Desempate**: Todas as ofertas de Lance Fixo empatam no valor/percentual. O motor deve aplicar obrigatoriamente o critério de desempate configurado no grupo (`criterioDesempateLance`).
+- **Desempate por Loteria Federal**: Caso o critério seja `LOTERIA_FEDERAL`, o sistema sorteia a pedra fundamental (um número inteiro correspondente a um número de cota). A cota vencedora do Lance Fixo será aquela cujo número de cota for mais próximo da pedra fundamental.
+- **Integralização Contábil**: O lance fixo vencedor entra no status intermediário `PENDENTE_INTEGRALIZACAO` para conciliação física antes de avançar para `AGUARDANDO_ANALISE` e liberar o crédito no Ledger contábil (conforme fluxo do REQ-CON-003).
+
 ---
 
 ## 🎯 Critérios de Aceitação (Given/When/Then)
@@ -61,3 +71,8 @@ Reger o motor de apuração da assembleia ordinária para classificar ofertas de
 - **Given**: Uma contemplação no status `PENDENTE_INTEGRALIZACAO`.
 - **When**: Ocorre a conciliação bancária indicando o recebimento do valor do lance.
 - **Then**: O sistema altera o status da contemplação para `AGUARDANDO_ANALISE` e gera os lançamentos contábeis de débito em `Fundo Comum de Grupos` e crédito em `Créditos a Liberar`.
+
+### REQ-CON-006 - AC1: Apuração do Vencedor por Lance Fixo com Desempate
+- **Given**: Uma assembleia ordinária com três cotas concorrendo ao Lance Fixo (Cota 12, Cota 25, Cota 45) em um grupo com desempate configurado como `LOTERIA_FEDERAL`. A pedra sorteada da Loteria Federal para a assembleia foi o número 30. O saldo do Fundo Comum comporta a contemplação (R$ 80.000,00).
+- **When**: A apuração da assembleia é executada.
+- **Then**: O sistema calcula qual cota está mais próxima da pedra sorteada número 30. A Cota 25 é declarada vencedora (`statusApuracao` = `VENCEDOR`), com contemplação do tipo `LANCE_FIXO` no status `PENDENTE_INTEGRALIZACAO` (distância de 5, menor que as distâncias de 15 da Cota 45 e 18 da Cota 12). As outras cotas concorrentes são marcadas como `PERDEDOR`.

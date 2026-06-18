@@ -1,9 +1,9 @@
 # 📋 Especificação Funcional — Oferta de Lances (lances)
 
 *   **Status**: IMPLEMENTED
-*   **Versão**: v1.0 (Baseline Retroativo)
-*   **Aprovações**: Especialista Consórcios [✅] (2026-06-14) | Especialista Contabilidade [✅] (2026-06-14)
-*   **Última alteração**: Baseline de cadastro, validação e motores de amortização de lances (redução de prazo/diluição).
+*   **Versão**: v1.1
+*   **Aprovações**: Especialista Consórcios [✅] (2026-06-16) | Especialista Contabilidade [✅] (2026-06-16)
+*   **Última alteração**: Rascunho de inclusão da modalidade de Lance Fixo na oferta de lances (DRIFT-001).
 
 ---
 
@@ -33,6 +33,13 @@ Caso o lance seja vencedor e pago pelo consorciado, o saldo pode ser amortizado 
    - O saldo amortizado é dividido pelo número total de parcelas restantes. O valor de cada parcela restante é reduzido uniformemente.
    - **Regra do Centavo Perdido**: O motor de cálculo deve aplicar o ajuste de arredondamento de dízimas na última parcela restante para garantir que a soma das parcelas amortizadas seja idêntica ao saldo devedor restante do grupo.
 
+### REQ-LAN-004: Cadastro de Oferta de Lance Fixo
+- **Regra**: O consorciado elegível pode ofertar um lance escolhendo a modalidade `FIXO`.
+- **Preenchimento do Valor**: Ao selecionar `FIXO`, o sistema calcula e fixa o valor da oferta automaticamente com base na parametrização do grupo:
+  $$\text{Valor da Oferta} = \text{percentualLanceFixo} \times \text{Valor do Crédito do Grupo}$$
+- **Imutabilidade**: O valor do lance na modalidade `FIXO` não pode ser editado manualmente pelo consorciado no momento da oferta. Se o `percentualLanceFixo` do grupo for nulo, assume-se o valor padrão de 20.00% (0.2000).
+- **Tipo de Lance financeiro**: O lance fixo pode ser cadastrado com tipo `FIRME` (recursos próprios) ou `EMBUTIDO` (debitado do próprio crédito, se permitido pelo grupo, até o teto do lance embutido).
+
 ---
 
 ## 🎯 Critérios de Aceitação (Given/When/Then)
@@ -51,3 +58,8 @@ Caso o lance seja vencedor e pago pelo consorciado, o saldo pode ser amortizado 
 - **Given**: Uma cota com 10 parcelas restantes, cada uma contendo R$ 100,00 de fundo comum e R$ 15,00 de taxa de administração.
 - **When**: Um lance de R$ 200,00 (referente a 2 parcelas de fundo comum) é amortizado via redução de prazo.
 - **Then**: O sistema remove as 2 últimas parcelas e dilui o valor correspondente às taxas de administração delas (R$ 30,00 no total) entre as 8 parcelas remanescentes, adicionando R$ 3,75 a cada parcela ativa.
+
+### REQ-LAN-004 - AC1: Cálculo Automático do Valor de Oferta no Lance Fixo
+- **Given**: Um grupo com `valorCredito` de R$ 100.000,00 e `percentualLanceFixo` de 20.00% (0.2000).
+- **When**: Um consorciado cadastra uma oferta de lance selecionando a modalidade `FIXO`.
+- **Then**: O sistema registra a oferta com `modalidade` = `FIXO` e calcula o `valorOferta` exatamente como R$ 20.000,00, bloqueando alterações manuais neste valor.

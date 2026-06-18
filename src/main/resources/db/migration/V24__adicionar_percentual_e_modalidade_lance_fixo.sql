@@ -1,0 +1,3 @@
+ALTER TABLE grupos ADD COLUMN percentual_lance_fixo NUMERIC(5,4) DEFAULT 0.2000;
+ALTER TABLE lances ADD COLUMN modalidade VARCHAR(50) NOT NULL DEFAULT 'LIVRE';
+ALTER TABLE assembleias ADD COLUMN numero_sorteado INTEGER;

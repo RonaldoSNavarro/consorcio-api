@@ -175,9 +175,11 @@ public class ContemplacaoService {
                     "Restituição de cota excluída sorteada - Cota " + cota.getNumeroCota()
             );
         } else {
-            // Se for Lance Livre (não embutido): vai para PENDENTE_INTEGRALIZACAO e não transita crédito contábil
-            if (dto.tipoContemplacao() == TipoContemplacao.LANCE_LIVRE && !Boolean.TRUE.equals(contemplacaoSalva.getLanceEmbutido())) {
-                cotaService.registrarTransicaoVersao(cota, StatusCota.PENDENTE_INTEGRALIZACAO, "Cota contemplada via Lance Livre - Aguardando Integralização do Lance");
+            // Se for Lance Livre ou Lance Fixo (não embutido): vai para PENDENTE_INTEGRALIZACAO e não transita crédito contábil
+            if ((dto.tipoContemplacao() == TipoContemplacao.LANCE_LIVRE || dto.tipoContemplacao() == TipoContemplacao.LANCE_FIXO)
+                    && !Boolean.TRUE.equals(contemplacaoSalva.getLanceEmbutido())) {
+                cotaService.registrarTransicaoVersao(cota, StatusCota.PENDENTE_INTEGRALIZACAO,
+                        "Cota contemplada via Lance " + (dto.tipoContemplacao() == TipoContemplacao.LANCE_LIVRE ? "Livre" : "Fixo") + " - Aguardando Integralização do Lance");
             } else {
                 // Sorteio ou Lance Embutido: vai direto para AGUARDANDO_ANALISE e transita o crédito para Créditos a Liberar
                 cotaService.registrarTransicaoVersao(cota, StatusCota.AGUARDANDO_ANALISE, "Cota contemplada na assembleia id " + assembleia.getId() + " - Aguardando Análise de Crédito");

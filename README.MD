@@ -27,7 +27,7 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 
 ## 🧪 Qualidade de Software e Testes
 
-O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura foi expandida para **97 testes unitários e de integração 100% verdes**:
+O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura foi expandida para **107 testes unitários e de integração 100% verdes**:
 
 * **Testes Unitários (100% Service & Validator Coverage):** Toda a camada de `Service` possui cobertura total. Criamos suítes de teste de baixo nível como `CpfCnpjValidatorTest` e `ViaCepServiceTest` (usando mocks avançados da API fluente do `RestClient` do Spring).
 * **Módulos de Auditoria e Livro Razão:** Testados exaustivamente em `MovimentoFinanceiroServiceTest` e `HistoricoConsorciadoServiceTest` para validar consistência de saldos contábeis e a fórmula regulatória da categoria.
@@ -64,7 +64,9 @@ O sistema implementa regras de negócio financeiras extremamente robustas basead
 
 ### 3. Motor de Assembleia, Contemplação e Lances (Double-Entry Ledger)
 * **Motor Dinâmico de Lances e Sorteios:** A apuração de assembleias (Status: `AGENDADA`, `CAPTANDO`, `REALIZADA`, `FECHADA`) permite receber ofertas (Firme e Embutido) que são ocultadas até o fim da janela de captação.
-* **Homologação em Duas Etapas (ADR 004):** Lances livres vencedores entram inicialmente no status `PENDENTE_INTEGRALIZACAO` para aguardar a compensação bancária real do lance. O valor é creditado na conta contábil de transição COSIF `2.1.2.30.10-0` (Lances a Integralizar). Ao confirmar o pagamento, a cota transita para `AGUARDANDO_ANALISE` e o valor é transferido para a conta definitiva `2.1.2.20.10-3`. Caso o pagamento não ocorra em 5 dias úteis, a contemplação é cancelada, os lançamentos contábeis estornados e a cota retorna ao status `ATIVA`.
+* **Lance Fixo Automatizado (REQ-LAN-004 & REQ-CON-005):** Permite o cadastro de lances na modalidade `FIXO` cujo valor é preenchido e travado de forma autônoma pelo sistema como: $\text{percentualLanceFixo} \times \text{Valor do Crédito}$ do grupo (utilizando o default de 20.00% caso não configurado). O valor ofertado é imutável no momento da proposta.
+* **Desempate por Loteria Federal (REQ-CON-006):** Apuração segregada para lances da modalidade `FIXO`. Em caso de empates de ofertas fixas, o motor aplica a proximidade absoluta do número da cota em relação ao número sorteado na Loteria Federal (a pedra fundamental).
+* **Homologação em Duas Etapas (ADR 004):** Lances livres e fixos vencedores entram inicialmente no status `PENDENTE_INTEGRALIZACAO` para aguardar a compensação bancária real do lance. O valor é creditado na conta contábil de transição COSIF `2.1.2.30.10-0` (Lances a Integralizar). Ao confirmar o pagamento, a cota transita para `AGUARDANDO_ANALISE` e o valor é transferido para a conta definitiva `2.1.2.20.10-3`. Caso o pagamento não ocorra em 5 dias úteis, a contemplação é cancelada, os lançamentos contábeis estornados e a cota retorna ao status `ATIVA`.
 * **Cruzamento de Saldo Contábil Real:** O algoritmo de contemplação cruzada bloqueia insolvência de grupos não consultando a "soma isolada de pagamentos" (que mascara despesas antigas). O motor extrai dinamicamente do Ledger o **Saldo Líquido Real** do `2.1.0.01 Fundo Comum` (Créditos - Débitos já faturados) antes de cada conversão de lance vencedor.
 * **Lance Embutido Contábil e Teto Percentual:** O valor ofertado é deduzido do crédito a liberar, respeitando o limite teto parametrizado do grupo (ex: máx. 30%), e os recursos contábeis do lance são integralizados e retidos no Fundo Comum.
 * **Bloqueio por Inadimplência Legal:** Cotas com qualquer parcela `PENDENTE` em atraso não podem ofertar lances ou participar da apuração da assembleia ativa.

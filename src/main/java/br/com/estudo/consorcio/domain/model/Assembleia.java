@@ -40,6 +40,9 @@ public class Assembleia {
     @Column(nullable = false)
     private StatusAssembleia status;
 
+    @Column(name = "numero_sorteado")
+    private Integer numeroSorteado;
+
     @Version
     private Long version;
 

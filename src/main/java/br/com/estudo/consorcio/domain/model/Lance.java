@@ -41,6 +41,10 @@ public class Lance {
     @Column(name = "status_apuracao", nullable = false)
     private StatusApuracaoLance statusApuracao;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "modalidade", nullable = false)
+    private ModalidadeLance modalidade;
+
     @Version
     private Long version;
 
@@ -51,6 +55,9 @@ public class Lance {
         }
         if (this.statusApuracao == null) {
             this.statusApuracao = StatusApuracaoLance.CADASTRADO;
+        }
+        if (this.modalidade == null) {
+            this.modalidade = ModalidadeLance.LIVRE;
         }
     }
 }

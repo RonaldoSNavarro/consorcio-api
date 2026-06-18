@@ -46,6 +46,9 @@ public class Grupo {
     @Column(name = "criterio_desempate_lance", nullable = false)
     private CriterioDesempateLance criterioDesempateLance = CriterioDesempateLance.LOTERIA_FEDERAL;
 
+    @Column(name = "percentual_lance_fixo")
+    private BigDecimal percentualLanceFixo = new BigDecimal("0.2000");
+
     @Version
     private Long version;
 
@@ -85,4 +88,7 @@ public class Grupo {
 
     public CriterioDesempateLance getCriterioDesempateLance() { return criterioDesempateLance; }
     public void setCriterioDesempateLance(CriterioDesempateLance criterioDesempateLance) { this.criterioDesempateLance = criterioDesempateLance; }
+
+    public BigDecimal getPercentualLanceFixo() { return percentualLanceFixo; }
+    public void setPercentualLanceFixo(BigDecimal percentualLanceFixo) { this.percentualLanceFixo = percentualLanceFixo; }
 }

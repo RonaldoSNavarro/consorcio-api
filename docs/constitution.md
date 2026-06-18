@@ -62,3 +62,16 @@ Este documento define os princípios fundamentais, regras arquiteturais inegoci�
 1. **Partidas Dobradas**: Cada evento financeiro (lances, contemplações, restituições, inadimplência) deve gerar lançamentos contábeis equivalentes de débito e crédito no Razão (`LancamentoContabil`).
 2. **Patrimônio de Afetação**: O saldo de caixa de cada grupo de consórcio deve ser segregado contábil e logicamente da administradora, com contas COSIF estruturadas de 8 dígitos.
 3. **Regime de Competência**: Taxas de administração e taxas de adesão cobradas pela administradora devem ser reconhecidas em receitas segundo o regime de competência.
+
+---
+
+## 📐 7. Artefatos Obrigatórios por Capability
+
+1. **Trinca de Artefatos**: Cada capability em `docs/specs/<capability>/` DEVE conter obrigatoriamente:
+   - `spec.md` — Requisitos funcionais, regras de negócio e critérios de aceitação (Given/When/Then) por REQ-ID.
+   - `api-contract.md` — Contrato REST (endpoints, payloads, auth, códigos de erro) derivado do spec.
+   - `tasks.md` — Decomposição em tarefas com categorização `[BACKEND]`/`[FRONTEND]`/`[DESIGN]` e vínculo ao REQ-ID.
+2. **Gate de Implementação**: Nenhuma linha de código pode ser escrita para uma capability cuja trinca de artefatos não esteja completa e com status mínimo `LOCKED` no spec.
+3. **Consistência com Spec**: Um spec com status `IMPLEMENTED` não pode conter lacunas abertas (marcadores ⚠️ LACUNA). Toda lacuna deve ser resolvida via SPEC DRIFT antes de marcar como IMPLEMENTED.
+4. **Templates**: Novos artefatos devem seguir os templates em `docs/templates/`.
+

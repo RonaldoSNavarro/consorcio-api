@@ -2,6 +2,7 @@ package br.com.estudo.consorcio.domain.dto;
 
 import br.com.estudo.consorcio.domain.model.StatusApuracaoLance;
 import br.com.estudo.consorcio.domain.model.TipoLance;
+import br.com.estudo.consorcio.domain.model.ModalidadeLance;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -12,5 +13,6 @@ public record LanceResponseDTO(
     TipoLance tipo,
     BigDecimal valorOferta,
     LocalDateTime dataOferta,
-    StatusApuracaoLance statusApuracao
+    StatusApuracaoLance statusApuracao,
+    ModalidadeLance modalidade
 ) {}

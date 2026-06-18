@@ -63,12 +63,29 @@ public class LanceService {
             throw new RegraDeNegocioException("Cota possui parcelas em atraso e não pode participar da assembleia.");
         }
 
+        // Determina a modalidade (padrão LIVRE se nulo)
+        ModalidadeLance modalidade = dto.modalidade() != null ? dto.modalidade() : ModalidadeLance.LIVRE;
+        BigDecimal valorOferta;
+
+        if (modalidade == ModalidadeLance.FIXO) {
+            BigDecimal percentual = assembleia.getGrupo().getPercentualLanceFixo();
+            if (percentual == null) {
+                percentual = new BigDecimal("0.2000");
+            }
+            valorOferta = assembleia.getGrupo().getValorCredito().multiply(percentual).setScale(2, RoundingMode.HALF_UP);
+        } else {
+            if (dto.valorOferta() == null || dto.valorOferta().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new RegraDeNegocioException("Valor da oferta deve ser informado e maior que zero para lances livres.");
+            }
+            valorOferta = dto.valorOferta();
+        }
+
         // Validação de limite para Lance Embutido
         if (dto.tipo() == TipoLance.EMBUTIDO) {
             BigDecimal limitePercentual = assembleia.getGrupo().getPercentualLanceEmbutidoMaximo();
             BigDecimal limiteEmbutido = assembleia.getGrupo().getValorCredito().multiply(limitePercentual).setScale(2, RoundingMode.HALF_UP);
             
-            if (dto.valorOferta().compareTo(limiteEmbutido) > 0) {
+            if (valorOferta.compareTo(limiteEmbutido) > 0) {
                 BigDecimal percentualFormatado = limitePercentual.multiply(new BigDecimal("100")).setScale(0, RoundingMode.HALF_UP);
                 throw new RegraDeNegocioException("O valor do lance embutido ultrapassa o teto do grupo (" + percentualFormatado + "% - Max R$ " + limiteEmbutido + ").");
             }
@@ -83,14 +100,16 @@ public class LanceService {
         if (lanceExistente.isPresent()) {
             lance = lanceExistente.get();
             lance.setTipo(dto.tipo());
-            lance.setValorOferta(dto.valorOferta());
+            lance.setModalidade(modalidade);
+            lance.setValorOferta(valorOferta);
             lance.setDataOferta(LocalDateTime.now());
         } else {
             lance = new Lance();
             lance.setCota(cota);
             lance.setAssembleia(assembleia);
             lance.setTipo(dto.tipo());
-            lance.setValorOferta(dto.valorOferta());
+            lance.setModalidade(modalidade);
+            lance.setValorOferta(valorOferta);
             // dataOferta e status são definidos no PrePersist
         }
 

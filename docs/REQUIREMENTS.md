@@ -45,6 +45,7 @@ Pool coletivo autônomo com patrimônio de afetação segregado da administrador
   - `taxaAdministracao` (BigDecimal, taxa total ex: 15.00%)
   - `fundoReserva` (BigDecimal, taxa total ex: 2.00%)
   - `percentualLanceEmbutidoMaximo` (BigDecimal, ex: 30.00%)
+  - `percentualLanceFixo` (BigDecimal, ex: 20.00%)
   - `status` (Enum: `EM_FORMACAO`, `EM_ANDAMENTO`, `ENCERRADO`)
   - `criterioDesempateLance` (Enum: `COTA_MAIS_PROXIMA_SORTEADA`, `DATA_OFERTA`)
 
@@ -90,7 +91,8 @@ Propostas de antecipação de saldo para a AGO.
   - `id` (Long, PK)
   - `cota` (Relationship `@ManyToOne` com `Cota`)
   - `assembleia` (Relationship `@ManyToOne` com `Assembleia`)
-  - `tipo` (Enum: `LIVRE`, `EMBUTIDO`)
+  - `tipo` (Enum: `EMBUTIDO`, `FIRME`, `MISTO`)
+  - `modalidade` (Enum: `LIVRE`, `FIXO`)
   - `valorOferta` (BigDecimal)
   - `dataOferta` (LocalDateTime)
   - `statusApuracao` (Enum: `PENDENTE`, `VENCEDOR`, `PERDEDOR`)
