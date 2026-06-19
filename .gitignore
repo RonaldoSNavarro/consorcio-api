@@ -35,7 +35,6 @@ build/
 ### .env ###
 .env
 
-/docs
-/.agents
-.agents
-
+docs/
+.agents/
+skill-lock.json

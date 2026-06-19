@@ -1,6 +1,6 @@
 # 📂 Relatório de Auditoria UI/UX — Sistema de Consórcios
 
-Este relatório apresenta uma análise crítica e técnica do design visual, usabilidade, responsividade e acessibilidade (WCAG AA) do frontend (`front_end_consorcio-api`). Foram inspecionadas as 13 telas do painel backoffice e os formulários interativos.
+Este relatório apresenta uma análise crítica e técnica do design visual, usabilidade, responsividade e acessibilidade (WCAG AA) do frontend (`front_end_consorcio-api`). Foram inspecionadas as 13 telas do painel backoffice e os formulários interativos. 
 
 ---
 
