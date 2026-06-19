@@ -13,6 +13,6 @@
 
 ## Frontend (`front_end_consorcio-api`)
 
-- `[ ]` **TASK-COMP-007 (Formulários de Cliente)**: Incluir no Zod schema e nos formulários UI os campos de renda mensal e patrimônio do cliente.
-- `[ ]` **TASK-COMP-008 (Painel de Compliance)**: Criar uma tela restrita ao `ROLE_COMPLIANCE` (menu lateral) contendo a tabela de alertas.
-- `[ ]` **TASK-COMP-009 (Ação de Deliberação)**: Implementar Modal no painel de compliance para alterar o status do alerta preenchendo justificativa textual obrigatória.
+- `[x]` **TASK-COMP-007 (Formulários de Cliente)**: Incluir no Zod schema e nos formulários UI os campos de renda mensal e patrimônio do cliente.
+- `[x]` **TASK-COMP-008 (Painel de Compliance)**: Criar uma tela restrita ao `ROLE_COMPLIANCE` (menu lateral) contendo a tabela de alertas.
+- `[x]` **TASK-COMP-009 (Ação de Deliberação)**: Implementar Modal no painel de compliance para alterar o status do alerta preenchendo justificativa textual obrigatória.
