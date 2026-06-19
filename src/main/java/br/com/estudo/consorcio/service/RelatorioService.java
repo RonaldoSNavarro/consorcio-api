@@ -91,6 +91,8 @@ public class RelatorioService {
         long totalContemplacoesLanceLivre = contemplacaoRepository.countByGrupoIdAndTipoAndPeriodo(grupoId, TipoContemplacao.LANCE_LIVRE, dataInicio, dataFim);
         long totalContemplacoesLanceFixo = contemplacaoRepository.countByGrupoIdAndTipoAndPeriodo(grupoId, TipoContemplacao.LANCE_FIXO, dataInicio, dataFim);
 
+        long totalCotasInadimplentes = cotaRepository.countCotasInadimplentes(grupoId, br.com.estudo.consorcio.domain.model.StatusParcela.ATRASADA);
+
         BigDecimal valorTotalCreditosLiberados = contemplacaoRepository.somarCreditosLiberadosPorGrupoEPeriodo(grupoId, dataInicio, dataFim);
 
         return new EstatisticasGrupoResponseDTO(
@@ -104,14 +106,15 @@ public class RelatorioService {
                 totalLancesVencedores,
                 totalContemplacoesSorteio,
                 (totalContemplacoesLanceLivre + totalContemplacoesLanceFixo),
+                totalCotasInadimplentes,
                 valorTotalCreditosLiberados
         );
     }
 
     @Transactional(readOnly = true)
     public List<AlertaPldFtResponseDTO> gerarAlertaPldFt(LocalDateTime dataInicio, LocalDateTime dataFim) {
-        List<Lance> lancesSuspeitos = lanceRepository.findByValorOfertaGreaterThanEqualAndDataOfertaBetween(
-                LIMITE_PLD_FT, dataInicio, dataFim
+        List<Lance> lancesSuspeitos = lanceRepository.findByStatusApuracaoAndValorOfertaGreaterThanEqualAndDataOfertaBetween(
+                StatusApuracaoLance.VENCEDOR, LIMITE_PLD_FT, dataInicio, dataFim
         );
 
         return lancesSuspeitos.stream().map(lance -> new AlertaPldFtResponseDTO(

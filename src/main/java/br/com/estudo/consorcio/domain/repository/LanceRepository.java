@@ -18,8 +18,8 @@ public interface LanceRepository extends JpaRepository<Lance, Long> {
     Optional<Lance> findByCotaIdAndAssembleiaId(Long cotaId, Long assembleiaId);
 
     // Sprint 4 — PLD/FT: Buscar lances acima do threshold no período
-    List<Lance> findByValorOfertaGreaterThanEqualAndDataOfertaBetween(
-            BigDecimal valorMinimo, LocalDateTime dataInicio, LocalDateTime dataFim);
+    List<Lance> findByStatusApuracaoAndValorOfertaGreaterThanEqualAndDataOfertaBetween(
+            StatusApuracaoLance status, BigDecimal valorMinimo, LocalDateTime dataInicio, LocalDateTime dataFim);
 
     // Sprint 4 — Estatísticas: Contagem de lances por grupo e período
     @Query("SELECT COUNT(l) FROM Lance l WHERE l.assembleia.grupo.id = :grupoId AND l.dataOferta BETWEEN :inicio AND :fim")

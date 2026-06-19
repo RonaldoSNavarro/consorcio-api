@@ -99,6 +99,7 @@ class RelatorioServiceTest {
         when(grupoRepository.findById(grupoId)).thenReturn(Optional.of(grupo));
         when(cotaRepository.countByGrupoId(grupoId)).thenReturn(100L);
         when(cotaRepository.countByGrupoIdAndStatus(grupoId, StatusCota.CANCELADA)).thenReturn(5L);
+        when(cotaRepository.countCotasInadimplentes(eq(grupoId), eq(StatusParcela.ATRASADA))).thenReturn(3L);
 
         when(lanceRepository.countByGrupoIdAndPeriodo(eq(grupoId), any(), any())).thenReturn(50L);
         when(lanceRepository.countByGrupoIdAndStatusAndPeriodo(eq(grupoId), eq(StatusApuracaoLance.VENCEDOR), any(), any())).thenReturn(10L);
@@ -122,6 +123,7 @@ class RelatorioServiceTest {
         assertEquals(10L, response.totalLancesVencedores());
         assertEquals(2L, response.totalContemplacoesSorteio());
         assertEquals(2L, response.totalContemplacoesLance()); // Livre + Fixo
+        assertEquals(3L, response.totalCotasInadimplentes());
         assertEquals(new BigDecimal("200000.00"), response.valorTotalCreditosLiberados());
     }
 
@@ -152,7 +154,7 @@ class RelatorioServiceTest {
         lance.setValorOferta(new BigDecimal("55000.00"));
         lance.setDataOferta(LocalDateTime.now());
 
-        when(lanceRepository.findByValorOfertaGreaterThanEqualAndDataOfertaBetween(any(), any(), any()))
+        when(lanceRepository.findByStatusApuracaoAndValorOfertaGreaterThanEqualAndDataOfertaBetween(eq(StatusApuracaoLance.VENCEDOR), any(), any(), any()))
                 .thenReturn(List.of(lance));
 
         LocalDateTime ini = LocalDateTime.now().minusDays(1);

@@ -97,7 +97,7 @@ public class RelatorioControllerIntegrationTest {
     @DisplayName("Deve permitir ADMIN acessar estatísticas e PLD/FT")
     void devePermitirAdminAcessarEstatisticasEPldFt() throws Exception {
         EstatisticasGrupoResponseDTO mockEst = new EstatisticasGrupoResponseDTO(
-                1L, "G-001", LocalDate.now(), LocalDate.now(), 0, 0, 0, 0, 0, 0, BigDecimal.ZERO);
+                1L, "G-001", LocalDate.now(), LocalDate.now(), 0, 0, 0, 0, 0, 0, 0, BigDecimal.ZERO);
         when(relatorioService.gerarEstatisticas(eq(1L), any(), any())).thenReturn(mockEst);
 
         mockMvc.perform(get("/api/relatorios/estatisticas/1")

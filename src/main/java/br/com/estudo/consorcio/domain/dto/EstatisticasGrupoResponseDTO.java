@@ -14,5 +14,6 @@ public record EstatisticasGrupoResponseDTO(
         long totalLancesVencedores,
         long totalContemplacoesSorteio,
         long totalContemplacoesLance,
+        long totalCotasInadimplentes,
         BigDecimal valorTotalCreditosLiberados
 ) {}

@@ -32,6 +32,12 @@ public class Cliente {
     @Column(length = 20)
     private String telefone;
 
+    @Column(name = "renda_mensal_declarada")
+    private BigDecimal rendaMensalDeclarada;
+
+    @Column(name = "patrimonio_estimado")
+    private BigDecimal patrimonioEstimado;
+
     // --- Endereço ---
     @Column(length = 8, nullable = false)
     private String cep;
