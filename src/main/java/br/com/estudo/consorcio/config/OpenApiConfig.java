@@ -47,7 +47,9 @@ public class OpenApiConfig {
                     "Cotas",
                     "Parcelas",
                     "Assembleias",
-                    "Contemplações"
+                    "Contemplações",
+                    "Compliance",
+                    "Relatórios BCB"
             );
 
             // Se as tags já foram mapeadas pelo Springdoc, ele as ordena com base na nossa lista
