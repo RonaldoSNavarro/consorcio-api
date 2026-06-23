@@ -10,4 +10,5 @@ import java.util.List;
 @Repository
 public interface AlertaComplianceRepository extends JpaRepository<AlertaCompliance, Long> {
     List<AlertaCompliance> findByStatus(StatusAlertaCompliance status);
+    boolean existsByClienteIdAndListaRestritivaId(Long clienteId, Long listaId);
 }

@@ -11,4 +11,5 @@ import java.util.List;
 public interface ListaRestritivaRepository extends JpaRepository<ListaRestritiva, Long> {
     List<ListaRestritiva> findByDocumentoOrigem(String documentoOrigem);
     boolean existsByNomeAndOrigem(String nome, OrigemListaRestritiva origem);
+    java.util.Optional<ListaRestritiva> findByNomeAndOrigem(String nome, OrigemListaRestritiva origem);
 }
