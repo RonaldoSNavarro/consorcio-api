@@ -70,7 +70,7 @@ public class ComplianceController {
     }
 
     @PutMapping("/alertas/{alertaId}/deliberar")
-    @PreAuthorize("hasRole('COMPLIANCE')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPLIANCE')")
     public ResponseEntity<Void> deliberarSobreAlerta(
             @PathVariable Long alertaId,
             @Valid @RequestBody DeliberarAlertaRequestDTO request) {

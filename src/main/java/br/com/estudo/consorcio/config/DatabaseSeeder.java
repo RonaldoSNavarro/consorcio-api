@@ -29,6 +29,9 @@ public class DatabaseSeeder implements CommandLineRunner {
             Usuario consorciado = new Usuario("consorciado", passwordEncoder.encode("admin"), "ADMIN", "Consorciado", "consorciado@consorcio.com.br"); // Consorciado com senha admin
             repository.save(consorciado);
 
+            Usuario compliance = new Usuario("compliance", passwordEncoder.encode("admin"), "COMPLIANCE", "Analista de Compliance", "compliance@consorcio.com.br");
+            repository.save(compliance);
+
             System.out.println("🌱 Banco de dados semeado com usuários padrão!");
         } else {
             // Garante que se o usuário 'admin' existir, ele tenha a senha 'admin' para testes
@@ -41,6 +44,21 @@ public class DatabaseSeeder implements CommandLineRunner {
                 admin.setEmail("admin@consorcio.com.br");
                 repository.save(admin);
                 System.out.println("🌱 Senha do usuário 'admin' restaurada para 'admin'!");
+            }
+
+            // Garante que o usuário 'compliance' exista com as credenciais padrão
+            var complianceOpt = repository.findAll().stream().filter(u -> "compliance".equals(u.getUsername())).findFirst();
+            if (complianceOpt.isEmpty()) {
+                Usuario compliance = new Usuario("compliance", passwordEncoder.encode("admin"), "COMPLIANCE", "Analista de Compliance", "compliance@consorcio.com.br");
+                repository.save(compliance);
+                System.out.println("🌱 Usuário 'compliance' criado!");
+            } else {
+                var compliance = complianceOpt.get();
+                compliance.setRole("COMPLIANCE");
+                compliance.setSenha(passwordEncoder.encode("admin"));
+                compliance.setNome("Analista de Compliance");
+                compliance.setEmail("compliance@consorcio.com.br");
+                repository.save(compliance);
             }
         }
     }

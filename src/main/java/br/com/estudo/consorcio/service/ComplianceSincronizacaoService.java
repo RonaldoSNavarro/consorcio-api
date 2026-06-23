@@ -29,8 +29,6 @@ public class ComplianceSincronizacaoService {
         // Simulação da chamada RestTemplate/Feign para o Governo/ONU/OFAC
         // Em um ambiente real, aqui seriam feitos requests paginados ou download de CSV/XML.
 
-        listaRestritivaRepository.deleteAll(); // Reseta para simplificar (substituição total)
-
         inserirMock("OSAMA BIN LADEN", null, OrigemListaRestritiva.ONU);
         inserirMock("JOHN DOE TERRORIST", null, OrigemListaRestritiva.OFAC);
         inserirMock("POLITICO CORRUPTO SILVA", "111.222.333-44", OrigemListaRestritiva.PEP);
@@ -41,11 +39,13 @@ public class ComplianceSincronizacaoService {
     }
 
     private void inserirMock(String nome, String documento, OrigemListaRestritiva origem) {
-        ListaRestritiva item = new ListaRestritiva();
-        item.setNome(nome);
-        item.setDocumentoOrigem(documento);
-        item.setOrigem(origem);
-        item.setDataInclusao(LocalDateTime.now());
-        listaRestritivaRepository.save(item);
+        if (!listaRestritivaRepository.existsByNomeAndOrigem(nome, origem)) {
+            ListaRestritiva item = new ListaRestritiva();
+            item.setNome(nome);
+            item.setDocumentoOrigem(documento);
+            item.setOrigem(origem);
+            item.setDataInclusao(LocalDateTime.now());
+            listaRestritivaRepository.save(item);
+        }
     }
 }

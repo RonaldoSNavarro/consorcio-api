@@ -42,6 +42,9 @@ public class SecurityConfigurations {
                     req.requestMatchers(HttpMethod.POST, "/api/cotas/{id}/reembolsar").hasAnyRole("ADMIN", "GESTOR");
 
                     // FC-04 FIX: RBAC granular — operações de escrita requerem ADMIN
+                    req.requestMatchers(HttpMethod.GET, "/api/compliance/**").hasAnyRole("ADMIN", "COMPLIANCE");
+                    req.requestMatchers(HttpMethod.POST, "/api/compliance/**").hasAnyRole("ADMIN", "COMPLIANCE");
+                    req.requestMatchers(HttpMethod.PUT, "/api/compliance/**").hasAnyRole("ADMIN", "COMPLIANCE");
                     req.requestMatchers(HttpMethod.POST, "/api/**").hasRole("ADMIN");
                     req.requestMatchers(HttpMethod.PUT, "/api/**").hasRole("ADMIN");
                     req.requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("ADMIN");

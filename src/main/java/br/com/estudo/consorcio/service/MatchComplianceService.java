@@ -7,7 +7,7 @@ import br.com.estudo.consorcio.domain.model.StatusAlertaCompliance;
 import br.com.estudo.consorcio.domain.repository.AlertaComplianceRepository;
 import br.com.estudo.consorcio.domain.repository.ClienteRepository;
 import br.com.estudo.consorcio.domain.repository.ListaRestritivaRepository;
-import org.apache.commons.text.similarity.JaroWinklerDistance;
+import org.apache.commons.text.similarity.JaroWinklerSimilarity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,7 +34,7 @@ public class MatchComplianceService {
         List<Cliente> clientes = clienteRepository.findAll();
         List<ListaRestritiva> listas = listaRestritivaRepository.findAll();
 
-        JaroWinklerDistance jaroWinkler = new JaroWinklerDistance();
+        JaroWinklerSimilarity jaroWinkler = new JaroWinklerSimilarity();
 
         for (Cliente cliente : clientes) {
             for (ListaRestritiva lista : listas) {
