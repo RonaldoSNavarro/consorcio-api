@@ -27,9 +27,9 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 
 ## 🧪 Qualidade de Software e Testes
 
-O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura foi expandida para **107 testes unitários e de integração 100% verdes**:
+O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura conta com **ampla suíte de testes unitários e de integração 100% verdes**:
 
-* **Testes Unitários (100% Service & Validator Coverage):** Toda a camada de `Service` possui cobertura total. Criamos suítes de teste de baixo nível como `CpfCnpjValidatorTest` e `ViaCepServiceTest` (usando mocks avançados da API fluente do `RestClient` do Spring).
+* **Testes Unitários (100% Service & Validator Coverage):** Toda a camada de `Service` possui cobertura total, incluindo os novos serviços de sincronização de listas restritivas (`ComplianceServiceTest`). Criamos suítes de teste de baixo nível como `CpfCnpjValidatorTest` e `ViaCepServiceTest` (usando mocks avançados da API fluente do `RestClient` do Spring).
 * **Módulos de Auditoria e Livro Razão:** Testados exaustivamente em `MovimentoFinanceiroServiceTest` e `HistoricoConsorciadoServiceTest` para validar consistência de saldos contábeis e a fórmula regulatória da categoria.
 * **Testes de Integração (MockMvc):** Validação dos fluxos de entrada e saída (`Controllers`), garantindo que a serialização JSON, as validações de Bean (`@Valid`), os filtros de segurança JWT e os tratamentos do `GlobalExceptionHandler` funcionem perfeitamente.
 * **Testes End-to-End no Navegador (Playwright):** Suíte completa de teste em navegador Chrome real (`e2e_agent.cjs` no repositório frontend) simulando todo o ciclo de vida operacional (login, cadastros PF/PJ, inauguração de grupo, emissão de cotas, injeção contábil Postgres, baixa física de parcelas, assembleias, apuração de sorteio/lances e relatórios BCB).
@@ -115,10 +115,12 @@ O sistema implementa regras de negócio financeiras extremamente robustas basead
 
 ### 12. Encerramento de Grupo com PDD e Relatórios BCB (ADR 006)
 * **Encerramento de Grupo com PDD:** O encerramento é processado formalmente no prazo legal de 120 dias da última AGO. Parcelas inadimplentes de cotas ativas são baixadas contabilisticamente para contas de Provisão para Devedores Duvidosos (PDD) e direcionadas à cobrança extrajudicial, sem impedir a homologação do fim do grupo.
-* **Relatórios Regulatórios do BCB:**
+* **Relatórios Regulatórios do BCB e Compliance (PLD/FT):**
   * **Documento 4110 (Balancete de Grupos):** Consolidação periódica de contas ativas e passivas sob a estrutura do COSIF por grupo.
   * **Documento 2080 (Informações Estatísticas):** Relatórios de dados de adesão, exclusão, lances e contemplações.
-  * **Relatório PLD/FT:** Rastreabilidade e monitoramento automatizado de potenciais transações de lavagem de dinheiro, sinalizando lances de cotas e amortizações em espécie que excedam o valor de R$ 50.000,00.
+  * **Monitoramento PLD/FT:** Rastreabilidade automatizada de potenciais transações de lavagem de dinheiro, sinalizando lances de cotas e amortizações em espécie que excedam o valor de R$ 50.000,00.
+  * **Listas Restritivas e OFAC:** Upload e cruzamento contínuo de CPFs/CNPJs contra listas de sanções internacionais (OFAC, ONU) e nacionais (PEP - Pessoas Politicamente Expostas, IBGE, CEIS, CNEP).
+  * **Sincronização Dinâmica (Cron):** Rotinas de integração em background via `DynamicSchedulerConfig` para varredura e atualização automática das listas restritivas.
   * **Segurança e RBAC:** Acesso restrito a usuários com perfis `ROLE_ADMIN` e `ROLE_DIRETOR`.
 
 ### 12. Regulatório BCB e Retenção LGPD
