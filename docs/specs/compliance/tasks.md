@@ -30,3 +30,9 @@
 - `[ ]` **TASK-COMP-016 (Upload de Arquivos na UI)**: Criar aba de uploads no painel de compliance com drag-and-drop para os arquivos PEP, ONU e IBGE, incluindo barras de progresso ou loaders.
 - `[ ]` **TASK-COMP-017 (Configuração de Agendamento UI)**: Criar formulário na UI para alterar a frequência (Diária, Semanal, Mensal) e o horário de execução do Job de Compliance.
 
+### Wave 3 - Otimização e Auditoria (Compliance)
+- [ ] TASK-COMP-018 (Backend): Criar entidade `ComplianceExecucaoLog` e migration V28.
+- [ ] TASK-COMP-019 (Backend): Refatorar `sincronizarListas` para preencher o log de execução e otimizar `processarPepCsv` com processamento em batch (mitigação N+1).
+- [ ] TASK-COMP-020 (Backend): Criar endpoint `GET /api/compliance/execucoes` e atualizar `POST /api/compliance/sincronizar` para retornar `ComplianceSyncResultDTO`.
+- [ ] TASK-COMP-021 (Frontend): Na `CompliancePainelPage`, integrar a aba "Agendamento de Job" ao endpoint de execuções para exibir os logs históricos.
+- [ ] TASK-COMP-022 (Frontend): Na aba "Importar Listas", implementar card informativo de status da API OFAC.

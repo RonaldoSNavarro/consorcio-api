@@ -39,6 +39,13 @@ public class ContemplacaoController {
         return ResponseEntity.ok(service.listarPorAssembleia(assembleiaId));
     }
 
+    @Operation(summary = "Lista contemplacoes pendentes de integralizacao",
+            description = "Retorna todas as cotas que estao aguardando o pagamento de lance livre ou fixo.")
+    @GetMapping("/pendentes-integralizacao")
+    public ResponseEntity<List<ContemplacaoResponseDTO>> listarPendentesIntegralizacao() {
+        return ResponseEntity.ok(service.listarPendentesIntegralizacao());
+    }
+
     @Operation(summary = "Pagar o bem da contemplação",
             description = "Realiza o pagamento/faturamento do bem (DÉBITO do valor do crédito liberado no fundo do grupo).")
     @PostMapping("/{id}/pagamento-bem")
@@ -53,5 +60,13 @@ public class ContemplacaoController {
     public ResponseEntity<CotaResponseDTO> confirmarIntegralizacao(@PathVariable Long id) {
         CotaResponseDTO response = service.confirmarPagamentoLance(id);
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Cancelar contemplação por falta de pagamento",
+            description = "Cancela a contemplação e o lance correspondente, voltando a cota para ATIVA.")
+    @PostMapping("/lances/{id}/cancelar")
+    public ResponseEntity<Void> cancelarContemplacao(@PathVariable Long id) {
+        service.cancelarContemplacaoPorAtraso(id);
+        return ResponseEntity.ok().build();
     }
 }

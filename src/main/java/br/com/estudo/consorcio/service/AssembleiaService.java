@@ -86,7 +86,11 @@ public class AssembleiaService {
 
     @Transactional
     public void apurarAssembleia(Long assembleiaId) {
-        // Delega para o motor de apuração que cruza saldo contábil vs lances
-        motorApuracaoService.apurarAssembleia(assembleiaId);
+        motorApuracaoService.apurarAssembleia(assembleiaId, null);
+    }
+
+    @Transactional
+    public void apurarAssembleia(Long assembleiaId, br.com.estudo.consorcio.domain.dto.ApuracaoRequestDTO params) {
+        motorApuracaoService.apurarAssembleia(assembleiaId, params);
     }
 }

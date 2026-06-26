@@ -60,6 +60,12 @@ public class CotaController {
         return ResponseEntity.ok(service.cancelarCota(id));
     }
 
+    @Operation(summary = "Listar Cotas Canceladas Pendentes de Reembolso", description = "Retorna a listagem de cotas canceladas elegíveis a reembolso com as simulações de valores.")
+    @GetMapping("/canceladas/pendentes-reembolso")
+    public ResponseEntity<List<CotaReembolsoSimulacaoDTO>> listarPendentesReembolso() {
+        return ResponseEntity.ok(service.listarPendentesReembolso());
+    }
+
     @Operation(summary = "Reembolsar cota cancelada", description = "Realiza o cálculo e o reembolso dos valores pagos ao Fundo Comum para cotas excluídas, aplicando multa penal de 10%.")
     @PostMapping("/{id}/reembolsar")
     public ResponseEntity<CotaReembolsoResponseDTO> reembolsar(@PathVariable Long id) {

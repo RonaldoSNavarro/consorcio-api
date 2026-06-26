@@ -2,7 +2,9 @@ package br.com.estudo.consorcio.service;
 
 import br.com.estudo.consorcio.domain.model.ListaRestritiva;
 import br.com.estudo.consorcio.domain.model.OrigemListaRestritiva;
+import br.com.estudo.consorcio.domain.model.ComplianceExecucaoLog;
 import br.com.estudo.consorcio.domain.repository.ListaRestritivaRepository;
+import br.com.estudo.consorcio.repository.ComplianceExecucaoLogRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -32,36 +34,58 @@ public class ComplianceSincronizacaoService {
 
     private final ListaRestritivaRepository listaRestritivaRepository;
     private final MatchComplianceService matchComplianceService;
+    private final ComplianceExecucaoLogRepository logRepository;
 
     public ComplianceSincronizacaoService(ListaRestritivaRepository listaRestritivaRepository,
-                                          MatchComplianceService matchComplianceService) {
+                                          MatchComplianceService matchComplianceService,
+                                          ComplianceExecucaoLogRepository logRepository) {
         this.listaRestritivaRepository = listaRestritivaRepository;
         this.matchComplianceService = matchComplianceService;
+        this.logRepository = logRepository;
     }
 
     @Async
     @Transactional
     public void sincronizarListas() {
         log.info("Iniciando sincronização completa de compliance...");
-
-        // 1. Integração com a API do OFAC
-        baixarEProcessarOfac();
-
-        // 2. Mocks adicionais / Carga inicial padrão
-        carregarMocksPadrao();
-
-        // 3. Cruzamento de base de clientes
-        matchComplianceService.cruzarBaseDeClientes();
+        long start = System.currentTimeMillis();
         
-        log.info("Sincronização completa de compliance finalizada.");
+        ComplianceExecucaoLog execLog = new ComplianceExecucaoLog();
+        execLog.setTriggerExecucao("MANUAL");
+        execLog.setErros("[]");
+        
+        try {
+            // 1. Integração com a API do OFAC
+            int ofacCount = baixarEProcessarOfac(execLog);
+
+            // 2. Mocks adicionais / Carga inicial padrão
+            int onuCount = carregarMocksPadrao();
+            execLog.setOnuRegistros(onuCount);
+            execLog.setPepRegistros(1);
+            execLog.setIbgeRegistros(0);
+
+            // 3. Cruzamento de base de clientes
+            matchComplianceService.cruzarBaseDeClientes();
+            
+            execLog.setDuracaoMs(System.currentTimeMillis() - start);
+            logRepository.save(execLog);
+            
+            log.info("Sincronização completa de compliance finalizada.");
+        } catch (Exception e) {
+            log.error("Erro na sincronizacao: ", e);
+            execLog.setErros("[\"" + e.getMessage() + "\"]");
+            execLog.setDuracaoMs(System.currentTimeMillis() - start);
+            logRepository.save(execLog);
+        }
     }
 
-    private void carregarMocksPadrao() {
+    private int carregarMocksPadrao() {
         inserirOuAtualizarRegistro("OSAMA BIN LADEN", null, OrigemListaRestritiva.ONU);
         inserirOuAtualizarRegistro("POLITICO CORRUPTO SILVA", "111.222.333-44", OrigemListaRestritiva.PEP);
+        return 1;
     }
 
-    public void baixarEProcessarOfac() {
+    public int baixarEProcessarOfac(ComplianceExecucaoLog execLog) {
         try {
             log.info("Iniciando download e processamento de lista OFAC...");
             java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
@@ -80,13 +104,22 @@ public class ComplianceSincronizacaoService {
             if (response.statusCode() == 200) {
                 int count = processarOfacXml(response.body());
                 log.info("Lista OFAC processada com sucesso: {} registros importados.", count);
+                execLog.setOfacStatus("ONLINE");
+                execLog.setOfacRegistros(count);
+                return count;
             } else {
                 log.warn("Falha no download da lista OFAC. HTTP Status: {}. Usando fallback local/mock.", response.statusCode());
+                execLog.setOfacStatus("OFFLINE");
+                execLog.setOfacRegistros(2);
                 carregarMockOfacFallback();
+                return 2;
             }
         } catch (Exception e) {
             log.warn("Erro ao integrar com a API do OFAC: {}. Usando fallback local/mock.", e.getMessage());
+            execLog.setOfacStatus("OFFLINE");
+            execLog.setOfacRegistros(2);
             carregarMockOfacFallback();
+            return 2;
         }
     }
 
@@ -119,7 +152,16 @@ public class ComplianceSincronizacaoService {
 
     @Transactional
     public int processarPepCsv(InputStream inputStream) throws Exception {
+        // Carrega todos os nomes PEP existentes em memória para evitar N+1 queries
+        java.util.Set<String> existentes = listaRestritivaRepository
+                .findAll().stream()
+                .filter(l -> l.getOrigem() == OrigemListaRestritiva.PEP)
+                .map(ListaRestritiva::getNome)
+                .collect(java.util.stream.Collectors.toSet());
+
         int count = 0;
+        java.util.List<ListaRestritiva> batch = new java.util.ArrayList<>();
+
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(inputStream, StandardCharsets.ISO_8859_1))) {
             String line;
@@ -133,13 +175,28 @@ public class ComplianceSincronizacaoService {
                 if (parts.length >= 2) {
                     String cpf = parts[0].trim();
                     String nome = parts[1].trim().toUpperCase();
-                    if (!nome.isEmpty()) {
-                        inserirOuAtualizarRegistro(nome, cpf, OrigemListaRestritiva.PEP);
+                    if (!nome.isEmpty() && !existentes.contains(nome)) {
+                        ListaRestritiva novo = new ListaRestritiva();
+                        novo.setNome(nome);
+                        novo.setDocumentoOrigem(cpf);
+                        novo.setOrigem(OrigemListaRestritiva.PEP);
+                        novo.setDataInclusao(LocalDateTime.now());
+                        batch.add(novo);
+                        existentes.add(nome);
                         count++;
+
+                        if (batch.size() >= 500) {
+                            listaRestritivaRepository.saveAll(batch);
+                            batch.clear();
+                        }
                     }
                 }
             }
+            if (!batch.isEmpty()) {
+                listaRestritivaRepository.saveAll(batch);
+            }
         }
+        log.info("Lista PEP processada: {} novos registros inseridos.", count);
         return count;
     }
 
@@ -286,7 +343,6 @@ public class ComplianceSincronizacaoService {
             listaRestritivaRepository.save(existente);
         } else {
             ListaRestritiva novo = new ListaRestritiva();
-            novo.setNome(novo.getNome() != null ? novo.getNome() : nome); // avoid overriding name if not needed, but here it is simple
             novo.setNome(nome);
             novo.setDocumentoOrigem(documento);
             novo.setOrigem(origem);

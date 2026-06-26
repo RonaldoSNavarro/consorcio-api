@@ -1,9 +1,9 @@
 # Compliance e Listas Restritivas (PLD/FT)
 
 Status: PATCHED
-Versão: v1.1
+Versão: v1.2
 Aprovações: Pendentes
-Última alteração: Adição de uploads manuais (PEP, ONU, IBGE), integração real com OFAC API e agendamento dinâmico via cron.
+Última alteração: Adição de logs de execução, feedback detalhado na sincronização manual e processamento em batch (Wave 3).
 
 ## 1. Visão Geral (O que é?)
 Esta capability introduz o motor ativo de Compliance (Prevenção à Lavagem de Dinheiro e Financiamento ao Terrorismo - PLD/FT). O sistema substituirá a carga manual de arquivos CSV/XML (modelo Newcon) por uma **integração automatizada via APIs externas** (Portal da Transparência, OFAC e ONU). O motor fará o cruzamento contínuo dos CPFs/Nomes dos consorciados ativos contra essas listas, garantindo conformidade com a Circular BCB 3.978/2020.
@@ -26,6 +26,9 @@ Adicionalmente, o sistema permite uploads manuais das listas PEP (CSV), ONU (XML
    - **IBGE (XLS)**: Planilha de Municípios da Faixa de Fronteira e Cidades Gêmeas.
 7. **REQ-COMP-007**: O sistema deve integrar-se diretamente com a API do OFAC Sanctions List Service (`https://sanctionslistservice.ofac.treas.gov/api/download/SDN.XML` ou `CONSOLIDATED.XML`) para ingestão da base americana de sanções.
 8. **REQ-COMP-008**: O sistema deve permitir configurar o agendamento (cron expression) de sincronização e matching via tela, armazenando a frequência e horário e atualizando o trigger do agendamento sem reiniciar a aplicação.
+9. **REQ-COMP-009**: O sistema deve manter um histórico de execuções das sincronizações (seja manual ou por agendamento automático) e prover um endpoint `/api/compliance/execucoes` para visualização dos últimos logs.
+10. **REQ-COMP-010**: O endpoint de sincronização manual `/api/compliance/sincronizar` deve retornar informações em tempo real sobre a disponibilidade das APIs externas (como a OFAC) e a contagem de registros processados.
+11. **REQ-COMP-011**: O processamento de arquivos em massa (como a Lista PEP) deve utilizar processamento em lote (batching) e mitigação de N+1 queries para evitar sobrecarga no banco de dados e garantir escalabilidade.
 
 ## 3. Regras de Negócio (Inegociáveis)
 

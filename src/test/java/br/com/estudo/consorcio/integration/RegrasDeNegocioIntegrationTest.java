@@ -64,7 +64,7 @@ class RegrasDeNegocioIntegrationTest {
 
         // 2. Criar Grupo com crédito de 100k, 100 meses
         String code = "GRP-" + System.currentTimeMillis();
-        GrupoRequestDTO grupoDTO = new GrupoRequestDTO(code, new BigDecimal("100000.00"), 100, new BigDecimal("10.00"));
+        GrupoRequestDTO grupoDTO = new GrupoRequestDTO(code, new BigDecimal("100000.00"), 100, new BigDecimal("10.00"), br.com.estudo.consorcio.domain.enums.CategoriaBem.VEICULO_AUTOMOTOR);
         GrupoResponseDTO grupoSalvo = grupoService.salvar(grupoDTO);
         this.idGrupo = grupoSalvo.id();
         

@@ -41,7 +41,8 @@ public class ComplianceServiceTest {
         alertaComplianceRepository = mock(AlertaComplianceRepository.class);
         clienteRepository = mock(ClienteRepository.class);
         matchComplianceService = new MatchComplianceService(clienteRepository, listaRestritivaRepository, alertaComplianceRepository);
-        sincronizacaoService = new ComplianceSincronizacaoService(listaRestritivaRepository, matchComplianceService);
+        br.com.estudo.consorcio.repository.ComplianceExecucaoLogRepository logRepository = mock(br.com.estudo.consorcio.repository.ComplianceExecucaoLogRepository.class);
+        sincronizacaoService = new ComplianceSincronizacaoService(listaRestritivaRepository, matchComplianceService, logRepository);
     }
 
     @Test
@@ -58,10 +59,11 @@ public class ComplianceServiceTest {
 
         assertEquals(1, count);
         
-        ArgumentCaptor<ListaRestritiva> captor = ArgumentCaptor.forClass(ListaRestritiva.class);
-        verify(listaRestritivaRepository).save(captor.capture());
+        ArgumentCaptor<java.util.List<ListaRestritiva>> captor = ArgumentCaptor.forClass(java.util.List.class);
+        verify(listaRestritivaRepository, times(1)).saveAll(captor.capture());
         
-        ListaRestritiva saved = captor.getValue();
+        assertEquals(1, captor.getValue().size());
+        ListaRestritiva saved = (ListaRestritiva) captor.getValue().get(0);
         assertEquals("MARCELO ANTÔNIO CARREIRA", saved.getNome());
         assertEquals("***.531.324-**", saved.getDocumentoOrigem());
         assertEquals(OrigemListaRestritiva.PEP, saved.getOrigem());
@@ -127,10 +129,11 @@ public class ComplianceServiceTest {
 
         assertEquals(1, count);
 
-        ArgumentCaptor<ListaRestritiva> captor = ArgumentCaptor.forClass(ListaRestritiva.class);
-        verify(listaRestritivaRepository).save(captor.capture());
-
-        ListaRestritiva saved = captor.getValue();
+        ArgumentCaptor<java.util.List<ListaRestritiva>> captor = ArgumentCaptor.forClass(java.util.List.class);
+        verify(listaRestritivaRepository, times(1)).saveAll(captor.capture());
+        
+        assertEquals(1, captor.getValue().size());
+        ListaRestritiva saved = (ListaRestritiva) captor.getValue().get(0);
         assertEquals("ALTA FLORESTA D'OESTE - RO", saved.getNome());
         assertEquals("IBGE:RO:ALTA FLORESTA D'OESTE:GEMEA:SIM", saved.getDocumentoOrigem());
         assertEquals(OrigemListaRestritiva.IBGE, saved.getOrigem());

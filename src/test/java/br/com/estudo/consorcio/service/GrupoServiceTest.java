@@ -65,7 +65,7 @@ class GrupoServiceTest {
     @DisplayName("Deve salvar um novo grupo garantindo o status EM_FORMACAO")
     void deveSalvarGrupoComSucesso() {
         // --- ARRANGE ---
-        GrupoRequestDTO request = new GrupoRequestDTO("GRP-001", new BigDecimal("50000.00"), 60, new BigDecimal("15.00"));
+        GrupoRequestDTO request = new GrupoRequestDTO("GRP-001", new BigDecimal("50000.00"), 60, new BigDecimal("15.00"), br.com.estudo.consorcio.domain.enums.CategoriaBem.VEICULO_AUTOMOTOR);
 
         // Simula o salvamento e retorna a própria entidade que foi passada como argumento
         when(repository.save(any(Grupo.class))).thenAnswer(i -> {

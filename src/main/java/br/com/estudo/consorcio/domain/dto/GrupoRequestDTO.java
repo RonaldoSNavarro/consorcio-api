@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import br.com.estudo.consorcio.domain.enums.CategoriaBem;
 
 import java.math.BigDecimal;
 
@@ -26,5 +27,9 @@ public record GrupoRequestDTO(
         @NotNull(message = "Taxa de administração é obrigatória")
         @Positive(message = "Taxa de administração deve ser positiva")
         @Schema(example = "15.00")
-        BigDecimal taxaAdministracao
+        BigDecimal taxaAdministracao,
+
+        @NotNull(message = "Categoria do bem é obrigatória")
+        @Schema(example = "VEICULO_AUTOMOTOR")
+        CategoriaBem categoriaBem
 ) {}

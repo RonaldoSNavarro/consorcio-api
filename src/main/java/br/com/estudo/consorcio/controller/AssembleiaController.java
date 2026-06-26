@@ -1,5 +1,6 @@
 package br.com.estudo.consorcio.controller;
 
+import br.com.estudo.consorcio.domain.dto.ApuracaoRequestDTO;
 import br.com.estudo.consorcio.domain.dto.AssembleiaRequestDTO;
 import br.com.estudo.consorcio.domain.dto.AssembleiaResponseDTO;
 import br.com.estudo.consorcio.service.AssembleiaService;
@@ -11,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/assembleias")
@@ -24,17 +26,48 @@ public class AssembleiaController {
     }
 
     @Operation(summary = "Agendar nova assembleia",
-            description = "Registra um novo evento de assembleia vinculado a um grupo. O status inicial é 'ORDINARIA' por padrão caso não informado.")
+            description = "Registra um novo evento de assembleia vinculado a um grupo.")
     @PostMapping
     public ResponseEntity<AssembleiaResponseDTO> agendar(@Valid @RequestBody AssembleiaRequestDTO dto) {
-        AssembleiaResponseDTO response = service.salvar(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.salvar(dto));
     }
 
-    @Operation(summary = "Listar assembleias do grupo",
-            description = "Retorna o histórico cronológico de todas as assembleias de um grupo específico através do seu ID.")
+    @Operation(summary = "Listar assembleias do grupo")
     @GetMapping("/grupo/{grupoId}")
     public ResponseEntity<List<AssembleiaResponseDTO>> listarPorGrupo(@PathVariable Long grupoId) {
         return ResponseEntity.ok(service.listarPorGrupo(grupoId));
+    }
+
+    @Operation(summary = "Abrir captação de lances",
+            description = "Transita o status da assembleia de AGENDADA para CAPTANDO.")
+    @PostMapping("/{id}/abrir-captacao")
+    public ResponseEntity<Map<String, String>> abrirCaptacao(@PathVariable Long id) {
+        service.abrirCaptacao(id);
+        return ResponseEntity.ok(Map.of("mensagem", "Captação de lances aberta com sucesso."));
+    }
+
+    @Operation(summary = "Fechar captação de lances",
+            description = "Transita o status da assembleia de CAPTANDO para REALIZADA.")
+    @PostMapping("/{id}/fechar-captacao")
+    public ResponseEntity<Map<String, String>> fecharCaptacao(@PathVariable Long id) {
+        service.fecharCaptacao(id);
+        return ResponseEntity.ok(Map.of("mensagem", "Captação encerrada. Assembleia marcada como REALIZADA."));
+    }
+
+    @Operation(summary = "Apurar assembleia",
+            description = "Executa o motor de apuração: processa lances livres, fixos e realiza sorteio " +
+                    "(ATIVAS + CANCELADAS) se informado. A dezena da Loteria Federal ou Pedra Chave " +
+                    "pode ser fornecida no body. Se omitida, usa valor aleatório.")
+    @PostMapping("/{id}/apurar")
+    public ResponseEntity<Map<String, Object>> apurar(
+            @PathVariable Long id,
+            @RequestBody(required = false) ApuracaoRequestDTO params) {
+        service.apurarAssembleia(id, params);
+        return ResponseEntity.ok(Map.of(
+                "mensagem", "Assembleia apurada e fechada com sucesso.",
+                "assembleiaId", id,
+                "dezenaSorteio", params != null && params.dezenaSorteio() != null ? params.dezenaSorteio() : "Aleatória",
+                "sorteioRealizado", params != null && Boolean.TRUE.equals(params.realizarSorteio())
+        ));
     }
 }

@@ -36,6 +36,9 @@ class MotorApuracaoServiceTest {
     private ContabilidadeService contabilidadeService;
 
     @Mock
+    private br.com.estudo.consorcio.domain.repository.CotaRepository cotaRepository;
+
+    @Mock
     private ContemplacaoService contemplacaoService;
 
     @InjectMocks
@@ -128,5 +131,39 @@ class MotorApuracaoServiceTest {
         assertEquals(StatusApuracaoLance.PERDEDOR, lance25.getStatusApuracao());
         verify(contemplacaoService, never()).registrar(any());
         verify(lanceRepository, times(1)).save(lance25);
+    }
+
+    @Test
+    @DisplayName("REQ-CON-007: Deve incluir e contemplar por sorteio uma cota cancelada (restituição) se o realizarSorteio for true")
+    void deveContemplarPorSorteioCotaCancelada() {
+        // Arrange
+        Cota cotaCancelada = new Cota(); 
+        cotaCancelada.setId(20L); 
+        cotaCancelada.setNumeroCota(20); 
+        cotaCancelada.setGrupo(grupo);
+        cotaCancelada.setStatus(StatusCota.CANCELADA);
+
+        when(assembleiaRepository.findById(2L)).thenReturn(Optional.of(assembleia));
+        when(lanceRepository.findByAssembleiaIdOrderByValorOfertaDesc(2L)).thenReturn(List.of());
+        when(cotaRepository.findByGrupoId(1L)).thenReturn(List.of(cotaCancelada));
+        
+        // Saldo Fundo Comum (tem saldo suficiente para restituir cota cancelada, que é 100k)
+        when(contabilidadeService.calcularSaldoConta(eq(grupo), eq(ContabilidadeService.CONTA_FUNDO_COMUM)))
+                .thenReturn(new BigDecimal("100000.00"));
+
+        br.com.estudo.consorcio.domain.dto.ApuracaoRequestDTO params = 
+                new br.com.estudo.consorcio.domain.dto.ApuracaoRequestDTO(20, true);
+
+        // Act
+        motorApuracaoService.apurarAssembleia(2L, params);
+
+        // Assert
+        ArgumentCaptor<ContemplacaoRequestDTO> captor = ArgumentCaptor.forClass(ContemplacaoRequestDTO.class);
+        verify(contemplacaoService, times(1)).registrar(captor.capture());
+        
+        ContemplacaoRequestDTO registeredContemplation = captor.getValue();
+        assertEquals(20L, registeredContemplation.cotaId());
+        assertEquals(TipoContemplacao.SORTEIO, registeredContemplation.tipoContemplacao());
+        assertEquals(20, assembleia.getNumeroSorteado());
     }
 }

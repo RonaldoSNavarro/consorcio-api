@@ -1,7 +1,7 @@
 # Contrato de API — Compliance (Listas Restritivas)
 
 Status: PATCHED
-Versão: v1.1
+Versão: v1.2
 
 ## 1. Endpoints
 
@@ -14,8 +14,12 @@ Versão: v1.1
 - **Response**: `202 Accepted`
 ```json
 {
-  "mensagem": "Sincronização de listas restritivas iniciada em background.",
-  "dataHora": "2026-06-19T10:00:00"
+  "ofacStatus": "ONLINE",
+  "ofacRegistros": 8452,
+  "pepRegistros": 15422,
+  "onuRegistros": 1204,
+  "ibgeRegistros": 0,
+  "erros": []
 }
 ```
 
@@ -130,3 +134,24 @@ Versão: v1.1
 }
 ```
 
+### 1.9. Listar Execuções de Sincronização (Logs)
+- **Método**: `GET`
+- **Rota**: `/api/compliance/execucoes`
+- **Permissão**: `ROLE_ADMIN`, `ROLE_COMPLIANCE`
+- **Response**: `200 OK`
+```json
+[
+  {
+    "id": 15,
+    "dataExecucao": "2026-06-25T01:30:00",
+    "triggerExecucao": "CRON",
+    "ofacStatus": "ONLINE",
+    "pepRegistros": 15422,
+    "onuRegistros": 1204,
+    "ibgeRegistros": 0,
+    "ofacRegistros": 8452,
+    "duracaoMs": 4500,
+    "erros": "[]"
+  }
+]
+```

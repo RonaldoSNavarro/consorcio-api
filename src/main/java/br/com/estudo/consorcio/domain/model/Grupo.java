@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import br.com.estudo.consorcio.domain.enums.CategoriaBem;
 
 @Entity
 @Table(name = "grupos")
@@ -49,6 +50,10 @@ public class Grupo {
     @Column(name = "percentual_lance_fixo")
     private BigDecimal percentualLanceFixo = new BigDecimal("0.2000");
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "categoria_bem", nullable = false)
+    private CategoriaBem categoriaBem = CategoriaBem.OUTROS_BENS_MOVEIS;
+
     @Version
     private Long version;
 
@@ -91,4 +96,7 @@ public class Grupo {
 
     public BigDecimal getPercentualLanceFixo() { return percentualLanceFixo; }
     public void setPercentualLanceFixo(BigDecimal percentualLanceFixo) { this.percentualLanceFixo = percentualLanceFixo; }
+
+    public CategoriaBem getCategoriaBem() { return categoriaBem; }
+    public void setCategoriaBem(CategoriaBem categoriaBem) { this.categoriaBem = categoriaBem; }
 }

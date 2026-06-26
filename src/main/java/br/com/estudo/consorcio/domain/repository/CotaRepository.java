@@ -20,6 +20,8 @@ public interface CotaRepository extends JpaRepository<Cota, Long> {
     // For internal processing that still needs List
     List<Cota> findByGrupoId(Long grupoId);
 
+    List<Cota> findByStatusAndReembolsadaFalse(StatusCota status);
+
     // Sprint 4 — Estatísticas: Contagem por grupo e status
     long countByGrupoIdAndStatus(Long grupoId, StatusCota status);
 

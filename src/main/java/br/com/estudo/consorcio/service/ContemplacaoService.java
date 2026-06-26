@@ -256,6 +256,12 @@ public class ContemplacaoService {
                 .toList();
     }
 
+    public List<ContemplacaoResponseDTO> listarPendentesIntegralizacao() {
+        return contemplacaoRepository.findPendentesIntegralizacao().stream()
+                .map(mapper::toResponse)
+                .toList();
+    }
+
     @Transactional
     public CotaResponseDTO confirmarPagamentoLance(Long lanceId) {
         Lance lance = lanceRepository.findById(lanceId)

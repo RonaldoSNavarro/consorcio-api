@@ -3,6 +3,7 @@ package br.com.estudo.consorcio.domain.dto;
 import br.com.estudo.consorcio.domain.model.StatusGrupo;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import br.com.estudo.consorcio.domain.enums.CategoriaBem;
 
 public record GrupoResponseDTO(
         Long id,
@@ -12,5 +13,6 @@ public record GrupoResponseDTO(
         BigDecimal taxaAdministracao,
         StatusGrupo status,
         LocalDate dataCriacao,
-        LocalDate dataInauguracao
+        LocalDate dataInauguracao,
+        CategoriaBem categoriaBem
 ) {}

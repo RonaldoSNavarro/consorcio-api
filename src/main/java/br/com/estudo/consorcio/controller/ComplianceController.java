@@ -3,11 +3,15 @@ package br.com.estudo.consorcio.controller;
 import br.com.estudo.consorcio.domain.dto.AlertaComplianceResponseDTO;
 import br.com.estudo.consorcio.domain.dto.ComplianceConfigDTO;
 import br.com.estudo.consorcio.domain.dto.DeliberarAlertaRequestDTO;
+import br.com.estudo.consorcio.domain.dto.ComplianceSyncResultDTO;
+import br.com.estudo.consorcio.domain.dto.ComplianceExecucaoLogResponseDTO;
+import br.com.estudo.consorcio.domain.mapper.ComplianceExecucaoLogMapper;
 import br.com.estudo.consorcio.domain.model.AlertaCompliance;
 import br.com.estudo.consorcio.domain.model.ComplianceConfig;
 import br.com.estudo.consorcio.domain.model.StatusAlertaCompliance;
 import br.com.estudo.consorcio.domain.repository.AlertaComplianceRepository;
 import br.com.estudo.consorcio.domain.repository.ComplianceConfigRepository;
+import br.com.estudo.consorcio.repository.ComplianceExecucaoLogRepository;
 import br.com.estudo.consorcio.exception.RecursoNaoEncontradoException;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import br.com.estudo.consorcio.service.ComplianceSincronizacaoService;
@@ -35,26 +39,28 @@ public class ComplianceController {
     private final ComplianceSincronizacaoService sincronizacaoService;
     private final AlertaComplianceRepository alertaRepository;
     private final ComplianceConfigRepository configRepository;
+    private final ComplianceExecucaoLogRepository execucaoLogRepository;
+    private final ComplianceExecucaoLogMapper execucaoLogMapper;
 
     public ComplianceController(ComplianceSincronizacaoService sincronizacaoService,
                                 AlertaComplianceRepository alertaRepository,
-                                ComplianceConfigRepository configRepository) {
+                                ComplianceConfigRepository configRepository,
+                                ComplianceExecucaoLogRepository execucaoLogRepository,
+                                ComplianceExecucaoLogMapper execucaoLogMapper) {
         this.sincronizacaoService = sincronizacaoService;
         this.alertaRepository = alertaRepository;
         this.configRepository = configRepository;
+        this.execucaoLogRepository = execucaoLogRepository;
+        this.execucaoLogMapper = execucaoLogMapper;
     }
 
     @Operation(summary = "Sincronização manual de listas restritivas",
             description = "Dispara a rotina assíncrona de ingestão das bases PEP (Portal da Transparência), OFAC e ONU, executando em seguida o cruzamento (matching) com a base de clientes cadastrados.")
     @PostMapping("/sincronizar")
     @PreAuthorize("hasAnyRole('ADMIN', 'COMPLIANCE')")
-    public ResponseEntity<Map<String, Object>> sincronizarListasManualmente() {
+    public ResponseEntity<ComplianceSyncResultDTO> sincronizarListasManualmente() {
         sincronizacaoService.sincronizarListas();
-
-        return ResponseEntity.accepted().body(Map.of(
-                "mensagem", "Sincronização de listas restritivas iniciada em background.",
-                "dataHora", LocalDateTime.now()
-        ));
+        return ResponseEntity.accepted().body(ComplianceSyncResultDTO.iniciado());
     }
 
     @Operation(summary = "Listar alertas de compliance",
@@ -86,6 +92,16 @@ public class ComplianceController {
         )).collect(Collectors.toList());
 
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Listar logs de execucao de compliance",
+            description = "Retorna o historico de execucao de sincronizacao de listas.")
+    @GetMapping("/execucoes")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPLIANCE')")
+    public ResponseEntity<List<ComplianceExecucaoLogResponseDTO>> listarExecucoes() {
+        return ResponseEntity.ok(execucaoLogRepository.findTop50ByOrderByDataExecucaoDesc().stream()
+                .map(execucaoLogMapper::toResponse)
+                .collect(Collectors.toList()));
     }
 
     @Operation(summary = "Deliberar sobre alerta de compliance",

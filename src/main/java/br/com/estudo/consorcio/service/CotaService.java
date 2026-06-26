@@ -1,6 +1,7 @@
 package br.com.estudo.consorcio.service;
 
 import br.com.estudo.consorcio.domain.dto.CotaReembolsoResponseDTO;
+import br.com.estudo.consorcio.domain.dto.CotaReembolsoSimulacaoDTO;
 import br.com.estudo.consorcio.domain.dto.CotaRequestDTO;
 import br.com.estudo.consorcio.domain.dto.CotaResponseDTO;
 import br.com.estudo.consorcio.domain.model.*;
@@ -292,5 +293,62 @@ public class CotaService {
             throw new ClienteInativoException(
                     "Operação não permitida: cliente id " + cliente.getId() + " está inativo.");
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<CotaReembolsoSimulacaoDTO> listarPendentesReembolso() {
+        List<Cota> cotas = cotaRepository.findByStatusAndReembolsadaFalse(StatusCota.CANCELADA);
+        return cotas.stream().map(cota -> {
+            Optional<Contemplacao> contemplacaoOpt = contemplacaoRepository.findTopByCotaIdOrderByDataContemplacaoDesc(cota.getId());
+            
+            BigDecimal valorBruto = BigDecimal.ZERO;
+            BigDecimal multa = BigDecimal.ZERO;
+            BigDecimal valorLiquido = BigDecimal.ZERO;
+            BigDecimal percentualPago = BigDecimal.ZERO;
+            BigDecimal valorBem = cota.getGrupo().getValorCredito();
+            LocalDate dataContemplacao = null;
+            String numAssembleia = null;
+
+            if (contemplacaoOpt.isPresent()) {
+                Contemplacao contemplacao = contemplacaoOpt.get();
+                valorLiquido = contemplacao.getValorCreditoLiberado();
+                valorBruto = valorLiquido.divide(new BigDecimal("0.90"), 2, RoundingMode.HALF_UP);
+                multa = valorBruto.subtract(valorLiquido).setScale(2, RoundingMode.HALF_UP);
+                dataContemplacao = contemplacao.getDataContemplacao();
+                numAssembleia = contemplacao.getAssembleia() != null ? String.valueOf(contemplacao.getAssembleia().getId()) : "N/A";
+            } else {
+                List<Parcela> parcelasPagas = parcelaRepository.findByCotaId(cota.getId()).stream()
+                        .filter(p -> p.getStatus() == StatusParcela.PAGA)
+                        .toList();
+                valorBruto = parcelasPagas.stream().map(Parcela::getValorFundoComum).reduce(BigDecimal.ZERO, BigDecimal::add);
+                multa = valorBruto.multiply(new BigDecimal("0.10")).setScale(2, RoundingMode.HALF_UP);
+                valorLiquido = valorBruto.subtract(multa).setScale(2, RoundingMode.HALF_UP);
+            }
+            
+            if (valorBem != null && valorBem.compareTo(BigDecimal.ZERO) > 0) {
+                percentualPago = valorBruto.multiply(new BigDecimal("100")).divide(valorBem, 2, RoundingMode.HALF_UP);
+            }
+            
+            BigDecimal valorHistoricoPago = parcelaRepository.findByCotaId(cota.getId()).stream()
+                        .filter(p -> p.getStatus() == StatusParcela.PAGA)
+                        .map(Parcela::getValorFundoComum)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            return new CotaReembolsoSimulacaoDTO(
+                    cota.getId(),
+                    cota.getNumeroCota(),
+                    cota.getCliente().getId(),
+                    cota.getCliente().getNome(),
+                    cota.getCliente().getCpfCnpj(),
+                    numAssembleia,
+                    dataContemplacao,
+                    valorBem,
+                    percentualPago,
+                    valorHistoricoPago,
+                    valorBruto,
+                    multa,
+                    valorLiquido
+            );
+        }).toList();
     }
 }
