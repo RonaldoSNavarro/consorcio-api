@@ -63,6 +63,10 @@ public class LanceService {
             throw new RegraDeNegocioException("Cota possui parcelas em atraso e não pode participar da assembleia.");
         }
 
+        if (dto.tipo() == TipoLance.FGTS && cota.getGrupo().getCategoriaBem() != br.com.estudo.consorcio.domain.enums.CategoriaBem.IMOVEL) {
+            throw new RegraDeNegocioException("O lance utilizando FGTS é permitido apenas para grupos da categoria IMÓVEL.");
+        }
+
         // Determina a modalidade (padrão LIVRE se nulo)
         ModalidadeLance modalidade = dto.modalidade() != null ? dto.modalidade() : ModalidadeLance.LIVRE;
         BigDecimal valorOferta;
@@ -112,6 +116,46 @@ public class LanceService {
             lance.setValorOferta(valorOferta);
             // dataOferta e status são definidos no PrePersist
         }
+
+        return mapper.toResponse(lanceRepository.save(lance));
+    }
+
+    @Transactional
+    public LanceResponseDTO registrarSinistroObito(Long cotaId) {
+        Cota cota = cotaRepository.findById(cotaId)
+                .orElseThrow(() -> new RegraDeNegocioException("Cota não encontrada."));
+
+        if (cota.getStatus() == StatusCota.CONTEMPLADA || cota.getStatus() == StatusCota.QUITADA) {
+            throw new RegraDeNegocioException("Cota já contemplada ou quitada não pode gerar lance por sinistro.");
+        }
+
+        // Acha a próxima assembleia agendada para o grupo
+        Assembleia proximaAssembleia = assembleiaRepository.findByGrupoIdOrderByDataAssembleiaAsc(cota.getGrupo().getId()).stream()
+                .filter(a -> a.getStatus() == StatusAssembleia.AGENDADA || a.getStatus() == StatusAssembleia.CAPTANDO)
+                .findFirst()
+                .orElseThrow(() -> new RegraDeNegocioException("Nenhuma assembleia futura encontrada para este grupo."));
+
+        // O valor da oferta será o saldo devedor (valor da carta - fundo comum já pago)
+        // Simplificação: o valor do lance é o saldo devedor. Como ele quita o plano, o percentual é calculado
+        // pelo motor na AGO e garantirá prioridade máxima no desempate se for 100% de quitação.
+        
+        // Calcula quanto já foi pago de Fundo Comum
+        BigDecimal percentualAmortizado = parcelaRepository.findByCotaId(cotaId).stream()
+                .filter(p -> p.getStatus() == StatusParcela.PAGA)
+                .map(p -> p.getPercentualFundoComum() != null ? p.getPercentualFundoComum() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal saldoDevedorPercentual = BigDecimal.ONE.subtract(percentualAmortizado);
+        if (saldoDevedorPercentual.compareTo(BigDecimal.ZERO) < 0) saldoDevedorPercentual = BigDecimal.ZERO;
+        
+        BigDecimal valorOferta = cota.getGrupo().getValorCredito().multiply(saldoDevedorPercentual).setScale(2, RoundingMode.HALF_UP);
+
+        Lance lance = new Lance();
+        lance.setCota(cota);
+        lance.setAssembleia(proximaAssembleia);
+        lance.setTipo(TipoLance.SEGURO_OBITO);
+        lance.setModalidade(ModalidadeLance.LIVRE); // Concorre como livre em percentual (100% quitado)
+        lance.setValorOferta(valorOferta);
 
         return mapper.toResponse(lanceRepository.save(lance));
     }

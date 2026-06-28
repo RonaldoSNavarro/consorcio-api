@@ -43,6 +43,22 @@ public class Assembleia {
     @Column(name = "numero_sorteado")
     private Integer numeroSorteado;
 
+    @Column(name = "premio_excluidos")
+    private Integer premioExcluidos;
+
+    @Column(name = "numero_extracao_loteria")
+    private String numeroExtracaoLoteria;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "algoritmo_usado")
+    private AlgoritmoPedraChave algoritmoUsado;
+
+    @Column(name = "pedra_chave_calculada")
+    private Integer pedraChaveCalculada;
+
+    @Column(name = "fallbacks_aplicados")
+    private Integer fallbacksAplicados;
+
     @Version
     private Long version;
 

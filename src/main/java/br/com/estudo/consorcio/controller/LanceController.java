@@ -28,4 +28,12 @@ public class LanceController {
         LanceResponseDTO salva = service.registrarLance(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(salva);
     }
+
+    @Operation(summary = "Registra sinistro de óbito e gera lance automático",
+            description = "Resolução BCB 285: o seguro quita o saldo devedor e gera um lance na próxima AGO.")
+    @PostMapping("/sinistro-obito/{cotaId}")
+    public ResponseEntity<LanceResponseDTO> registrarSinistroObito(@PathVariable Long cotaId) {
+        LanceResponseDTO salva = service.registrarSinistroObito(cotaId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(salva);
+    }
 }

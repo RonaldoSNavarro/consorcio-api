@@ -31,5 +31,11 @@ public record GrupoRequestDTO(
 
         @NotNull(message = "Categoria do bem é obrigatória")
         @Schema(example = "VEICULO_AUTOMOTOR")
-        CategoriaBem categoriaBem
+        CategoriaBem categoriaBem,
+        
+        @Schema(example = "INCC")
+        br.com.estudo.consorcio.domain.model.IndiceReajuste indiceReajuste,
+        
+        @Schema(example = "1")
+        Integer mesReajuste
 ) {}

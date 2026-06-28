@@ -128,6 +128,21 @@ public class CotaService {
         Grupo grupo = grupoRepository.findById(dto.grupoId())
                 .orElseThrow(() -> new RegraDeNegocioException("Grupo não encontrado."));
 
+        // Regra BACEN: Consorciado não pode ter mais de 10% das cotas ativas do grupo
+        if (grupo.getQuantidadeCotas() != null && grupo.getQuantidadeCotas() > 0) {
+            long cotasAtivasDoCliente = cotaRepository.findByGrupoId(grupo.getId(), Pageable.unpaged()).stream()
+                    .filter(c -> c.getCliente().getId().equals(cliente.getId()) && c.getStatus() == StatusCota.ATIVA)
+                    .count();
+            
+            // Verifica o limite de 10% (arredondado para baixo ou limite fixo)
+            long limite = (long) (grupo.getQuantidadeCotas() * 0.10);
+            if (limite == 0) limite = 1; // Se grupo tem menos de 10 cotas, pode ter ao menos 1
+
+            if (cotasAtivasDoCliente >= limite) {
+                throw new RegraDeNegocioException("Limite excedido: Consorciado não pode possuir mais que 10% das cotas ativas do grupo (Limite atual: " + limite + ").");
+            }
+        }
+
         // 2. Mapeamento para a Entidade usando o mapper
         Cota cota = mapper.toEntity(dto);
         cota.setCliente(cliente);
@@ -383,5 +398,123 @@ public class CotaService {
                     valorLiquido
             );
         }).toList();
+    }
+
+    @Transactional
+    public CotaResponseDTO transferirCota(Long cotaId, br.com.estudo.consorcio.domain.dto.TransferirCotaRequestDTO dto) {
+        Cota cota = cotaRepository.findById(cotaId)
+                .orElseThrow(() -> new RegraDeNegocioException("Cota não encontrada."));
+
+        if (cota.getStatus() == StatusCota.CANCELADA || cota.getStatus() == StatusCota.EXCLUIDA) {
+            throw new RegraDeNegocioException("Não é possível transferir uma cota cancelada ou excluída.");
+        }
+
+        Cliente novoCliente = clienteRepository.findById(dto.novoClienteId())
+                .orElseThrow(() -> new RegraDeNegocioException("Novo cliente não encontrado."));
+
+        validarClienteAtivo(novoCliente);
+
+        if (cota.getCliente().getId().equals(novoCliente.getId())) {
+            throw new RegraDeNegocioException("O novo cliente deve ser diferente do cliente atual.");
+        }
+
+        // Valida limite de 10%
+        long cotasAtivasDoCliente = cotaRepository.findByGrupoId(cota.getGrupo().getId(), Pageable.unpaged()).stream()
+                .filter(c -> c.getCliente().getId().equals(novoCliente.getId()) && c.getStatus() == StatusCota.ATIVA)
+                .count();
+        
+        long limite = (long) (cota.getGrupo().getQuantidadeCotas() * 0.10);
+        if (limite == 0) limite = 1;
+
+        if (cotasAtivasDoCliente >= limite) {
+            throw new RegraDeNegocioException("Transferência negada: Novo titular excederia o limite de 10% das cotas ativas do grupo.");
+        }
+
+        Cliente clienteAnterior = cota.getCliente();
+        cota.setCliente(novoCliente);
+
+        // Registro de versão para auditoria (mesmo status, muda o titular e versão++)
+        cota.setVersao(cota.getVersao() + 1);
+        cotaRepository.save(cota);
+        
+        Usuario usuario = getUsuarioAutenticado();
+
+        HistoricoVersaoCota historico = HistoricoVersaoCota.builder()
+                .cota(cota)
+                .versao(cota.getVersao())
+                .statusAnterior(cota.getStatus())
+                .statusNovo(cota.getStatus())
+                .motivo("Transferência de titularidade de " + clienteAnterior.getNome() + " para " + novoCliente.getNome() + ". Motivo: " + dto.motivo())
+                .usuario(usuario)
+                .build();
+        historicoVersaoCotaRepository.save(historico);
+
+        if (dto.taxaTransferencia() != null && dto.taxaTransferencia().compareTo(BigDecimal.ZERO) > 0) {
+            movimentoService.registrarMovimento(cota.getGrupo(), cota, null, null,
+                    TipoMovimentoFinanceiro.LANCAMENTO_MANUAL, NaturezaMovimento.CREDITO,
+                    dto.taxaTransferencia(), "Taxa de transferência de cota cobrada.", usuario);
+        }
+
+        historicoService.registrarInteracao(novoCliente, cota, cota.getGrupo(), null, TipoInteracao.CESSAO_DIREITOS, "Transferência de titularidade efetuada com sucesso.", cota.getGrupo().getValorCredito(), null, null, null, null, null, null, usuario);
+
+        return mapper.toResponse(cota);
+    }
+
+    @Transactional
+    public CotaResponseDTO readmitirCota(Long cotaId) {
+        Cota cota = cotaRepository.findById(cotaId)
+                .orElseThrow(() -> new RegraDeNegocioException("Cota não encontrada."));
+
+        if (cota.getStatus() != StatusCota.EXCLUIDA) {
+            throw new RegraDeNegocioException("Apenas cotas EXCLUIDAS podem ser readmitidas.");
+        }
+
+        if (cota.getReembolsada() != null && cota.getReembolsada()) {
+            throw new RegraDeNegocioException("Cota já reembolsada não pode ser readmitida.");
+        }
+        
+        Optional<Contemplacao> contemplacaoOpt = contemplacaoRepository.findTopByCotaIdOrderByDataContemplacaoDesc(cotaId);
+        if (contemplacaoOpt.isPresent()) {
+            throw new RegraDeNegocioException("Cota contemplada não pode ser readmitida sob esta regra.");
+        }
+
+        // Valida se as parcelas atrasadas foram pagas/regularizadas
+        boolean possuiAtraso = parcelaRepository.existsByCotaIdAndStatusAndDataVencimentoBefore(
+                cotaId, StatusParcela.PENDENTE, LocalDate.now());
+        if (possuiAtraso) {
+            throw new RegraDeNegocioException("A cota possui parcelas em atraso e não pode ser readmitida sem regularização.");
+        }
+
+        // Valida limite de 10%
+        long cotasAtivasDoCliente = cotaRepository.findByGrupoId(cota.getGrupo().getId(), Pageable.unpaged()).stream()
+                .filter(c -> c.getCliente().getId().equals(cota.getCliente().getId()) && c.getStatus() == StatusCota.ATIVA)
+                .count();
+        
+        long limite = (long) (cota.getGrupo().getQuantidadeCotas() * 0.10);
+        if (limite == 0) limite = 1;
+
+        if (cotasAtivasDoCliente >= limite) {
+            throw new RegraDeNegocioException("Readmissão negada: Cliente excederia o limite de 10% das cotas ativas do grupo.");
+        }
+
+        cota.setStatus(StatusCota.ATIVA);
+        cota.setVersao(cota.getVersao() + 1);
+        cotaRepository.save(cota);
+
+        Usuario usuario = getUsuarioAutenticado();
+
+        HistoricoVersaoCota historico = HistoricoVersaoCota.builder()
+                .cota(cota)
+                .versao(cota.getVersao())
+                .statusAnterior(StatusCota.EXCLUIDA)
+                .statusNovo(StatusCota.ATIVA)
+                .motivo("Readmissão de consorciado excluído (Art. 31-A BCB 285).")
+                .usuario(usuario)
+                .build();
+        historicoVersaoCotaRepository.save(historico);
+
+        historicoService.registrarInteracao(cota.getCliente(), cota, cota.getGrupo(), null, TipoInteracao.OUTROS, "Readmissão de consorciado excluído efetuada com sucesso.", cota.getGrupo().getValorCredito(), null, null, null, null, null, null, usuario);
+
+        return mapper.toResponse(cota);
     }
 }

@@ -28,8 +28,15 @@ public class Grupo {
     @Column(nullable = false)
     private BigDecimal taxaAdministracao;
 
-    @Column(name = "percentual_lance_embutido_maximo", nullable = false)
+    @Column(name = "percentual_lance_embutido_maximo", nullable = false, precision = 5, scale = 4)
     private BigDecimal percentualLanceEmbutidoMaximo = new BigDecimal("0.3000");
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "indice_reajuste")
+    private IndiceReajuste indiceReajuste;
+
+    @Column(name = "mes_reajuste")
+    private Integer mesReajuste;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -58,6 +65,14 @@ public class Grupo {
     @Enumerated(EnumType.STRING)
     @Column(name = "destinacao_multa_rescisoria", nullable = false)
     private DestinacaoMultaRescisoria destinacaoMultaRescisoria = DestinacaoMultaRescisoria.FUNDO_RESERVA;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "algoritmo_pedra_chave", nullable = false)
+    private AlgoritmoPedraChave algoritmoPedraChave = AlgoritmoPedraChave.CENTENA;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "direcao_fallback_sorteio", nullable = false)
+    private DirecaoFallbackSorteio direcaoFallbackSorteio = DirecaoFallbackSorteio.ACIMA_DEPOIS_ABAIXO;
 
     @Version
     private Long version;
@@ -107,4 +122,10 @@ public class Grupo {
 
     public DestinacaoMultaRescisoria getDestinacaoMultaRescisoria() { return destinacaoMultaRescisoria; }
     public void setDestinacaoMultaRescisoria(DestinacaoMultaRescisoria destinacaoMultaRescisoria) { this.destinacaoMultaRescisoria = destinacaoMultaRescisoria; }
+
+    public AlgoritmoPedraChave getAlgoritmoPedraChave() { return algoritmoPedraChave; }
+    public void setAlgoritmoPedraChave(AlgoritmoPedraChave algoritmoPedraChave) { this.algoritmoPedraChave = algoritmoPedraChave; }
+
+    public DirecaoFallbackSorteio getDirecaoFallbackSorteio() { return direcaoFallbackSorteio; }
+    public void setDirecaoFallbackSorteio(DirecaoFallbackSorteio direcaoFallbackSorteio) { this.direcaoFallbackSorteio = direcaoFallbackSorteio; }
 }

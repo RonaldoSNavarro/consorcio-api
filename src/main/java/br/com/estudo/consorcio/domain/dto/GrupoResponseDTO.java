@@ -14,5 +14,7 @@ public record GrupoResponseDTO(
         StatusGrupo status,
         LocalDate dataCriacao,
         LocalDate dataInauguracao,
-        CategoriaBem categoriaBem
+        CategoriaBem categoriaBem,
+        br.com.estudo.consorcio.domain.model.IndiceReajuste indiceReajuste,
+        Integer mesReajuste
 ) {}

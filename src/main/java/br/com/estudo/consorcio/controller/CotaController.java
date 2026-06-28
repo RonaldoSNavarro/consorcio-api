@@ -83,4 +83,16 @@ public class CotaController {
     public ResponseEntity<List<HistoricoVersaoCotaResponseDTO>> listarVersoes(@PathVariable Long id) {
         return ResponseEntity.ok(service.listarVersoes(id));
     }
+
+    @Operation(summary = "Transferir cota para outro titular", description = "Transfere a titularidade de uma cota para outro cliente ativo e respeitando o limite de 10% do grupo.")
+    @PostMapping("/{id}/transferir")
+    public ResponseEntity<CotaResponseDTO> transferirCota(@PathVariable Long id, @Valid @RequestBody TransferirCotaRequestDTO dto) {
+        return ResponseEntity.ok(service.transferirCota(id, dto));
+    }
+
+    @Operation(summary = "Readmitir consorciado excluído", description = "Readmite uma cota excluída caso regularize as pendências (Art. 31-A).")
+    @PostMapping("/{id}/readmitir")
+    public ResponseEntity<CotaResponseDTO> readmitirCota(@PathVariable Long id) {
+        return ResponseEntity.ok(service.readmitirCota(id));
+    }
 }
