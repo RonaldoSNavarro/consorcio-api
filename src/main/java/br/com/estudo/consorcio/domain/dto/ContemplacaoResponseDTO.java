@@ -13,5 +13,10 @@ public record ContemplacaoResponseDTO(
         BigDecimal valorLance,
         LocalDate dataContemplacao,
         Boolean lanceEmbutido,
-        BigDecimal valorCreditoLiberado
+        BigDecimal valorCreditoLiberado,
+        String codigoGrupo,
+        String nomeCliente,
+        String cpfCnpjCliente,
+        String statusCota,
+        Integer numeroCota
 ) {}

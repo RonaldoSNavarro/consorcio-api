@@ -19,8 +19,12 @@ public interface ContemplacaoMapper {
     @Mapping(target = "valorCreditoLiberado", ignore = true) // Calculado no serviço
     Contemplacao toEntity(ContemplacaoRequestDTO dto);
 
-    // Mapeia Contemplacao para ContemplacaoResponseDTO, extraindo apenas os IDs de Cota e Assembleia
     @Mapping(source = "cota.id", target = "cotaId")
     @Mapping(source = "assembleia.id", target = "assembleiaId")
+    @Mapping(source = "cota.grupo.codigo", target = "codigoGrupo")
+    @Mapping(source = "cota.cliente.nome", target = "nomeCliente")
+    @Mapping(source = "cota.cliente.cpfCnpj", target = "cpfCnpjCliente")
+    @Mapping(source = "cota.status", target = "statusCota")
+    @Mapping(source = "cota.numeroCota", target = "numeroCota")
     ContemplacaoResponseDTO toResponse(Contemplacao entity);
 }

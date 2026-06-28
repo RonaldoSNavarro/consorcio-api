@@ -16,7 +16,7 @@ public interface ContemplacaoRepository extends JpaRepository<Contemplacao, Long
     List<Contemplacao> findByAssembleiaId(Long assembleiaId);
     java.util.Optional<Contemplacao> findTopByCotaIdOrderByDataContemplacaoDesc(Long cotaId);
 
-    @Query("SELECT c FROM Contemplacao c WHERE c.cota.status = br.com.estudo.consorcio.domain.model.StatusCota.PENDENTE_INTEGRALIZACAO")
+    @Query("SELECT c FROM Contemplacao c WHERE c.cota.status IN (br.com.estudo.consorcio.domain.model.StatusCota.PENDENTE_INTEGRALIZACAO, br.com.estudo.consorcio.domain.model.StatusCota.AGUARDANDO_ANALISE, br.com.estudo.consorcio.domain.model.StatusCota.APROVADO)")
     List<Contemplacao> findPendentesIntegralizacao();
 
     // Módulo 2: Soma todos os créditos liberados nas contemplações do grupo

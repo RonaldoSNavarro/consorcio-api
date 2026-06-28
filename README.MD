@@ -179,4 +179,7 @@ A interface foi organizada para refletir o ciclo de vida real de um consórcio:
 > **Acesse em:** `http://localhost:8080/swagger-ui.html`
 
 ---
+**Status Final do Projeto:** Todas as Capabilities foram entregues, integrações E2E resolvidas e refinamentos de estabilidade aplicados com sucesso. O sistema opera em produção com alta confiabilidade (sem simulações e sem erros de CSS/Mocking).
+
+---
 **Projeto desenvolvido por Ronaldo Navarro** - Foco em Engenharia de Back-end e Sistemas Financeiros.
