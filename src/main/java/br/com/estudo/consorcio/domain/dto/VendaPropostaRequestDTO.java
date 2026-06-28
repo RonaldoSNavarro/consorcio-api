@@ -15,6 +15,10 @@ public record VendaPropostaRequestDTO(
     @DecimalMin(value = "0.01", message = "O valor do crédito deve ser maior que zero")
     java.math.BigDecimal valorCreditoDesejado,
 
+    br.com.estudo.consorcio.domain.enums.CategoriaBem categoriaBem,
+    
+    Integer prazoMeses,
+
     @NotNull(message = "Tipo de venda é obrigatório")
     Long tipoVendaId,
 

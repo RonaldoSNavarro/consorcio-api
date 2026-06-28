@@ -140,13 +140,13 @@ public class CotaService {
                 .orElseThrow(() -> new RegraDeNegocioException("Grupo não encontrado."));
 
         // Regra BACEN: Consorciado não pode ter mais de 10% das cotas ativas do grupo
-        if (grupo.getQuantidadeCotas() != null && grupo.getQuantidadeCotas() > 0) {
+        if (grupo.getPrazoMeses() != null && grupo.getPrazoMeses() > 0) {
             long cotasAtivasDoCliente = cotaRepository.findByGrupoId(grupo.getId(), Pageable.unpaged()).stream()
                     .filter(c -> c.getCliente().getId().equals(cliente.getId()) && c.getStatus() == StatusCota.ATIVA)
                     .count();
             
             // Verifica o limite de 10% (arredondado para baixo ou limite fixo)
-            long limite = (long) (grupo.getQuantidadeCotas() * 0.10);
+            long limite = (long) (grupo.getPrazoMeses() * 0.10);
             if (limite == 0) limite = 1; // Se grupo tem menos de 10 cotas, pode ter ao menos 1
 
             if (cotasAtivasDoCliente >= limite) {
@@ -441,7 +441,7 @@ public class CotaService {
                 .filter(c -> c.getCliente().getId().equals(novoCliente.getId()) && c.getStatus() == StatusCota.ATIVA)
                 .count();
         
-        long limite = (long) (cota.getGrupo().getQuantidadeCotas() * 0.10);
+        long limite = (long) (cota.getGrupo().getPrazoMeses() * 0.10);
         if (limite == 0) limite = 1;
 
         if (cotasAtivasDoCliente >= limite) {
@@ -469,7 +469,7 @@ public class CotaService {
 
         if (dto.taxaTransferencia() != null && dto.taxaTransferencia().compareTo(BigDecimal.ZERO) > 0) {
             movimentoService.registrarMovimento(cota.getGrupo(), cota, null, null,
-                    TipoMovimentoFinanceiro.LANCAMENTO_MANUAL, NaturezaMovimento.CREDITO,
+                    TipoMovimentoFinanceiro.TAXA_TRANSFERENCIA, NaturezaMovimento.CREDITO,
                     dto.taxaTransferencia(), "Taxa de transferência de cota cobrada.", usuario);
         }
 
@@ -508,7 +508,7 @@ public class CotaService {
                 .filter(c -> c.getCliente().getId().equals(cota.getCliente().getId()) && c.getStatus() == StatusCota.ATIVA)
                 .count();
         
-        long limite = (long) (cota.getGrupo().getQuantidadeCotas() * 0.10);
+        long limite = (long) (cota.getGrupo().getPrazoMeses() * 0.10);
         if (limite == 0) limite = 1;
 
         if (cotasAtivasDoCliente >= limite) {

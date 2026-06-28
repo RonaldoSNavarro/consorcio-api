@@ -94,6 +94,7 @@ public class ComplianceSincronizacaoService {
                     
             java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
                     .uri(java.net.URI.create("https://sanctionslistservice.ofac.treas.gov/api/download/CONS_ADVANCED.XML"))
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
                     .timeout(java.time.Duration.ofSeconds(60))
                     .GET()
                     .build();

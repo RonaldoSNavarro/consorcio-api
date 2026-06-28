@@ -109,8 +109,10 @@ public class VendaPropostaService {
         Grupo grupo = grupoRepository.findAll().stream()
                 .filter(g -> (g.getStatus() == StatusGrupo.EM_FORMACAO || g.getStatus() == StatusGrupo.EM_ANDAMENTO))
                 .filter(g -> g.getValorCredito().compareTo(dto.valorCreditoDesejado()) == 0)
+                .filter(g -> dto.categoriaBem() == null || g.getCategoriaBem() == dto.categoriaBem())
+                .filter(g -> dto.prazoMeses() == null || g.getPrazoMeses().equals(dto.prazoMeses()))
                 .findFirst()
-                .orElseThrow(() -> new RegraDeNegocioException("Nenhum grupo disponível para o valor de crédito desejado."));
+                .orElseThrow(() -> new RegraDeNegocioException("Nenhum grupo disponível para o valor de crédito, categoria e prazo desejados."));
 
         TipoVenda tipoVenda = tipoVendaRepository.findById(dto.tipoVendaId())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Tipo de Venda não encontrado."));

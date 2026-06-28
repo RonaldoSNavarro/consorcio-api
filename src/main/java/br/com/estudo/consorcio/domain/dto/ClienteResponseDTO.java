@@ -24,17 +24,16 @@ public record ClienteResponseDTO(
         LocalDate dataCadastro,
         StatusCliente statusCliente
 ) {
-    // Construtor canônico para aplicar mascaramento automático de conformidade LGPD
     public ClienteResponseDTO(Long id, String nome, String cpfCnpj, String email, String telefone,
                               String cep, String logradouro, String numero, String complemento,
                               String bairro, String localidade, String uf, BigDecimal patrimonio,
                               BigDecimal rendaMensal, NivelRisco nivelRisco, LocalDate dataCadastro,
                               StatusCliente statusCliente) {
         this.id = id;
-        this.nome = maskName(nome);
-        this.cpfCnpj = maskCpfCnpj(cpfCnpj);
-        this.email = maskEmail(email);
-        this.telefone = maskTelefone(telefone);
+        this.nome = nome;
+        this.cpfCnpj = cpfCnpj;
+        this.email = email;
+        this.telefone = telefone;
         this.cep = cep;
         this.logradouro = logradouro;
         this.numero = numero;

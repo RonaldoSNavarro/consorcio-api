@@ -147,7 +147,7 @@ class ClienteServiceTest {
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.Pageable.unpaged();
         when(repository.findAll(pageable)).thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(c1, c2)));
 
-        org.springframework.data.domain.Page<ClienteResponseDTO> resultado = service.listarTodos(pageable);
+        org.springframework.data.domain.Page<ClienteResponseDTO> resultado = service.listarTodos(null, pageable);
 
         assertEquals(2, resultado.getContent().size());
         assertEquals("Cl*** 1*", resultado.getContent().get(0).nome());

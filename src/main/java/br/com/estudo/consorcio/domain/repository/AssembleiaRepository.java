@@ -11,4 +11,7 @@ public interface AssembleiaRepository extends JpaRepository<Assembleia, Long> {
 
     // Método para buscar todas as assembleias de um grupo específico
     List<Assembleia> findByGrupoId(Long grupoId);
+
+    // Buscar ordenado por data
+    List<Assembleia> findByGrupoIdOrderByDataAssembleiaAsc(Long grupoId);
 }

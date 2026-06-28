@@ -50,10 +50,10 @@ public class ClienteController {
             description = "Retorna os consorciados paginados. Padrão: 20 por página, ordenado por nome.")
     @GetMapping
     public ResponseEntity<Page<ClienteResponseDTO>> listar(
+            @RequestParam(required = false) String search,
             @PageableDefault(size = 20, sort = "nome") Pageable pageable) {
 
-        // Sem cast desnecessário — o service já retorna Page<ClienteResponseDTO>
-        return ResponseEntity.ok(service.listarTodos(pageable));
+        return ResponseEntity.ok(service.listarTodos(search, pageable));
     }
 
     @Operation(summary = "Buscar cliente por ID")

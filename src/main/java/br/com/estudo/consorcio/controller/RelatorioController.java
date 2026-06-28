@@ -62,4 +62,55 @@ public class RelatorioController {
         List<AlertaPldFtResponseDTO> alertas = relatorioService.gerarAlertaPldFt(dataInicio, dataFim);
         return ResponseEntity.ok(alertas);
     }
+
+    @GetMapping(value = "/balancete/{grupoId}/csv", produces = "text/csv")
+    @Operation(summary = "Exportar Balancete Contábil (Doc 4110)", description = "Gera um arquivo CSV com o balancete.")
+    public ResponseEntity<String> exportarBalanceteCsv(
+            @PathVariable Long grupoId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataReferencia) {
+        
+        if (dataReferencia == null) {
+            dataReferencia = LocalDate.now();
+        }
+        
+        BalanceteResponseDTO balancete = relatorioService.gerarBalancete(grupoId, dataReferencia);
+        
+        StringBuilder csv = new StringBuilder();
+        csv.append("CodigoCOSIF;Conta;Natureza;Saldo\n");
+        for (br.com.estudo.consorcio.domain.dto.ContaSaldoDTO c : balancete.contas()) {
+            csv.append(c.codigoCosif()).append(";")
+               .append(c.nome()).append(";")
+               .append(c.natureza()).append(";")
+               .append(c.saldo()).append("\n");
+        }
+        
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"balancete_" + grupoId + ".csv\"")
+                .body(csv.toString());
+    }
+
+    @GetMapping(value = "/estatisticas/{grupoId}/csv", produces = "text/csv")
+    @Operation(summary = "Exportar Estatísticas do Grupo (Doc 2080)", description = "Gera um arquivo CSV com as estatísticas.")
+    public ResponseEntity<String> exportarEstatisticasCsv(
+            @PathVariable Long grupoId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim) {
+        
+        EstatisticasGrupoResponseDTO est = relatorioService.gerarEstatisticas(grupoId, dataInicio, dataFim);
+        
+        StringBuilder csv = new StringBuilder();
+        csv.append("Indicador;Valor\n");
+        csv.append("Total Adesoes;").append(est.totalAdesoes()).append("\n");
+        csv.append("Total Exclusoes;").append(est.totalExclusoes()).append("\n");
+        csv.append("Lances Ofertados;").append(est.totalLancesOfertados()).append("\n");
+        csv.append("Lances Vencedores;").append(est.totalLancesVencedores()).append("\n");
+        csv.append("Contemplacoes Sorteio;").append(est.totalContemplacoesSorteio()).append("\n");
+        csv.append("Contemplacoes Lance;").append(est.totalContemplacoesLance()).append("\n");
+        csv.append("Cotas Inadimplentes;").append(est.totalCotasInadimplentes()).append("\n");
+        csv.append("Valor Liberado;").append(est.valorTotalCreditosLiberados()).append("\n");
+        
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"estatisticas_" + grupoId + ".csv\"")
+                .body(csv.toString());
+    }
 }

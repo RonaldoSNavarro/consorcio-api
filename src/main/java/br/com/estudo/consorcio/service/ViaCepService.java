@@ -12,7 +12,7 @@ public class ViaCepService {
 
     public ViaCepService() {
         this.restClient = RestClient.builder()
-                .baseUrl("https://viacep.com.br/ws")
+                .baseUrl("http://viacep.com.br/ws")
                 .build();
     }
 

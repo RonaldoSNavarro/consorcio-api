@@ -13,4 +13,7 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
     Optional<Cliente> findByCpfCnpj(String cpfCnpj);
 
     Optional<Cliente> findByEmail(String email);
+
+    @org.springframework.data.jpa.repository.Query("SELECT c FROM Cliente c WHERE :search IS NULL OR LOWER(c.nome) LIKE LOWER(CONCAT('%', :search, '%')) OR c.cpfCnpj LIKE CONCAT('%', :search, '%')")
+    org.springframework.data.domain.Page<Cliente> buscarPorPesquisa(@org.springframework.data.repository.query.Param("search") String search, org.springframework.data.domain.Pageable pageable);
 }

@@ -55,9 +55,11 @@ public class ClienteService {
     // -------------------------------------------------------------------------
 
     @Transactional(readOnly = true)
-    public Page<ClienteResponseDTO> listarTodos(Pageable pageable) {
-        return repository.findAll(pageable)
-                .map(mapper::toResponse);
+    public Page<ClienteResponseDTO> listarTodos(String search, Pageable pageable) {
+        if (search == null || search.isBlank()) {
+            return repository.findAll(pageable).map(mapper::toResponse);
+        }
+        return repository.buscarPorPesquisa(search.trim(), pageable).map(mapper::toResponse);
     }
 
     @Transactional(readOnly = true)

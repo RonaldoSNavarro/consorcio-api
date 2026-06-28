@@ -179,7 +179,7 @@ class ClienteControllerTest {
                 br.com.estudo.consorcio.domain.model.StatusCliente.ATIVO
         );
  
-        when(clienteService.listarTodos(any(Pageable.class))).thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(cliente1, cliente2)));
+        when(clienteService.listarTodos(any(), any(Pageable.class))).thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(cliente1, cliente2)));
  
         // Act & Assert
         mockMvc.perform(get("/api/clientes"))

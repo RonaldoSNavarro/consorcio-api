@@ -26,5 +26,10 @@ public enum TipoMovimentoFinanceiro {
 
     // --- Ajustes ---
     REAJUSTE_CREDITO,
-    AMORTIZACAO
+    AMORTIZACAO,
+    
+    // --- Adicionais ---
+    LANCAMENTO_MANUAL,
+    TAXA_TRANSFERENCIA,
+    RENDIMENTO_APLICACAO
 }
