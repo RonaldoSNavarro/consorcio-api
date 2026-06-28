@@ -27,6 +27,7 @@ public class VendaPropostaService {
     private final CotaRepository cotaRepository;
     private final CotaService cotaService;
     private final HistoricoConsorciadoService historicoService;
+    private final ListaRestritivaRepository listaRestritivaRepository;
 
     public VendaPropostaService(
             br.com.estudo.consorcio.domain.repository.TipoVendaRepository tipoVendaRepository,
@@ -34,13 +35,15 @@ public class VendaPropostaService {
             ClienteRepository clienteRepository,
             CotaRepository cotaRepository,
             CotaService cotaService,
-            HistoricoConsorciadoService historicoService) {
+            HistoricoConsorciadoService historicoService,
+            ListaRestritivaRepository listaRestritivaRepository) {
         this.tipoVendaRepository = tipoVendaRepository;
         this.grupoRepository = grupoRepository;
         this.clienteRepository = clienteRepository;
         this.cotaRepository = cotaRepository;
         this.cotaService = cotaService;
         this.historicoService = historicoService;
+        this.listaRestritivaRepository = listaRestritivaRepository;
     }
 
     // --- CRUD de Tipos de Venda ---
@@ -124,6 +127,13 @@ public class VendaPropostaService {
             throw new RegraDeNegocioException("Não é possível vender uma proposta para um cliente inativo.");
         }
 
+        // Compliance PLD/FT: Block OFAC and ONU
+        String nomeNormalizado = normalizar(cliente.getNome());
+        if (listaRestritivaRepository.existsByNomeAndOrigem(nomeNormalizado, OrigemListaRestritiva.OFAC) ||
+            listaRestritivaRepository.existsByNomeAndOrigem(nomeNormalizado, OrigemListaRestritiva.ONU)) {
+            throw new RegraDeNegocioException("Venda bloqueada por PLD/FT: Cliente consta em lista restritiva internacional (OFAC/ONU).");
+        }
+
         // 2. Calcula próximo número de cota
         long totalCotas = cotaRepository.countByGrupoId(grupo.getId());
         int proximoNumero = (int) totalCotas + 1;
@@ -152,5 +162,11 @@ public class VendaPropostaService {
                 tv.getId(), tv.getNome(), tv.getDescricao(), tv.getCanal(),
                 tv.getPercentualComissao(), tv.getExigeSeguro(), tv.getPermiteReajuste(),
                 tv.getAtivo(), tv.getDataCriacao());
+    }
+
+    private String normalizar(String str) {
+        if (str == null) return "";
+        String normalized = java.text.Normalizer.normalize(str, java.text.Normalizer.Form.NFD);
+        return normalized.replaceAll("\\p{M}", "").toUpperCase();
     }
 }

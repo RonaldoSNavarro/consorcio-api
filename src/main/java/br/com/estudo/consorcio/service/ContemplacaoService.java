@@ -99,6 +99,7 @@ public class ContemplacaoService {
 
         BigDecimal valorCreditoGrupo = assembleia.getGrupo().getValorCredito();
         BigDecimal valorCreditoLiberado = valorCreditoGrupo;
+        BigDecimal multaRescisoria = BigDecimal.ZERO;
 
         if (cota.getStatus() == StatusCota.CANCELADA) {
             // Nova Regra ADR 005: Devolução baseada no percentual amortizado do fundo comum aplicado sobre o crédito atual do grupo
@@ -117,7 +118,7 @@ public class ContemplacaoService {
             }
 
             BigDecimal valorBruto = PAFC.multiply(valorCreditoGrupo).setScale(2, RoundingMode.HALF_UP);
-            BigDecimal multaRescisoria = valorBruto.multiply(new BigDecimal("0.10")).setScale(2, RoundingMode.HALF_UP);
+            multaRescisoria = valorBruto.multiply(new BigDecimal("0.10")).setScale(2, RoundingMode.HALF_UP);
             valorCreditoLiberado = valorBruto.subtract(multaRescisoria).setScale(2, RoundingMode.HALF_UP);
 
             contemplacao.setLanceEmbutido(false);
@@ -174,6 +175,22 @@ public class ContemplacaoService {
                     LocalDate.now(),
                     "Restituição de cota excluída sorteada - Cota " + cota.getNumeroCota()
             );
+
+            // Reclassificar a multa rescisória do Fundo Comum para a conta de destino parametrizada pelo Grupo
+            if (multaRescisoria.compareTo(BigDecimal.ZERO) > 0) {
+                String contaDestinoMulta = (grupo.getDestinacaoMultaRescisoria() != null && grupo.getDestinacaoMultaRescisoria() == br.com.estudo.consorcio.domain.enums.DestinacaoMultaRescisoria.TAXA_ADMINISTRACAO)
+                        ? ContabilidadeService.CONTA_TAXA_ADM
+                        : ContabilidadeService.CONTA_FUNDO_RESERVA;
+
+                contabilidadeService.registrarBaixa(
+                        grupo, cota, null,
+                        ContabilidadeService.CONTA_FUNDO_COMUM,
+                        contaDestinoMulta,
+                        multaRescisoria,
+                        LocalDate.now(),
+                        "Multa rescisória sobre restituição - Cota " + cota.getNumeroCota()
+                );
+            }
         } else {
             // Se for Lance Livre ou Lance Fixo (não embutido): vai para PENDENTE_INTEGRALIZACAO e não transita crédito contábil
             if ((dto.tipoContemplacao() == TipoContemplacao.LANCE_LIVRE || dto.tipoContemplacao() == TipoContemplacao.LANCE_FIXO)

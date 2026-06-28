@@ -120,8 +120,8 @@ O sistema implementa regras de negócio financeiras extremamente robustas basead
   * **Documento 2080 (Informações Estatísticas):** Relatórios de dados de adesão, exclusão, lances e contemplações.
   * **Monitoramento PLD/FT:** Rastreabilidade automatizada de potenciais transações de lavagem de dinheiro, sinalizando lances de cotas e amortizações em espécie que excedam o valor de R$ 50.000,00.
   * **Listas Restritivas e OFAC:** Upload e cruzamento contínuo de CPFs/CNPJs contra listas de sanções internacionais (OFAC, ONU) e nacionais (PEP - Pessoas Politicamente Expostas, IBGE, CEIS, CNEP).
-  * **Sincronização Dinâmica (Cron):** Rotinas de integração em background via `DynamicSchedulerConfig` para varredura e atualização automática das listas restritivas.
-  * **Segurança e RBAC:** Acesso restrito a usuários com perfis `ROLE_ADMIN` e `ROLE_DIRETOR`.
+  * **Sincronização Dinâmica (Cron) e Manual (Upload):** Rotinas de integração em background para varredura e atualização automática das listas restritivas, com suporte a upload manual de bases de dados externas em formato CSV e TXT de fontes governamentais e internacionais.
+  * **Segurança e RBAC:** Acesso restrito a usuários com perfis `ROLE_ADMIN` e `ROLE_COMPLIANCE`.
 
 ### 12. Regulatório BCB e Retenção LGPD
 * **Arquivamento e Retenção Contábil (Legal Hold):** Garantia de retenção de dados financeiros de consorciados por no mínimo 10 anos após a decretação de encerramento do Grupo, blindando auditorias do Banco Central do Brasil.

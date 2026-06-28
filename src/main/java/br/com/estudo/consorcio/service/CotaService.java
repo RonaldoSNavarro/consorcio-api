@@ -204,14 +204,21 @@ public class CotaService {
             multaRescisoria = valorBruto.subtract(valorReembolsado).setScale(2, RoundingMode.HALF_UP);
             totalFundoComumPago = valorBruto;
         } else {
-            // Fallback para manter compatibilidade com testes legados
+            // Fallback: calcula percentual amortizado e multiplica pelo valor atual do bem
             List<Parcela> parcelasPagas = parcelaRepository.findByCotaId(cotaId).stream()
                     .filter(p -> p.getStatus() == StatusParcela.PAGA)
                     .toList();
 
-            totalFundoComumPago = parcelasPagas.stream()
-                    .map(Parcela::getValorFundoComum)
+            BigDecimal percentualAmortizado = parcelasPagas.stream()
+                    .map(p -> p.getPercentualFundoComum() != null ? p.getPercentualFundoComum() : BigDecimal.ZERO)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            BigDecimal valorBem = cota.getGrupo().getValorCredito();
+            if (valorBem != null && valorBem.compareTo(BigDecimal.ZERO) > 0) {
+                totalFundoComumPago = percentualAmortizado.multiply(valorBem).setScale(2, RoundingMode.HALF_UP);
+            } else {
+                totalFundoComumPago = BigDecimal.ZERO;
+            }
 
             multaRescisoria = totalFundoComumPago.multiply(new BigDecimal("0.10")).setScale(2, RoundingMode.HALF_UP);
             valorReembolsado = totalFundoComumPago.subtract(multaRescisoria).setScale(2, RoundingMode.HALF_UP);
@@ -242,6 +249,23 @@ public class CotaService {
             movimentoService.registrarMovimento(grupo, cota, null, null,
                     TipoMovimentoFinanceiro.MULTA_RESCISORIA, NaturezaMovimento.CREDITO,
                     multaRescisoria, "Multa rescisória de cota cancelada - Cota " + cota.getNumeroCota(), usuario);
+            
+            // Se não foi contemplada, precisamos contabilizar a retenção da multa rescisória no momento do reembolso final.
+            // (Para as contempladas, a multa já foi retida na assembleia de contemplação).
+            if (contemplacaoOpt.isEmpty()) {
+                String contaDestinoMulta = (grupo.getDestinacaoMultaRescisoria() != null && grupo.getDestinacaoMultaRescisoria() == br.com.estudo.consorcio.domain.enums.DestinacaoMultaRescisoria.TAXA_ADMINISTRACAO)
+                        ? ContabilidadeService.CONTA_TAXA_ADM
+                        : ContabilidadeService.CONTA_FUNDO_RESERVA;
+
+                contabilidadeService.registrarBaixa(
+                        grupo, cota, null,
+                        ContabilidadeService.CONTA_FUNDO_COMUM,
+                        contaDestinoMulta,
+                        multaRescisoria,
+                        LocalDate.now(),
+                        "Multa rescisória retida no encerramento - Cota " + cota.getNumeroCota()
+                );
+            }
         }
 
         // --- Registrar Interação de Histórico ---
@@ -320,7 +344,16 @@ public class CotaService {
                 List<Parcela> parcelasPagas = parcelaRepository.findByCotaId(cota.getId()).stream()
                         .filter(p -> p.getStatus() == StatusParcela.PAGA)
                         .toList();
-                valorBruto = parcelasPagas.stream().map(Parcela::getValorFundoComum).reduce(BigDecimal.ZERO, BigDecimal::add);
+                
+                BigDecimal percentualAmortizado = parcelasPagas.stream()
+                        .map(p -> p.getPercentualFundoComum() != null ? p.getPercentualFundoComum() : BigDecimal.ZERO)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                if (valorBem != null && valorBem.compareTo(BigDecimal.ZERO) > 0) {
+                    valorBruto = percentualAmortizado.multiply(valorBem).setScale(2, RoundingMode.HALF_UP);
+                } else {
+                    valorBruto = BigDecimal.ZERO;
+                }
                 multa = valorBruto.multiply(new BigDecimal("0.10")).setScale(2, RoundingMode.HALF_UP);
                 valorLiquido = valorBruto.subtract(multa).setScale(2, RoundingMode.HALF_UP);
             }

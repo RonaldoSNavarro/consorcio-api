@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import br.com.estudo.consorcio.domain.enums.CategoriaBem;
+import br.com.estudo.consorcio.domain.enums.DestinacaoMultaRescisoria;
 
 @Entity
 @Table(name = "grupos")
@@ -54,6 +55,10 @@ public class Grupo {
     @Column(name = "categoria_bem", nullable = false)
     private CategoriaBem categoriaBem = CategoriaBem.OUTROS_BENS_MOVEIS;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "destinacao_multa_rescisoria", nullable = false)
+    private DestinacaoMultaRescisoria destinacaoMultaRescisoria = DestinacaoMultaRescisoria.FUNDO_RESERVA;
+
     @Version
     private Long version;
 
@@ -99,4 +104,7 @@ public class Grupo {
 
     public CategoriaBem getCategoriaBem() { return categoriaBem; }
     public void setCategoriaBem(CategoriaBem categoriaBem) { this.categoriaBem = categoriaBem; }
+
+    public DestinacaoMultaRescisoria getDestinacaoMultaRescisoria() { return destinacaoMultaRescisoria; }
+    public void setDestinacaoMultaRescisoria(DestinacaoMultaRescisoria destinacaoMultaRescisoria) { this.destinacaoMultaRescisoria = destinacaoMultaRescisoria; }
 }

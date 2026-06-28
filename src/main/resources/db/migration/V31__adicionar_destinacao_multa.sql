@@ -1,0 +1,1 @@
+ALTER TABLE grupos ADD COLUMN destinacao_multa_rescisoria VARCHAR(50) NOT NULL DEFAULT 'FUNDO_RESERVA';

@@ -308,10 +308,12 @@ class CotaServiceTest {
         Parcela p1 = new Parcela();
         p1.setStatus(StatusParcela.PAGA);
         p1.setValorFundoComum(new BigDecimal("1000.00"));
+        p1.setPercentualFundoComum(new BigDecimal("1.00"));
 
         Parcela p2 = new Parcela();
         p2.setStatus(StatusParcela.PAGA);
         p2.setValorFundoComum(new BigDecimal("1000.00"));
+        p2.setPercentualFundoComum(new BigDecimal("1.00"));
 
         when(cotaRepository.findById(cotaId)).thenReturn(Optional.of(cota));
         when(parcelaRepository.findByCotaId(cotaId)).thenReturn(List.of(p1, p2));
