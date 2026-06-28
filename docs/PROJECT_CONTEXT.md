@@ -81,8 +81,8 @@ O `AuthContext.jsx` inicializa o token a partir do `localStorage.getItem('consor
 
 ## 📈 4. Estado Atual do Projeto
 
-- **Fase Atual:** Capability de Compliance (Listas Restritivas).
-- **Status:** Capability de Compliance (Fase 1: Listas Restritivas e Alertas) foi implementada com sucesso no backend v1.0. O monitoramento de lavagem de dinheiro da Sprint Anterior também foi alinhado à regulamentação (filtrando lances integralizados/vencedores). O motor de apuração com Loteria Federal da Sprint 5 continua vigente e todos os 107 testes da API seguem passando.
+- **Fase Atual:** Capability de Compliance PLD/FT e Regulatório BCB 285/2023 (Wave 4 Concluída).
+- **Status:** Todas as 13 exigências regulatórias (GAPs) da `consorcio-brasil` foram integradas à API. Isso inclui Algoritmos de Pedra-Chave da Loteria Federal, Fallbacks Dinâmicos, Sorteio de Excluídos e Restituição (Art. 30), Readmissão (Art. 31-A), Lance FGTS, Lance Seguro Óbito, Bloqueio Automático PLD/FT na venda/transferência, e Gestão de Inadimplência automática. A API está agora 100% aderente às diretrizes técnicas da Lei 11.795/08 e Circular/Resolução BACEN. A suíte de testes E2E do frontend e os testes da API continuam passando.
 - **Artefatos Gerados:** 
   - [constitution.md](file:///f:/Dev/Projetos/consorcio-api/docs/constitution.md) (Princípios e regras técnicas inegociáveis).
   - [REQUIREMENTS.md](file:///f:/Dev/Projetos/consorcio-api/docs/REQUIREMENTS.md) (Índice geral e modelos de dados compartilhados).

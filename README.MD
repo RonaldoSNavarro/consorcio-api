@@ -128,6 +128,15 @@ O sistema implementa regras de negócio financeiras extremamente robustas basead
 * **Expurgo e Anonimização Irreversível:** Um *Cron Job* (`LgpdAnonymizationJob`) varre diariamente e de forma autônoma os grupos cujo encerramento excedeu a janela de 10 anos, anonimizando irreversivelmente os dados PII (Nome, CPF/CNPJ, Email, Telefones e Endereços) de todos os membros (Art. 16, LGPD), mas retendo com integridade a estrutura relacional do *Double-Entry Ledger* financeiro para as declarações finais dos fundos administrados.
 * **Direito à Restituição na Exclusão:** Cotas com status `CANCELADA` participam estatutariamente dos sorteios (mas são vetadas de dar lances). Quando sorteadas, a API as contempla bloqueando a alocação de crédito da cota e procedendo unicamente com a restituição em dinheiro do Fundo Comum pago, retendo a **Multa Rescisória de 10%**.
 
+### 13. Resolução BCB 285/2023 - Conformidade Ampliada (Novo)
+* **Algoritmo de Pedra-Chave:** Motor de apuração dinâmico compatível com extração da Loteria Federal (Centena, Divisão por 10, Divisão por 1000) e direções de fallback configuráveis para garantir a imprevisibilidade de contemplados.
+* **Sorteio de Excluídos:** Separação rígida de apuração entre sorteio de cotas ATIVAS e cotas EXCLUÍDAS/CANCELADAS (para restituição legal).
+* **Gestão Rigorosa de Inadimplência:** Transição automática de status (`ATIVA` -> `SUSPENSA` com 1 a 2 parcelas em atraso; `SUSPENSA` -> `EXCLUIDA` com 3+ parcelas) através do job assíncrono diário `VerificadorInadimplenciaJob`.
+* **Novas Modalidades de Lance:** Aceite de recursos vinculados como `FGTS` e quitação automática integral por acionamento de `SEGURO_OBITO`.
+* **Readmissão de Excluído (Art. 31-A):** Readmissão de consorciados excluídos desde que sem contemplação anterior, sem parcelas pendentes e respeitando o limite de segurança de teto financeiro e concentração de risco (10%).
+* **Transferência e Cessão de Direitos:** API com auditoria completa para repasse de titularidade de cota (`/api/cotas/{id}/transferir`), assegurando histórico em `HistoricoVersaoCota`.
+* **Rateio de Fundo de Reserva:** Rendimentos financeiros aplicados a cotas ativas no encerramento (rateio de sobra de fundo).
+
 ## ⚙️ Configuração e Setup
 
 ### Pré-requisitos

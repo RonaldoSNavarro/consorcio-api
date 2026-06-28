@@ -12,6 +12,7 @@ import br.com.estudo.consorcio.domain.repository.GrupoRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
 import br.com.estudo.consorcio.domain.repository.HistoricoVersaoCotaRepository;
 import br.com.estudo.consorcio.domain.repository.ContemplacaoRepository;
+import br.com.estudo.consorcio.domain.repository.AlertaComplianceRepository;
 import java.time.LocalDate;
 import java.util.Optional;
 import br.com.estudo.consorcio.domain.dto.HistoricoVersaoCotaResponseDTO;
@@ -41,6 +42,7 @@ public class CotaService {
     private final HistoricoConsorciadoService historicoService;
     private final ContemplacaoRepository contemplacaoRepository;
     private final ContabilidadeService contabilidadeService;
+    private final AlertaComplianceRepository alertaComplianceRepository;
 
     public CotaService(CotaRepository cotaRepository, ClienteRepository clienteRepository,
                        GrupoRepository grupoRepository, ParcelaRepository parcelaRepository,
@@ -48,7 +50,8 @@ public class CotaService {
                        HistoricoVersaoCotaRepository historicoVersaoCotaRepository,
                        HistoricoConsorciadoService historicoService,
                        ContemplacaoRepository contemplacaoRepository,
-                       ContabilidadeService contabilidadeService) {
+                       ContabilidadeService contabilidadeService,
+                       AlertaComplianceRepository alertaComplianceRepository) {
         this.cotaRepository = cotaRepository;
         this.clienteRepository = clienteRepository;
         this.grupoRepository = grupoRepository;
@@ -59,6 +62,7 @@ public class CotaService {
         this.historicoService = historicoService;
         this.contemplacaoRepository = contemplacaoRepository;
         this.contabilidadeService = contabilidadeService;
+        this.alertaComplianceRepository = alertaComplianceRepository;
     }
 
     private Usuario getUsuarioAutenticado() {
@@ -124,6 +128,13 @@ public class CotaService {
 
         // Regra de Compliance LGPD/Negócio: Impedir que clientes inativos comprem novas cotas
         validarClienteAtivo(cliente);
+
+        // Bloqueio PLD/FT: Verifica se cliente está em listas restritivas (OFAC/ONU/PEP)
+        boolean hasAlertaRestritivo = alertaComplianceRepository.existsByClienteIdAndStatusIn(
+                cliente.getId(), List.of(StatusAlertaCompliance.PENDENTE_ANALISE, StatusAlertaCompliance.CONFIRMADO));
+        if (hasAlertaRestritivo) {
+            throw new RegraDeNegocioException("Operação bloqueada pelo Compliance. Cliente possui alertas restritivos (PLD/FT).");
+        }
 
         Grupo grupo = grupoRepository.findById(dto.grupoId())
                 .orElseThrow(() -> new RegraDeNegocioException("Grupo não encontrado."));
@@ -413,6 +424,13 @@ public class CotaService {
                 .orElseThrow(() -> new RegraDeNegocioException("Novo cliente não encontrado."));
 
         validarClienteAtivo(novoCliente);
+
+        // Bloqueio PLD/FT: Verifica se cliente destino está em listas restritivas
+        boolean hasAlertaRestritivo = alertaComplianceRepository.existsByClienteIdAndStatusIn(
+                novoCliente.getId(), List.of(StatusAlertaCompliance.PENDENTE_ANALISE, StatusAlertaCompliance.CONFIRMADO));
+        if (hasAlertaRestritivo) {
+            throw new RegraDeNegocioException("Transferência bloqueada pelo Compliance. Cliente destino possui alertas restritivos (PLD/FT).");
+        }
 
         if (cota.getCliente().getId().equals(novoCliente.getId())) {
             throw new RegraDeNegocioException("O novo cliente deve ser diferente do cliente atual.");
