@@ -32,6 +32,11 @@ public class Cota {
     @JoinColumn(name = "grupo_id", nullable = false)
     private Grupo grupo;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "contrato_adesao_id", unique = true)
+    private ContratoAdesao contratoAdesao;
+
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatusCota status;
