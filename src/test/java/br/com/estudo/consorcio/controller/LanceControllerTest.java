@@ -41,6 +41,9 @@ class LanceControllerTest {
     private br.com.estudo.consorcio.config.SecurityFilter securityFilter;
 
     @MockitoBean
+    private br.com.estudo.consorcio.security.IntrusionDetectionService intrusionDetectionService;
+
+    @MockitoBean
     private br.com.estudo.consorcio.service.ViaCepService viaCepService;
 
     @MockitoBean

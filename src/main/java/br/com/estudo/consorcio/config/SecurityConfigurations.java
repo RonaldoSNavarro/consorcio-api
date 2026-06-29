@@ -20,9 +20,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfigurations {
 
     private final SecurityFilter securityFilter;
+    private final br.com.estudo.consorcio.security.IntrusionDetectionFilter intrusionDetectionFilter;
 
-    public SecurityConfigurations(SecurityFilter securityFilter) {
+    public SecurityConfigurations(SecurityFilter securityFilter, br.com.estudo.consorcio.security.IntrusionDetectionFilter intrusionDetectionFilter) {
         this.securityFilter = securityFilter;
+        this.intrusionDetectionFilter = intrusionDetectionFilter;
     }
 
     @Bean
@@ -59,6 +61,7 @@ public class SecurityConfigurations {
                     // Qualquer outra rota requer autenticação
                     req.anyRequest().authenticated();
                 })
+                .addFilterBefore(intrusionDetectionFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

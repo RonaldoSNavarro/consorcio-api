@@ -60,6 +60,9 @@ class EndpointsSecurityControllerTest {
     private ParcelaService parcelaService;
 
     @MockitoBean
+    private br.com.estudo.consorcio.security.IntrusionDetectionService intrusionDetectionService;
+
+    @MockitoBean
     private TokenService tokenService;
 
     @MockitoBean

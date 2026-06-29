@@ -50,6 +50,9 @@ class ClienteControllerTest {
     @MockitoBean
     private br.com.estudo.consorcio.config.SecurityFilter securityFilter;
 
+    @MockitoBean
+    private br.com.estudo.consorcio.security.IntrusionDetectionService intrusionDetectionService;
+
     // ========================================================================
     // TESTES DE CADASTRO (POST)
     // ========================================================================
@@ -207,5 +210,41 @@ class ClienteControllerTest {
         // Testando GET sem @WithMockUser
         mockMvc.perform(get("/api/clientes"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Deve devolver 200 OK com dados mascarados se a requisição estiver marcada como suspeita")
+    void deveAplicarMascaraEmSessaoSuspeita() throws Exception {
+        // Arrange
+        ClienteResponseDTO cliente1 = new ClienteResponseDTO(
+                1L, 
+                "Ronaldo", 
+                "12345678909", 
+                "ronaldo@email.com", 
+                "11999999999",
+                "01001000",
+                "Praça da Sé",
+                "100",
+                "Apto 12",
+                "Sé",
+                "São Paulo",
+                "SP",
+                new BigDecimal("150000.00"),
+                new BigDecimal("5500.00"),
+                NivelRisco.MEDIO,
+                LocalDate.now(),
+                br.com.estudo.consorcio.domain.model.StatusCliente.ATIVO
+        );
+        
+        when(clienteService.listarTodos(any(), any(Pageable.class))).thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(cliente1)));
+ 
+        // Act & Assert
+        mockMvc.perform(get("/api/clientes")
+                        .requestAttr("suspicious_session", true))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].nome").value("Ron***"))
+                .andExpect(jsonPath("$.content[0].cpfCnpj").value("***.456.789-**"))
+                .andExpect(jsonPath("$.content[0].email").value("ron***@email.com"))
+                .andExpect(jsonPath("$.content[0].telefone").value("1199999****"));
     }
 }

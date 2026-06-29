@@ -5,6 +5,7 @@ import br.com.estudo.consorcio.domain.model.StatusCliente;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+
 public record ClienteResponseDTO(
         Long id,
         String nome,
