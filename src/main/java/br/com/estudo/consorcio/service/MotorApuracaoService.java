@@ -70,20 +70,22 @@ public class MotorApuracaoService {
         boolean realizarSorteio = (params == null || Boolean.TRUE.equals(params.realizarSorteio()));
         int numeroPremio = resolverNumeroPremio(assembleia, params);
 
+        Cota cotaAtivaSorteada = null;
         // ═══════════════════════════════════════════════
         // FASE 1: Sorteio Ativos
         // ═══════════════════════════════════════════════
         if (realizarSorteio) {
-            saldoFundoComumLivre = realizarSorteioAtivos(assembleia, grupo, saldoFundoComumLivre, cotasJaContempladas, numeroPremio);
+            cotaAtivaSorteada = realizarSorteioAtivos(assembleia, grupo, saldoFundoComumLivre, cotasJaContempladas, numeroPremio);
+            if (cotaAtivaSorteada != null) {
+                saldoFundoComumLivre = saldoFundoComumLivre.subtract(grupo.getValorCredito());
+            }
         }
 
         // ═══════════════════════════════════════════════
         // FASE 2: Sorteio Excluídos (Restituição)
         // ═══════════════════════════════════════════════
-        // TODO: Implementar busca do prêmio de excluídos (usualmente 2º prêmio ou milhar do 1º)
-        // Por hora, reusamos o número_prêmio para simplificação, mas separamos a lógica.
-        if (realizarSorteio) {
-            saldoFundoComumLivre = realizarSorteioExcluidos(assembleia, grupo, saldoFundoComumLivre, cotasJaContempladas, numeroPremio);
+        if (realizarSorteio && cotaAtivaSorteada != null) {
+            saldoFundoComumLivre = realizarSorteioExcluidos(assembleia, grupo, saldoFundoComumLivre, cotasJaContempladas, cotaAtivaSorteada.getNumeroCota());
         }
 
         // ═══════════════════════════════════════════════
@@ -97,13 +99,13 @@ public class MotorApuracaoService {
         log.info("Assembleia {} apurada e fechada com sucesso.", assembleiaId);
     }
 
-    private BigDecimal realizarSorteioAtivos(Assembleia assembleia, Grupo grupo,
+    private Cota realizarSorteioAtivos(Assembleia assembleia, Grupo grupo,
                                        BigDecimal saldoDisponivel,
                                        List<Long> cotasJaContempladas,
                                        int numeroPremio) {
         if (saldoDisponivel.compareTo(grupo.getValorCredito()) < 0) {
             log.warn("Saldo insuficiente para contemplação por sorteio de ativos na assembleia {}.", assembleia.getId());
-            return saldoDisponivel;
+            return null;
         }
 
         List<Cota> cotasAtivas = cotaRepository.findByGrupoId(grupo.getId()).stream()
@@ -111,7 +113,7 @@ public class MotorApuracaoService {
                 .filter(c -> !cotasJaContempladas.contains(c.getId()))
                 .toList();
 
-        if (cotasAtivas.isEmpty()) return saldoDisponivel;
+        if (cotasAtivas.isEmpty()) return null;
 
         int totalCotasAtivas = cotasAtivas.size();
         int pedraChave = PedraChaveCalculator.calcular(grupo.getAlgoritmoPedraChave(), numeroPremio, totalCotasAtivas);
@@ -129,16 +131,15 @@ public class MotorApuracaoService {
                     cotaSorteada.getId(), assembleia.getId(), TipoContemplacao.SORTEIO, BigDecimal.ZERO, false));
             cotasJaContempladas.add(cotaSorteada.getId());
             log.info("Sorteio Ativos: cota {} contemplada na assembleia {}.", cotaSorteada.getNumeroCota(), assembleia.getId());
-            return saldoDisponivel.subtract(grupo.getValorCredito());
+            return cotaSorteada;
         }
-        return saldoDisponivel;
+        return null;
     }
 
     private BigDecimal realizarSorteioExcluidos(Assembleia assembleia, Grupo grupo,
                                              BigDecimal saldoDisponivel,
                                              List<Long> cotasJaContempladas,
-                                             int numeroPremioExcluidos) {
-        // Excluídos recebem percentual, mas por enquanto, verificamos saldo mínimo (arbitrário ou valor_credito/2)
+                                             int numeroCotaAlvo) {
         // Simplificação: apenas garantir saldo > 0.
         if (saldoDisponivel.compareTo(BigDecimal.ZERO) <= 0) {
             return saldoDisponivel;
@@ -148,22 +149,22 @@ public class MotorApuracaoService {
         List<Cota> cotasExcluidas = cotaRepository.findByGrupoId(grupo.getId()).stream()
                 .filter(c -> c.getStatus() == StatusCota.CANCELADA || c.getStatus() == StatusCota.EXCLUIDA)
                 .filter(c -> !cotasJaContempladas.contains(c.getId()))
+                .filter(c -> c.getVersao() != null && c.getVersao() > 0)
                 .toList();
 
         if (cotasExcluidas.isEmpty()) return saldoDisponivel;
 
-        int totalCotasExcluidas = cotasExcluidas.size();
-        int pedraChave = PedraChaveCalculator.calcular(grupo.getAlgoritmoPedraChave(), numeroPremioExcluidos, totalCotasExcluidas);
-        log.info("Assembleia {}: Prêmio Excluídos = {}, Pedra Chave Excluídos = {}", assembleia.getId(), numeroPremioExcluidos, pedraChave);
+        log.info("Assembleia {}: Alvo Excluídos = cota {}", assembleia.getId(), numeroCotaAlvo);
 
-        Cota cotaSorteada = buscarCotaApta(pedraChave, cotasExcluidas, grupo.getDirecaoFallbackSorteio(), assembleia);
+        Cota cotaSorteada = buscarCotaApta(numeroCotaAlvo, cotasExcluidas, grupo.getDirecaoFallbackSorteio(), assembleia);
 
         if (cotaSorteada != null) {
             // Valor da restituição deve ser calculado, aqui usamos ZERO como DTO simplificado, contabilidade resolve
             contemplacaoService.registrar(new ContemplacaoRequestDTO(
                     cotaSorteada.getId(), assembleia.getId(), TipoContemplacao.SORTEIO, BigDecimal.ZERO, false));
             cotasJaContempladas.add(cotaSorteada.getId());
-            log.info("Sorteio Excluídos: cota {} contemplada para restituição na assembleia {}.", cotaSorteada.getNumeroCota(), assembleia.getId());
+            log.info("Sorteio Excluídos: cota {} (versão {}) contemplada para restituição na assembleia {}.", 
+                     cotaSorteada.getNumeroCota(), cotaSorteada.getVersao(), assembleia.getId());
             // No mundo real, deduziriamos o valor exato da restituição do saldo disponível
         }
         return saldoDisponivel;

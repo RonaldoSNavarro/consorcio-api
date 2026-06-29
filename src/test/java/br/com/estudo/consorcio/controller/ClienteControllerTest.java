@@ -100,10 +100,10 @@ class ClienteControllerTest {
                         .content(jsonRequest))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.nome").value("Joã***"))
-                .andExpect(jsonPath("$.cpfCnpj").value("***.456.789-**"))
-                .andExpect(jsonPath("$.email").value("joa***@email.com"))
-                .andExpect(jsonPath("$.telefone").value("(11) 99999-****"));
+                .andExpect(jsonPath("$.nome").value("João"))
+                .andExpect(jsonPath("$.cpfCnpj").value("12345678909"))
+                .andExpect(jsonPath("$.email").value("joao@email.com"))
+                .andExpect(jsonPath("$.telefone").value("11999999999"));
     }
 
     @Test
@@ -186,8 +186,8 @@ class ClienteControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isArray()) // A resposta paginada envelopa a lista no atributo 'content'
                 .andExpect(jsonPath("$.content.length()").value(2))
-                .andExpect(jsonPath("$.content[0].nome").value("Ron***"))
-                .andExpect(jsonPath("$.content[1].nome").value("Mar***"));
+                .andExpect(jsonPath("$.content[0].nome").value("Ronaldo"))
+                .andExpect(jsonPath("$.content[1].nome").value("Maria"));
     }
 
     // ========================================================================

@@ -1,5 +1,6 @@
 package br.com.estudo.consorcio.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -62,17 +63,16 @@ public class SecurityConfigurations {
                 .build();
     }
 
+    @Value("${api.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:3000}")
+    private String[] allowedOrigins;
+
     @Bean
     public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
         org.springframework.web.cors.CorsConfiguration configuration = new org.springframework.web.cors.CorsConfiguration();
-        configuration.setAllowedOrigins(java.util.List.of(
-                "http://localhost:5173", "http://127.0.0.1:5173",
-                "http://localhost:5174", "http://127.0.0.1:5174",
-                "http://localhost:3000"
-        ));
+        configuration.setAllowedOrigins(java.util.Arrays.asList(allowedOrigins));
         configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type", "Cache-Control"));
-        configuration.setExposedHeaders(java.util.List.of("Authorization"));
+        configuration.setAllowedHeaders(java.util.List.of("*"));
+        configuration.setExposedHeaders(java.util.List.of("Authorization", "Set-Cookie"));
         configuration.setAllowCredentials(true);
         org.springframework.web.cors.UrlBasedCorsConfigurationSource source = new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

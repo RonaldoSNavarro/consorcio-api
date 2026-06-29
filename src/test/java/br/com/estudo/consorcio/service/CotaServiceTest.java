@@ -54,6 +54,9 @@ class CotaServiceTest {
     @Mock
     private ContabilidadeService contabilidadeService;
 
+    @Mock
+    private br.com.estudo.consorcio.domain.repository.AlertaComplianceRepository alertaComplianceRepository;
+
     @org.mockito.Spy
     private br.com.estudo.consorcio.domain.mapper.CotaMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.CotaMapper.class);
 
@@ -308,12 +311,12 @@ class CotaServiceTest {
         Parcela p1 = new Parcela();
         p1.setStatus(StatusParcela.PAGA);
         p1.setValorFundoComum(new BigDecimal("1000.00"));
-        p1.setPercentualFundoComum(new BigDecimal("1.00"));
+        p1.setPercentualFundoComum(new BigDecimal("0.010000"));
 
         Parcela p2 = new Parcela();
         p2.setStatus(StatusParcela.PAGA);
         p2.setValorFundoComum(new BigDecimal("1000.00"));
-        p2.setPercentualFundoComum(new BigDecimal("1.00"));
+        p2.setPercentualFundoComum(new BigDecimal("0.010000"));
 
         when(cotaRepository.findById(cotaId)).thenReturn(Optional.of(cota));
         when(parcelaRepository.findByCotaId(cotaId)).thenReturn(List.of(p1, p2));

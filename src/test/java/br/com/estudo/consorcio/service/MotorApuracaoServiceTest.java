@@ -137,19 +137,26 @@ class MotorApuracaoServiceTest {
     @DisplayName("REQ-CON-007: Deve incluir e contemplar por sorteio uma cota cancelada (restituição) se o realizarSorteio for true")
     void deveContemplarPorSorteioCotaCancelada() {
         // Arrange
+        Cota cotaAtiva = new Cota();
+        cotaAtiva.setId(10L);
+        cotaAtiva.setNumeroCota(20);
+        cotaAtiva.setGrupo(grupo);
+        cotaAtiva.setStatus(StatusCota.ATIVA);
+
         Cota cotaCancelada = new Cota(); 
         cotaCancelada.setId(20L); 
         cotaCancelada.setNumeroCota(20); 
         cotaCancelada.setGrupo(grupo);
         cotaCancelada.setStatus(StatusCota.CANCELADA);
+        cotaCancelada.setVersao(1);
 
         when(assembleiaRepository.findById(2L)).thenReturn(Optional.of(assembleia));
         when(lanceRepository.findByAssembleiaIdOrderByValorOfertaDesc(2L)).thenReturn(List.of());
-        when(cotaRepository.findByGrupoId(1L)).thenReturn(List.of(cotaCancelada));
+        when(cotaRepository.findByGrupoId(1L)).thenReturn(List.of(cotaAtiva, cotaCancelada));
         
-        // Saldo Fundo Comum (tem saldo suficiente para restituir cota cancelada, que é 100k)
+        // Saldo Fundo Comum (tem saldo suficiente para restituir cota cancelada, que é 100k e a contemplação da ativa 100k)
         when(contabilidadeService.calcularSaldoConta(eq(grupo), eq(ContabilidadeService.CONTA_FUNDO_COMUM)))
-                .thenReturn(new BigDecimal("100000.00"));
+                .thenReturn(new BigDecimal("300000.00"));
 
         br.com.estudo.consorcio.domain.dto.ApuracaoRequestDTO params = 
                 new br.com.estudo.consorcio.domain.dto.ApuracaoRequestDTO(20, true);
@@ -159,11 +166,11 @@ class MotorApuracaoServiceTest {
 
         // Assert
         ArgumentCaptor<ContemplacaoRequestDTO> captor = ArgumentCaptor.forClass(ContemplacaoRequestDTO.class);
-        verify(contemplacaoService, times(1)).registrar(captor.capture());
+        verify(contemplacaoService, times(2)).registrar(captor.capture());
         
-        ContemplacaoRequestDTO registeredContemplation = captor.getValue();
-        assertEquals(20L, registeredContemplation.cotaId());
-        assertEquals(TipoContemplacao.SORTEIO, registeredContemplation.tipoContemplacao());
-        assertEquals(20, assembleia.getNumeroSorteado());
+        List<ContemplacaoRequestDTO> registered = captor.getAllValues();
+        assertEquals(10L, registered.get(0).cotaId()); // Ativa sorteada
+        assertEquals(20L, registered.get(1).cotaId()); // Excluída sorteada
+        assertEquals(TipoContemplacao.SORTEIO, registered.get(1).tipoContemplacao());
     }
 }

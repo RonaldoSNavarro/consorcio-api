@@ -129,11 +129,10 @@ public class ComplianceServiceTest {
 
         assertEquals(1, count);
 
-        ArgumentCaptor<java.util.List<ListaRestritiva>> captor = ArgumentCaptor.forClass(java.util.List.class);
-        verify(listaRestritivaRepository, times(1)).saveAll(captor.capture());
+        ArgumentCaptor<ListaRestritiva> captor = ArgumentCaptor.forClass(ListaRestritiva.class);
+        verify(listaRestritivaRepository, times(1)).save(captor.capture());
         
-        assertEquals(1, captor.getValue().size());
-        ListaRestritiva saved = (ListaRestritiva) captor.getValue().get(0);
+        ListaRestritiva saved = captor.getValue();
         assertEquals("ALTA FLORESTA D'OESTE - RO", saved.getNome());
         assertEquals("IBGE:RO:ALTA FLORESTA D'OESTE:GEMEA:SIM", saved.getDocumentoOrigem());
         assertEquals(OrigemListaRestritiva.IBGE, saved.getOrigem());

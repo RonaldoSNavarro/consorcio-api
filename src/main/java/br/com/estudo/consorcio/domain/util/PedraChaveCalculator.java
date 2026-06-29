@@ -68,7 +68,7 @@ public class PedraChaveCalculator {
     }
 
     private static int calcularDivisao1000(int numeroPremio, int totalCotas) {
-        int centena = (numeroPremio / 100) % 10;
+        int centena = numeroPremio % 1000;
         double fator = centena / 1000.0;
         double pedraRaw = fator * totalCotas;
         

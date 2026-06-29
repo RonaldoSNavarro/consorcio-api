@@ -38,6 +38,9 @@ public class AutenticacaoController {
             }
     );
 
+    @org.springframework.beans.factory.annotation.Value("${api.security.cookie.secure:false}")
+    private boolean secureCookie;
+
     public AutenticacaoController(AuthenticationManager manager, TokenService tokenService) {
         this.manager = manager;
         this.tokenService = tokenService;
@@ -70,7 +73,7 @@ public class AutenticacaoController {
 
         ResponseCookie cookie = ResponseCookie.from("token", tokenJWT)
                 .httpOnly(true)
-                .secure(false) // Para produção usar true com HTTPS
+                .secure(secureCookie)
                 .path("/")
                 .maxAge(7200) // 2 horas
                 .sameSite("Strict")
@@ -85,7 +88,7 @@ public class AutenticacaoController {
     public ResponseEntity<Void> efetuarLogout() {
         ResponseCookie cookie = ResponseCookie.from("token", "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(secureCookie)
                 .path("/")
                 .maxAge(0)
                 .sameSite("Strict")
