@@ -29,7 +29,7 @@ public class ProdutoConsorcio {
 
     private String nome;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "bem_referencia_id")
     private BemReferencia bemReferencia;
 

@@ -16,6 +16,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.GetMapping;
+import br.com.estudo.consorcio.domain.model.TipoVenda;
+import br.com.estudo.consorcio.domain.model.ProdutoConsorcio;
+import br.com.estudo.consorcio.domain.repository.TipoVendaRepository;
+import br.com.estudo.consorcio.domain.repository.ProdutoConsorcioRepository;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/vendas")
@@ -24,6 +30,23 @@ public class VendasController {
 
     private final PropostaAdesaoService propostaService;
     private final PropostaAdesaoMapper mapper;
+    private final TipoVendaRepository tipoVendaRepository;
+    private final ProdutoConsorcioRepository produtoRepository;
+
+    @GetMapping("/tipos")
+    public ResponseEntity<List<TipoVenda>> listarTiposVenda() {
+        return ResponseEntity.ok(tipoVendaRepository.findAll());
+    }
+
+    @GetMapping("/tipos/todos")
+    public ResponseEntity<List<TipoVenda>> listarTiposTodos() {
+        return ResponseEntity.ok(tipoVendaRepository.findAll());
+    }
+
+    @GetMapping("/produtos")
+    public ResponseEntity<List<ProdutoConsorcio>> listarProdutos() {
+        return ResponseEntity.ok(produtoRepository.findAll());
+    }
 
     @PostMapping("/propostas")
     public ResponseEntity<PropostaResponseDTO> criarProposta(@RequestBody @Valid PropostaRequestDTO request) {

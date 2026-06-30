@@ -1,12 +1,12 @@
 CREATE TABLE categorias_bem (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     nome VARCHAR(255) NOT NULL,
     tipo_bacen VARCHAR(50) NOT NULL,
     indice_reajuste_padrao VARCHAR(20) NOT NULL
 );
 
 CREATE TABLE bens_referencia (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     categoria_bem_id BIGINT NOT NULL,
     descricao VARCHAR(255) NOT NULL,
     valor_atual DECIMAL(15, 2) NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE bens_referencia (
 );
 
 CREATE TABLE produtos_consorcio (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     nome VARCHAR(255) NOT NULL,
     bem_referencia_id BIGINT NOT NULL,
     prazo_meses INT NOT NULL,
@@ -27,7 +27,7 @@ CREATE TABLE produtos_consorcio (
 );
 
 CREATE TABLE propostas_adesao (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     numero_proposta VARCHAR(50) UNIQUE NOT NULL,
     cliente_id BIGINT NOT NULL,
     produto_id BIGINT NOT NULL,
@@ -42,7 +42,7 @@ CREATE TABLE propostas_adesao (
 );
 
 CREATE TABLE contratos_adesao (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     numero_contrato VARCHAR(50) UNIQUE NOT NULL,
     proposta_id BIGINT NOT NULL UNIQUE,
     data_assinatura TIMESTAMP,

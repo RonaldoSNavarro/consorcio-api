@@ -19,6 +19,9 @@ public class IntrusionDetectionService {
         if (ipOrToken == null || ipOrToken.isBlank()) {
             return false;
         }
+        if ("127.0.0.1".equals(ipOrToken) || "0:0:0:0:0:0:0:1".equals(ipOrToken)) {
+            return false;
+        }
 
         long currentTime = System.currentTimeMillis();
 

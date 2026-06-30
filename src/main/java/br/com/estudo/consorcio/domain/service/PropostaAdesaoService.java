@@ -14,7 +14,7 @@ import br.com.estudo.consorcio.domain.repository.ContratoAdesaoRepository;
 import br.com.estudo.consorcio.domain.repository.ProdutoConsorcioRepository;
 import br.com.estudo.consorcio.domain.repository.PropostaAdesaoRepository;
 import br.com.estudo.consorcio.domain.repository.TipoVendaRepository;
-import br.com.estudo.consorcio.exception.BusinessException;
+import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -39,17 +39,17 @@ public class PropostaAdesaoService {
     @Transactional
     public PropostaAdesao criarProposta(PropostaRequestDTO request) {
         Cliente cliente = clienteRepository.findById(request.getClienteId())
-                .orElseThrow(() -> new BusinessException("Cliente não encontrado"));
+                .orElseThrow(() -> new RegraDeNegocioException("Cliente não encontrado"));
 
         if (cliente.getStatus() != StatusCliente.ATIVO) {
-            throw new BusinessException("RN-VND-001: Cliente inativo não pode gerar nova proposta.");
+            throw new RegraDeNegocioException("RN-VND-001: Cliente inativo não pode gerar nova proposta.");
         }
 
         ProdutoConsorcio produto = produtoRepository.findById(request.getProdutoId())
-                .orElseThrow(() -> new BusinessException("Produto não encontrado"));
+                .orElseThrow(() -> new RegraDeNegocioException("Produto não encontrado"));
 
         TipoVenda tipoVenda = tipoVendaRepository.findById(request.getTipoVendaId())
-                .orElseThrow(() -> new BusinessException("Tipo de Venda não encontrado"));
+                .orElseThrow(() -> new RegraDeNegocioException("Tipo de Venda não encontrado"));
 
         PropostaAdesao proposta = PropostaAdesao.builder()
                 .numeroProposta("PROP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
@@ -68,10 +68,10 @@ public class PropostaAdesaoService {
     @Transactional
     public ContratoAdesao aprovarProposta(Long propostaId) {
         PropostaAdesao proposta = propostaRepository.findById(propostaId)
-                .orElseThrow(() -> new BusinessException("Proposta não encontrada"));
+                .orElseThrow(() -> new RegraDeNegocioException("Proposta não encontrada"));
 
         if (proposta.getStatus() != StatusProposta.EM_ANALISE) {
-            throw new BusinessException("Apenas propostas EM_ANALISE podem ser aprovadas.");
+            throw new RegraDeNegocioException("Apenas propostas EM_ANALISE podem ser aprovadas.");
         }
 
         proposta.setStatus(StatusProposta.APROVADA);
@@ -95,10 +95,10 @@ public class PropostaAdesaoService {
     @Transactional
     public ContratoAdesao efetivarContrato(Long contratoId) {
         ContratoAdesao contrato = contratoRepository.findById(contratoId)
-                .orElseThrow(() -> new BusinessException("Contrato não encontrado"));
+                .orElseThrow(() -> new RegraDeNegocioException("Contrato não encontrado"));
 
         if (contrato.getStatus() != StatusContrato.PENDENTE_PAGAMENTO) {
-            throw new BusinessException("Contrato deve estar PENDENTE_PAGAMENTO para ser efetivado.");
+            throw new RegraDeNegocioException("Contrato deve estar PENDENTE_PAGAMENTO para ser efetivado.");
         }
 
         // RN-VND-003: Contrato só gera cota após pagamento
