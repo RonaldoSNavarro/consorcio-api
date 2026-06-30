@@ -81,8 +81,8 @@ O `AuthContext.jsx` inicializa o token a partir do `localStorage.getItem('consor
 
 ## 📈 4. Estado Atual do Projeto
 
-- **Fase Atual:** Projeto Integrado e Estabilizado (Bugs de Compliance e Lances resolvidos).
-- **Status:** Todas as 13 exigências regulatórias (GAPs) da `consorcio-brasil` foram integradas à API e testadas com sucesso via Frontend real em modo de Produção (Zero Mocks). Isso inclui Algoritmos de Pedra-Chave da Loteria Federal, Fallbacks Dinâmicos, Sorteio de Excluídos e Restituição (Art. 30), Readmissão (Art. 31-A), Lance FGTS, Lance Seguro Óbito, Bloqueio Automático PLD/FT na venda/transferência, e Gestão de Inadimplência automática. A API está agora 100% aderente às diretrizes técnicas da Lei 11.795/08 e Circular/Resolução BACEN. O sistema atingiu a sua maturidade funcional.
+- **Fase Atual:** Projeto Integrado e Estabilizado (Esteira de Vendas CRM/Comercial 100% finalizada e Otimizações de Performance aplicadas).
+- **Status:** Todas as 13 exigências regulatórias (GAPs) da `consorcio-brasil` foram integradas à API e testadas com sucesso via Frontend real em modo de Produção (Zero Mocks). A capability de **Vendas (Proposta -> Contrato -> Cota)** foi validada de ponta a ponta. Adotamos o uso híbrido de DTOs Projections (Spring Data JPA) e *Materialized Views* (PostgreSQL via Flyway V45) para aniquilar gargalos de Fetch N+1 nas Queries de totalização financeira. A API está agora 100% aderente às diretrizes técnicas da Lei 11.795/08 e Circular/Resolução BACEN. O sistema atingiu a sua maturidade funcional absoluta.
 - **Artefatos Gerados:** 
   - [constitution.md](file:///f:/Dev/Projetos/consorcio-api/docs/constitution.md) (Princípios e regras técnicas inegociáveis).
   - [REQUIREMENTS.md](file:///f:/Dev/Projetos/consorcio-api/docs/REQUIREMENTS.md) (Índice geral e modelos de dados compartilhados).
