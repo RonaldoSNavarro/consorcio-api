@@ -132,7 +132,7 @@ O sistema implementa regras de negócio financeiras extremamente robustas basead
 ### 13. Resolução BCB 285/2023 - Conformidade Ampliada (Novo)
 * **Algoritmo de Pedra-Chave:** Motor de apuração dinâmico compatível com extração da Loteria Federal (Centena, Divisão por 10, Divisão por 1000) e direções de fallback configuráveis para garantir a imprevisibilidade de contemplados.
 * **Sorteio de Excluídos:** Separação rígida de apuração entre sorteio de cotas ATIVAS e cotas EXCLUÍDAS/CANCELADAS (para restituição legal).
-* **Gestão Rigorosa de Inadimplência:** Transição automática de status (`ATIVA` -> `SUSPENSA` com 1 a 2 parcelas em atraso; `SUSPENSA` -> `EXCLUIDA` com 3+ parcelas) através do job assíncrono diário `VerificadorInadimplenciaJob`.
+* **Gestão Rigorosa de Inadimplência:** Transição automática de status (`ATIVA` -> `SUSPENSA` com 1 a 2 parcelas em atraso; `SUSPENSA` -> `EXCLUIDA` com 3+ parcelas) através do job assíncrono diário `VerificadorInadimplenciaJob`. Cotas contempladas com 3+ parcelas em atraso transitam para o status `EM_EXECUCAO` (cobrança/apreensão de bem).
 * **Novas Modalidades de Lance:** Aceite de recursos vinculados como `FGTS` e quitação automática integral por acionamento de `SEGURO_OBITO`.
 * **Readmissão de Excluído (Art. 31-A):** Readmissão de consorciados excluídos desde que sem contemplação anterior, sem parcelas pendentes e respeitando o limite de segurança de teto financeiro e concentração de risco (10%).
 * **Transferência e Cessão de Direitos:** API com auditoria completa para repasse de titularidade de cota (`/api/cotas/{id}/transferir`), assegurando histórico em `HistoricoVersaoCota`.

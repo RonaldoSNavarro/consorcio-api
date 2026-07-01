@@ -38,7 +38,7 @@ public class VerificadorInadimplenciaJob {
     public void verificarInadimplencia() {
         log.info("Iniciando rotina de verificação de inadimplência de cotas...");
         List<Cota> cotasAtivasESuspensas = cotaRepository.findAll().stream()
-                .filter(c -> c.getStatus() == StatusCota.ATIVA || c.getStatus() == StatusCota.SUSPENSA)
+                .filter(c -> c.getStatus() == StatusCota.ATIVA || c.getStatus() == StatusCota.SUSPENSA || c.getStatus() == StatusCota.CONTEMPLADA)
                 .toList();
 
         LocalDate hoje = LocalDate.now();
@@ -51,14 +51,17 @@ public class VerificadorInadimplenciaJob {
             int totalAtrasadas = parcelasAtrasadas.size();
 
             if (totalAtrasadas >= 3) {
-                // >= 3 parcelas em atraso: Excluir cota
-                if (cota.getStatus() != StatusCota.EXCLUIDA) {
+                // >= 3 parcelas em atraso
+                if (cota.getStatus() == StatusCota.CONTEMPLADA) {
+                    cotaService.registrarTransicaoVersao(cota, StatusCota.EM_EXECUCAO, "Inadimplência grave (>= 3 parcelas) de Cota Contemplada. Início de Execução.");
+                    log.info("Cota {} entrou em execução por inadimplência.", cota.getNumeroCota());
+                } else if (cota.getStatus() != StatusCota.EXCLUIDA) {
                     cotaService.registrarTransicaoVersao(cota, StatusCota.EXCLUIDA, "Exclusão por inadimplência (>= 3 parcelas).");
                     log.info("Cota {} excluída por inadimplência.", cota.getNumeroCota());
                 }
             } else if (totalAtrasadas >= 1) {
-                // 1 ou 2 parcelas em atraso: Suspender cota
-                if (cota.getStatus() != StatusCota.SUSPENSA) {
+                // 1 ou 2 parcelas em atraso: Suspender cota (apenas se não for contemplada)
+                if (cota.getStatus() == StatusCota.ATIVA) {
                     cotaService.registrarTransicaoVersao(cota, StatusCota.SUSPENSA, "Suspensão por inadimplência (1 ou 2 parcelas).");
                     log.info("Cota {} suspensa por inadimplência.", cota.getNumeroCota());
                 }
