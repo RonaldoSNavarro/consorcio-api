@@ -1,6 +1,7 @@
 package br.com.estudo.consorcio.domain.model;
 
 public enum StatusCota {
+    AGUARDANDO_PAGAMENTO,
     ATIVA,
     CANCELADA,
     CONTEMPLADA,

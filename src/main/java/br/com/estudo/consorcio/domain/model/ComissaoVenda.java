@@ -1,9 +1,7 @@
 package br.com.estudo.consorcio.domain.model;
 
-import br.com.estudo.consorcio.domain.enums.StatusProposta;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -20,41 +18,32 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "propostas_adesao")
+@Table(name = "comissoes_venda")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PropostaAdesao {
+public class ComissaoVenda {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String numeroProposta;
-
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cliente_id")
-    private Cliente cliente;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "produto_id")
-    private ProdutoConsorcio produto;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "corretor_id")
+    @JoinColumn(name = "corretor_id", nullable = false)
     private Corretor corretor;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tipo_venda_id")
-    private TipoVenda tipoVenda;
+    @JoinColumn(name = "contrato_id", nullable = false)
+    private ContratoAdesao contrato;
 
-    private BigDecimal valorCreditoSolicitado;
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal valorTotalComissao;
 
-    @Enumerated(EnumType.STRING)
-    private StatusProposta status;
+    @Column(nullable = false, length = 20)
+    private String status; // PENDENTE, DILUIDA, ESTORNADA
 
-    private LocalDateTime dataProposta;
-
-    private LocalDateTime dataAtualizacao;
+    @Builder.Default
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime dataGeracao = LocalDateTime.now();
 }

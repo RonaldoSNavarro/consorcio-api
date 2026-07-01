@@ -29,4 +29,13 @@ public interface GrupoRepository extends JpaRepository<Grupo, Long> {
         GROUP BY g.id, g.codigo
     """)
     List<br.com.estudo.consorcio.domain.dto.GrupoFinanceiroDTO> findGruposFinanceiroResumo();
+
+    @org.springframework.data.jpa.repository.Query("""
+        SELECT g FROM Grupo g WHERE g.categoriaBem = :categoria
+        AND (g.status = 'EM_ANDAMENTO' OR g.status = 'EM_FORMACAO')
+        AND (SELECT COUNT(c) FROM Cota c WHERE c.grupo = g) < 100
+        ORDER BY g.status ASC, (SELECT COUNT(c) FROM Cota c WHERE c.grupo = g) DESC
+        LIMIT 1
+    """)
+    Optional<Grupo> encontrarMelhorGrupoDisponivel(@org.springframework.data.repository.query.Param("categoria") br.com.estudo.consorcio.domain.enums.CategoriaBem categoria);
 }

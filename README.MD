@@ -190,3 +190,4 @@ A interface foi organizada para refletir o ciclo de vida real de um consÃ³rcio:
 
 ---
 **Projeto desenvolvido por Ronaldo Navarro** - Foco em Engenharia de Back-end e Sistemas Financeiros.
+* **CRM e Vendas:** Motor de originação de consórcios com cadastro de Corretores, orçamentação e Propostas de Adesão. Tipos de Venda determinam o comissionamento de cada produto, enquanto a Alocação Inteligente encontra o melhor grupo (em andamento ou formação) para alocar o consorciado através de cruzamento da Categoria do Bem e limite de cotas. As regras de cálculo e estornos de Comissões serão estendidas em módulo futuro, tendo a primeira parcela do consórcio composta integralmente por Taxa de Administração e Fundo de Reserva.

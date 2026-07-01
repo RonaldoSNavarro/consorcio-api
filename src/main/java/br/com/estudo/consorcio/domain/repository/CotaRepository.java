@@ -9,11 +9,16 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface CotaRepository extends JpaRepository<Cota, Long> {
 
     Page<Cota> findByClienteId(Long clienteId, Pageable pageable);
+
+    Optional<Cota> findByNumeroCotaAndGrupo_Codigo(Integer numeroCota, String codigoGrupo);
+    
+    Optional<Cota> findByContratoAdesaoId(Long contratoAdesaoId);
 
     Page<Cota> findByGrupoId(Long grupoId, Pageable pageable);
     
