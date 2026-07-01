@@ -83,6 +83,25 @@ public class GrupoService {
 
         Grupo grupoInaugurado = repository.save(grupo);
 
+        // Atualiza todas as cotas AGUARDANDO_INAUGURACAO para ATIVA
+        List<Cota> cotas = cotaRepository.findByGrupoId(id);
+        Usuario usuario = getUsuarioAutenticado();
+        for (Cota cota : cotas) {
+            if (cota.getStatus() == br.com.estudo.consorcio.domain.model.StatusCota.AGUARDANDO_INAUGURACAO) {
+                cota.setStatus(br.com.estudo.consorcio.domain.model.StatusCota.ATIVA);
+                cota.setVersao(cota.getVersao() != null ? cota.getVersao() + 1 : 1);
+                cotaRepository.save(cota);
+                historicoService.registrarInteracao(
+                        cota.getCliente(), cota, grupoInaugurado, null,
+                        br.com.estudo.consorcio.domain.model.TipoInteracao.OUTROS, 
+                        "Cota ativada devido à inauguração do grupo (1ª AGO).",
+                        null, null, 
+                        null, null, null, 
+                        null, null, usuario
+                );
+            }
+        }
+
         return mapper.toResponse(grupoInaugurado);
     }
 

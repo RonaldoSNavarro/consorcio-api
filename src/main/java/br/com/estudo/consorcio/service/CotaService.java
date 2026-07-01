@@ -159,8 +159,12 @@ public class CotaService {
         cota.setCliente(cliente);
         cota.setGrupo(grupo);
 
-        // Garante a regra de negócio da cota nascer ATIVA (reforçando o @PrePersist)
-        cota.setStatus(StatusCota.ATIVA);
+        // A cota nasce AGUARDANDO_INAUGURACAO se o grupo estiver EM_FORMACAO, e ATIVA se EM_ANDAMENTO
+        if (grupo.getStatus() == br.com.estudo.consorcio.domain.model.StatusGrupo.EM_FORMACAO) {
+            cota.setStatus(StatusCota.AGUARDANDO_INAUGURACAO);
+        } else {
+            cota.setStatus(StatusCota.ATIVA);
+        }
 
         // 3. Persistência
         Cota cotaSalva = cotaRepository.save(cota);
