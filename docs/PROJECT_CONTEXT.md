@@ -97,3 +97,10 @@ O `AuthContext.jsx` inicializa o token a partir do `localStorage.getItem('consor
 ## âš ï¸ PadrÃµes de CÃ³digo InegociÃ¡veis
 
 > Para a lista completa e detalhada de padrÃµes inegociÃ¡veis, consulte [constitution.md](file:///f:/Dev/Projetos/consorcio-api/docs/constitution.md) (SeÃ§Ãµes 3, 4, 5 e 6).
+
+## ? Fases do Projeto
+
+* **Fase 1:** Backend Estrutural e Autenticação ?
+* **Fase 2:** Domínio de Consórcios e Orquestração (BCB) ?
+* **Fase 3:** Frontend SPA e Automação de QA E2E (Playwright) ?
+
