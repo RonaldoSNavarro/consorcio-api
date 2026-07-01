@@ -141,7 +141,7 @@ O sistema implementa regras de negócio financeiras extremamente robustas basead
 ### 14. Esteira de Vendas de Cotas (CRM/Comercial)
 * **Gestão de Produtos e Categorias:** Criação de Planos de Consórcio embasados em Bens de Referência (ex: Tabela FIPE ou INCC), garantindo parametrização estrita de taxas e fundos.
 * **Proposta e Análise:** Geração de propostas de adesão (Status `EM_ANALISE`), travando o valor do crédito base do produto.
-* **Efetivação de Contratos:** Ao aprovar uma proposta, gera-se o contrato e a fatura de adesão. A cota só nasce no grupo (Status `ATIVA`) após o pagamento da 1ª parcela de adesão, fechando a esteira comercial.
+  * **Efetivação de Contratos e Inauguração:** Ao aprovar uma proposta, gera-se o contrato e the fatura de adesão. A cota nasce aguardando a inauguração do grupo (`AGUARDANDO_INAUGURACAO`) se o mesmo for novo (`EM_FORMACAO`). As cotas só são transicionadas para `ATIVA` em lote através da oficialização da 1ª AGO, ou instantaneamente caso entrem como reposição num grupo `EM_ANDAMENTO`.
 * **Performance Híbrida (Anti N+1):** O motor de fechamento de vendas combina Queries Projetadas em DTOs (para tempo real) e Materialized Views (para analítico), evitando degradação de banco (N+1 Fetching).
 
 ## ⚙️ Configuração e Setup
