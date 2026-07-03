@@ -15,11 +15,14 @@ import br.com.estudo.consorcio.domain.repository.ProdutoConsorcioRepository;
 import br.com.estudo.consorcio.domain.repository.PropostaAdesaoRepository;
 import br.com.estudo.consorcio.domain.repository.TipoVendaRepository;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
+import br.com.estudo.consorcio.domain.model.StatusAlertaCompliance;
+import br.com.estudo.consorcio.domain.repository.AlertaComplianceRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -31,6 +34,7 @@ public class PropostaAdesaoService {
     private final ClienteRepository clienteRepository;
     private final ProdutoConsorcioRepository produtoRepository;
     private final TipoVendaRepository tipoVendaRepository;
+    private final AlertaComplianceRepository alertaComplianceRepository;
     
     // Injeção dos services reais de Cota/Grupo
     // private final GrupoAlocacaoService grupoAlocacaoService;
@@ -43,6 +47,14 @@ public class PropostaAdesaoService {
 
         if (cliente.getStatus() != StatusCliente.ATIVO) {
             throw new RegraDeNegocioException("RN-VND-001: Cliente inativo não pode gerar nova proposta.");
+        }
+
+        boolean hasRestrictedAlerts = alertaComplianceRepository.existsByClienteIdAndStatusIn(
+                cliente.getId(), 
+                List.of(StatusAlertaCompliance.PENDENTE_ANALISE, StatusAlertaCompliance.CONFIRMADO)
+        );
+        if (hasRestrictedAlerts) {
+            throw new RegraDeNegocioException("Venda bloqueada por PLD/FT: Cliente possui alertas restritivos.");
         }
 
         ProdutoConsorcio produto = produtoRepository.findById(request.getProdutoId())
