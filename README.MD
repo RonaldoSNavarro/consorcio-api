@@ -1,4 +1,4 @@
-# üè¢ Cons√≥rcio API
+Ôªø# üè¢ Cons√≥rcio API
 
 Um sistema back-end de alta performance para administra√ß√£o e gerenciamento de cons√≥rcios, desenvolvido em **Java 21** com **Spring Boot 4.0.6** (Spring Framework 7). Este projeto implementa regras de neg√≥cio financeiras reais baseadas nas normativas do Banco Central do Brasil (BCB) e no C√≥digo de Defesa do Consumidor (CDC).
 
@@ -190,4 +190,4 @@ A interface foi organizada para refletir o ciclo de vida real de um cons√≥rcio:
 
 ---
 **Projeto desenvolvido por Ronaldo Navarro** - Foco em Engenharia de Back-end e Sistemas Financeiros.
-* **CRM e Vendas:** Motor de originaÁ„o de consÛrcios com cadastro de Corretores, orÁamentaÁ„o e Propostas de Ades„o. Tipos de Venda determinam o comissionamento de cada produto, enquanto a AlocaÁ„o Inteligente encontra o melhor grupo (em andamento ou formaÁ„o) para alocar o consorciado atravÈs de cruzamento da Categoria do Bem e limite de cotas. As regras de c·lculo e estornos de Comissıes ser„o estendidas em mÛdulo futuro, tendo a primeira parcela do consÛrcio composta integralmente por Taxa de AdministraÁ„o e Fundo de Reserva.
+* **CRM e Vendas:** Motor de origina√ß√£o de cons√≥rcios com cadastro de Corretores, or√ßamenta√ß√£o e Propostas de Ades√£o. Tipos de Venda determinam o comissionamento de cada produto, enquanto a Aloca√ß√£o Inteligente encontra o melhor grupo (em andamento ou forma√ß√£o) para alocar o consorciado atrav√©s de cruzamento da Categoria do Bem e limite de cotas. As regras de c√°lculo e estornos de Comiss√µes ser√£o estendidas em m√≥dulo futuro, tendo a primeira parcela do cons√≥rcio composta integralmente por Taxa de Administra√ß√£o e Fundo de Reserva.
