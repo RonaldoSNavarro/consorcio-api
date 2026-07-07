@@ -12,6 +12,8 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
@@ -23,6 +25,10 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -153,7 +159,7 @@ public class ComplianceServiceTest {
         pep.setDocumentoOrigem("***.531.324-**");
         pep.setOrigem(OrigemListaRestritiva.PEP);
 
-        when(clienteRepository.findAll()).thenReturn(List.of(cliente));
+        when(clienteRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cliente))).thenReturn(Page.empty());
         when(listaRestritivaRepository.findAll()).thenReturn(List.of(pep));
         when(alertaComplianceRepository.existsByClienteIdAndListaRestritivaId(1L, 10L)).thenReturn(false);
 
@@ -177,12 +183,33 @@ public class ComplianceServiceTest {
         ibge.setDocumentoOrigem("IBGE:RO:ALTA FLORESTA D'OESTE");
         ibge.setOrigem(OrigemListaRestritiva.IBGE);
 
-        when(clienteRepository.findAll()).thenReturn(List.of(cliente));
+        when(clienteRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cliente))).thenReturn(Page.empty());
         when(listaRestritivaRepository.findAll()).thenReturn(List.of(ibge));
         when(alertaComplianceRepository.existsByClienteIdAndListaRestritivaId(2L, 20L)).thenReturn(false);
 
         matchComplianceService.cruzarBaseDeClientes();
 
         verify(alertaComplianceRepository).save(any());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "Osama Bin Laden, OSAMA BIN LADEN, true",
+        "Osama Bin Laden, OSAMA BIN LADIN, true",
+        "Osama Bin Laden, OSAMA BEN LADEN, true",
+        "Osama Bin Laden, OSAMA BIN LADEN JR, true",
+        "Osama Bin Laden, GEORGE BUSH, false"
+    })
+    public void testJaroWinklerNameSimilarity(String name1, String name2, boolean shouldMatch) {
+        org.apache.commons.text.similarity.JaroWinklerSimilarity jaro = new org.apache.commons.text.similarity.JaroWinklerSimilarity();
+        double score = jaro.apply(normalizar(name1), normalizar(name2));
+        boolean match = score >= 0.90;
+        assertEquals(shouldMatch, match, "Comparison between '" + name1 + "' and '" + name2 + "' score: " + score);
+    }
+
+    private String normalizar(String str) {
+        if (str == null) return "";
+        String normalized = java.text.Normalizer.normalize(str, java.text.Normalizer.Form.NFD);
+        return normalized.replaceAll("\\p{M}", "").toUpperCase();
     }
 }

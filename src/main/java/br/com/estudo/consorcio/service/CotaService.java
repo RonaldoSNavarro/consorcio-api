@@ -43,6 +43,8 @@ public class CotaService {
     private final ContemplacaoRepository contemplacaoRepository;
     private final ContabilidadeService contabilidadeService;
     private final AlertaComplianceRepository alertaComplianceRepository;
+    private final ComissaoVendaService comissaoService;
+    private final CorretorService corretorService;
 
     public CotaService(CotaRepository cotaRepository, ClienteRepository clienteRepository,
                        GrupoRepository grupoRepository, ParcelaRepository parcelaRepository,
@@ -51,7 +53,9 @@ public class CotaService {
                        HistoricoConsorciadoService historicoService,
                        ContemplacaoRepository contemplacaoRepository,
                        ContabilidadeService contabilidadeService,
-                       AlertaComplianceRepository alertaComplianceRepository) {
+                       AlertaComplianceRepository alertaComplianceRepository,
+                       ComissaoVendaService comissaoService,
+                       CorretorService corretorService) {
         this.cotaRepository = cotaRepository;
         this.clienteRepository = clienteRepository;
         this.grupoRepository = grupoRepository;
@@ -63,6 +67,8 @@ public class CotaService {
         this.contemplacaoRepository = contemplacaoRepository;
         this.contabilidadeService = contabilidadeService;
         this.alertaComplianceRepository = alertaComplianceRepository;
+        this.comissaoService = comissaoService;
+        this.corretorService = corretorService;
     }
 
     private Usuario getUsuarioAutenticado() {
@@ -200,6 +206,38 @@ public class CotaService {
                 cota.getGrupo().getValorCredito(), null,
                 null, null, null,
                 null, null, usuario);
+
+        // --- Estorno / Clawback de Comissão (Regra de Garantia) ---
+        if (cota.getContratoAdesao() != null && cota.getContratoAdesao().getProposta() != null 
+            && cota.getContratoAdesao().getProposta().getTipoVenda() != null) {
+            br.com.estudo.consorcio.domain.model.ContratoAdesao contrato = cota.getContratoAdesao();
+            br.com.estudo.consorcio.domain.model.TipoVenda tipoVenda = contrato.getProposta().getTipoVenda();
+            
+            if (tipoVenda.getMesesGarantiaComissao() != null && tipoVenda.getPercentualEstorno() != null) {
+                long parcelasPagasCount = parcelaRepository.findByCotaId(cotaId).stream()
+                        .filter(p -> p.getStatus() == StatusParcela.PAGA)
+                        .count();
+                
+                if (parcelasPagasCount < tipoVenda.getMesesGarantiaComissao()) {
+                    comissaoService.buscarPorContratoEStatus(contrato.getId(), "PAGA").ifPresent(comissao -> {
+                        BigDecimal valorEstorno = comissao.getValorTotalComissao().multiply(tipoVenda.getPercentualEstorno());
+                        
+                        br.com.estudo.consorcio.domain.model.Corretor corretor = comissao.getCorretor();
+                        corretorService.adicionarDividaClawback(corretor, valorEstorno);
+                        
+                        comissaoService.estornarComissao(comissao);
+                        
+                        // Ledger: debitar contas a receber (do corretor) e creditar Taxa Adm
+                        contabilidadeService.registrarBaixa(cota.getGrupo(), cota, null,
+                                ContabilidadeService.CONTA_DIREITOS_RECEBER,
+                                ContabilidadeService.CONTA_TAXA_ADM,
+                                valorEstorno,
+                                java.time.LocalDate.now(),
+                                "Clawback de comissão - Cancelamento antes da garantia. Contrato " + contrato.getId());
+                    });
+                }
+            }
+        }
 
         return mapper.toResponse(cota);
     }
@@ -436,7 +474,16 @@ public class CotaService {
             throw new RegraDeNegocioException("Transferência bloqueada pelo Compliance. Cliente destino possui alertas restritivos (PLD/FT).");
         }
 
-        if (cota.getCliente().getId().equals(novoCliente.getId())) {
+        // Bloqueio PLD/FT: Verifica se cliente origem (cedente) está em listas restritivas
+        if (cota.getCliente() != null) {
+            boolean hasAlertaRestritivoOrigem = alertaComplianceRepository.existsByClienteIdAndStatusIn(
+                    cota.getCliente().getId(), List.of(StatusAlertaCompliance.PENDENTE_ANALISE, StatusAlertaCompliance.CONFIRMADO));
+            if (hasAlertaRestritivoOrigem) {
+                throw new RegraDeNegocioException("Transferência bloqueada pelo Compliance. Cliente de origem possui alertas restritivos (PLD/FT).");
+            }
+        }
+
+        if (cota.getCliente() != null && cota.getCliente().getId().equals(novoCliente.getId())) {
             throw new RegraDeNegocioException("O novo cliente deve ser diferente do cliente atual.");
         }
 
@@ -500,6 +547,15 @@ public class CotaService {
             throw new RegraDeNegocioException("Cota contemplada não pode ser readmitida sob esta regra.");
         }
 
+        // Bloqueio PLD/FT: Verifica se cliente possui alertas restritivos
+        if (cota.getCliente() != null) {
+            boolean hasAlertaRestritivoReadmissao = alertaComplianceRepository.existsByClienteIdAndStatusIn(
+                    cota.getCliente().getId(), List.of(StatusAlertaCompliance.PENDENTE_ANALISE, StatusAlertaCompliance.CONFIRMADO));
+            if (hasAlertaRestritivoReadmissao) {
+                throw new RegraDeNegocioException("Readmissão bloqueada pelo Compliance. Cliente possui alertas restritivos (PLD/FT).");
+            }
+        }
+
         // Valida se as parcelas atrasadas foram pagas/regularizadas
         boolean possuiAtraso = parcelaRepository.existsByCotaIdAndStatusAndDataVencimentoBefore(
                 cotaId, StatusParcela.PENDENTE, LocalDate.now());
@@ -508,9 +564,12 @@ public class CotaService {
         }
 
         // Valida limite de 10%
-        long cotasAtivasDoCliente = cotaRepository.findByGrupoId(cota.getGrupo().getId(), Pageable.unpaged()).stream()
-                .filter(c -> c.getCliente().getId().equals(cota.getCliente().getId()) && c.getStatus() == StatusCota.ATIVA)
-                .count();
+        long cotasAtivasDoCliente = 0;
+        if (cota.getCliente() != null) {
+            cotasAtivasDoCliente = cotaRepository.findByGrupoId(cota.getGrupo().getId(), Pageable.unpaged()).stream()
+                    .filter(c -> c.getCliente() != null && c.getCliente().getId().equals(cota.getCliente().getId()) && c.getStatus() == StatusCota.ATIVA)
+                    .count();
+        }
         
         long limite = (long) (cota.getGrupo().getPrazoMeses() * 0.10);
         if (limite == 0) limite = 1;

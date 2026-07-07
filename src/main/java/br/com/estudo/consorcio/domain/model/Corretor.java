@@ -38,4 +38,8 @@ public class Corretor {
     @Builder.Default
     @Column(nullable = false, updatable = false)
     private LocalDateTime dataCriacao = LocalDateTime.now();
+
+    @Builder.Default
+    @Column(nullable = false, precision = 12, scale = 2)
+    private java.math.BigDecimal saldoDevedor = java.math.BigDecimal.ZERO;
 }

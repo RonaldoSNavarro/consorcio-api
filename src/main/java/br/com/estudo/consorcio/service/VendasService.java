@@ -35,7 +35,8 @@ public class VendasService {
     private final ContratoAdesaoRepository contratoRepository;
     private final GrupoRepository grupoRepository;
     private final CotaRepository cotaRepository;
-    private final ComissaoVendaRepository comissaoRepository;
+    private final ComissaoVendaService comissaoService;
+    private final ContabilidadeService contabilidadeService;
 
     @Transactional
     public PropostaAdesao criarProposta(Cliente cliente, ProdutoConsorcio produto, TipoVenda tipoVenda, Corretor corretor, BigDecimal valorCredito) {
@@ -125,13 +126,19 @@ public class VendasService {
 
         if (contrato.getProposta().getCorretor() != null) {
             BigDecimal comissao = contrato.getProposta().getValorCreditoSolicitado().multiply(contrato.getProposta().getTipoVenda().getPercentualComissao());
-            ComissaoVenda com = ComissaoVenda.builder()
-                    .corretor(contrato.getProposta().getCorretor())
-                    .contrato(contrato)
-                    .valorTotalComissao(comissao)
-                    .status("PENDENTE")
-                    .build();
-            comissaoRepository.save(com);
+            ComissaoVenda com = comissaoService.criarComissaoPendente(contrato.getProposta().getCorretor(), contrato, comissao);
+
+            if (Boolean.TRUE.equals(contrato.getProposta().getTipoVenda().getLiberacaoComissaoImediata())) {
+                comissaoService.pagarComissao(com);
+                
+                // Pagar comissão debitando da Taxa de Adm e creditando no Caixa
+                contabilidadeService.registrarBaixa(cota.getGrupo(), cota, null, 
+                        br.com.estudo.consorcio.service.ContabilidadeService.CONTA_TAXA_ADM, 
+                        br.com.estudo.consorcio.service.ContabilidadeService.CONTA_CAIXA, 
+                        comissao, 
+                        java.time.LocalDate.now(), 
+                        "Pagamento imediato de comissão - Contrato " + contrato.getId());
+            }
         }
     }
 

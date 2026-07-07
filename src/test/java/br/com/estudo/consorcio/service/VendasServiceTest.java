@@ -13,7 +13,8 @@ import br.com.estudo.consorcio.domain.model.PropostaAdesao;
 import br.com.estudo.consorcio.domain.model.StatusCota;
 import br.com.estudo.consorcio.domain.model.StatusGrupo;
 import br.com.estudo.consorcio.domain.model.TipoVenda;
-import br.com.estudo.consorcio.domain.repository.ComissaoVendaRepository;
+import br.com.estudo.consorcio.service.ComissaoVendaService;
+import br.com.estudo.consorcio.service.ContabilidadeService;
 import br.com.estudo.consorcio.domain.repository.ContratoAdesaoRepository;
 import br.com.estudo.consorcio.domain.repository.GrupoRepository;
 import br.com.estudo.consorcio.domain.repository.PropostaAdesaoRepository;
@@ -48,7 +49,10 @@ class VendasServiceTest {
     private CotaRepository cotaRepository;
 
     @Mock
-    private ComissaoVendaRepository comissaoRepository;
+    private ComissaoVendaService comissaoService;
+
+    @Mock
+    private ContabilidadeService contabilidadeService;
 
     @InjectMocks
     private VendasService vendasService;
@@ -140,6 +144,6 @@ class VendasServiceTest {
         assertEquals(StatusContrato.EFETIVADO, contrato.getStatus());
         assertEquals(StatusCota.ATIVA, cota.getStatus());
         
-        verify(comissaoRepository).save(any());
+        verify(comissaoService, times(1)).criarComissaoPendente(any(), any(), any());
     }
 }

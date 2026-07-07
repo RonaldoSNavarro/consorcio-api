@@ -11,6 +11,7 @@ import br.com.estudo.consorcio.domain.repository.ContemplacaoRepository;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
 import br.com.estudo.consorcio.domain.repository.LanceRepository;
+import br.com.estudo.consorcio.domain.repository.AlertaComplianceRepository;
 import java.util.Optional;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -35,12 +36,14 @@ public class ContemplacaoService {
     private final HistoricoConsorciadoService historicoService;
     private final LanceRepository lanceRepository;
     private final CotaMapper cotaMapper;
+    private final AlertaComplianceRepository alertaComplianceRepository;
 
     public ContemplacaoService(ContemplacaoRepository contemplacaoRepository, AssembleiaRepository assembleiaRepository,
                                CotaRepository cotaRepository, ParcelaRepository parcelaRepository,
                                ContemplacaoMapper mapper, ContabilidadeService contabilidadeService,
                                CotaService cotaService, HistoricoConsorciadoService historicoService,
-                               LanceRepository lanceRepository, CotaMapper cotaMapper) {
+                               LanceRepository lanceRepository, CotaMapper cotaMapper,
+                               AlertaComplianceRepository alertaComplianceRepository) {
         this.contemplacaoRepository = contemplacaoRepository;
         this.assembleiaRepository = assembleiaRepository;
         this.cotaRepository = cotaRepository;
@@ -51,6 +54,7 @@ public class ContemplacaoService {
         this.historicoService = historicoService;
         this.lanceRepository = lanceRepository;
         this.cotaMapper = cotaMapper;
+        this.alertaComplianceRepository = alertaComplianceRepository;
     }
 
     private Usuario getUsuarioAutenticado() {
@@ -69,6 +73,16 @@ public class ContemplacaoService {
 
         Cota cota = cotaRepository.findById(dto.cotaId())
                 .orElseThrow(() -> new RegraDeNegocioException("Cota não encontrada."));
+
+        if (cota.getCliente() != null) {
+            boolean hasRestrictedAlerts = alertaComplianceRepository.existsByClienteIdAndStatusIn(
+                    cota.getCliente().getId(),
+                    List.of(StatusAlertaCompliance.PENDENTE_ANALISE, StatusAlertaCompliance.CONFIRMADO)
+            );
+            if (hasRestrictedAlerts) {
+                throw new RegraDeNegocioException("Contemplação bloqueada por Compliance/PLD: Cliente possui alertas restritivos.");
+            }
+        }
 
         if (!cota.getGrupo().getId().equals(assembleia.getGrupo().getId())) {
             throw new RegraDeNegocioException("A cota e a assembleia pertencem a grupos diferentes.");

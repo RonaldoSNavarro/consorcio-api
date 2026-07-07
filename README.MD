@@ -1,4 +1,4 @@
-﻿# 🏢 Consórcio API
+# 🏢 Consórcio API
 
 Um sistema back-end de alta performance para administração e gerenciamento de consórcios, desenvolvido em **Java 21** com **Spring Boot 4.0.6** (Spring Framework 7). Este projeto implementa regras de negócio financeiras reais baseadas nas normativas do Banco Central do Brasil (BCB) e no Código de Defesa do Consumidor (CDC).
 
@@ -186,8 +186,10 @@ A interface foi organizada para refletir o ciclo de vida real de um consórcio:
 > **Acesse em:** `http://localhost:8080/swagger-ui.html`
 
 ---
-**Status Final do Projeto:** Todas as Capabilities foram entregues, integrações E2E resolvidas e refinamentos de estabilidade aplicados com sucesso. O sistema opera em produção com alta confiabilidade (sem simulações e sem erros de CSS/Mocking).
+**Status Final do Projeto:** Todas as Capabilities principais foram entregues e validadas por meio de testes unitários e de integração (100% de sucesso). Este é um **projeto de estudos** para fins de portfólio (não opera em produção), com o objetivo de demonstrar habilidades em Engenharia de Back-end, arquitetura limpa e desenvolvimento guiado a domínio em sistemas financeiros complexos.
 
 ---
 **Projeto desenvolvido por Ronaldo Navarro** - Foco em Engenharia de Back-end e Sistemas Financeiros.
-* **CRM e Vendas:** Motor de originação de consórcios com cadastro de Corretores, orçamentação e Propostas de Adesão. Tipos de Venda determinam o comissionamento de cada produto, enquanto a Alocação Inteligente encontra o melhor grupo (em andamento ou formação) para alocar o consorciado através de cruzamento da Categoria do Bem e limite de cotas. As regras de cálculo e estornos de Comissões serão estendidas em módulo futuro, tendo a primeira parcela do consórcio composta integralmente por Taxa de Administração e Fundo de Reserva.
+* **CRM, Vendas e Comissões:** Motor de originação de consórcios com cadastro de Corretores, orçamentação e Propostas de Adesão. A inteligência de `TipoVenda` determina as regras de comissionamento. O sistema já gerencia integralmente Comissões de corretores, possuindo gatilhos contábeis inteligentes (liquidação na adesão ou na 1ª parcela) e um motor automatizado de Estornos (Clawback) que aciona dívidas caso ocorra cancelamento prematuro de cotas.
+* **Arquitetura Desacoplada:** Princípios de Domain-Driven Design (DDD) garantem a segregação de repositórios através de camadas de serviço especializadas, evitando vazamento de regras de negócios.
+* **Compliance Avançado:** O motor de PLD/FT conta com algoritmos precisos de similaridade de strings (Jaro-Winkler) para matching seguro de entidades suspeitas contra Listas Restritivas (OFAC, ONU), além de travas regulatórias (Siscoaf) e máquina de estados para emissão de alertas.
