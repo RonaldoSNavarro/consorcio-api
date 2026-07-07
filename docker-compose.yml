@@ -5,13 +5,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # Aponta para o banco de dados PostgreSQL rodando na máquina host
-      # 'host.docker.internal' funciona em Docker for Windows/Mac
       - SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:5432/consorcio_db
-      # Você pode substituir essas variáveis por variáveis de ambiente reais do seu SO se desejar,
-      # ou manter os valores padrão configurados no properties.
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - JWT_SECRET=3f2b1c0a4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - JWT_SECRET=${JWT_SECRET:-3f2b1c0a4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a}
     extra_hosts:
       - "host.docker.internal:host-gateway"
