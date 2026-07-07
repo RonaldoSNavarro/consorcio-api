@@ -27,16 +27,19 @@ public class ParcelaService {
     private final MovimentoFinanceiroService movimentoService;
     private final HistoricoConsorciadoService historicoService;
     private final ContabilidadeService contabilidadeService;
+    private final ComissaoVendaService comissaoService;
 
     public ParcelaService(ParcelaRepository parcelaRepository, CotaRepository cotaRepository,
                           ParcelaMapper mapper, MovimentoFinanceiroService movimentoService,
-                          HistoricoConsorciadoService historicoService, ContabilidadeService contabilidadeService) {
+                          HistoricoConsorciadoService historicoService, ContabilidadeService contabilidadeService,
+                          ComissaoVendaService comissaoService) {
         this.parcelaRepository = parcelaRepository;
         this.cotaRepository = cotaRepository;
         this.mapper = mapper;
         this.movimentoService = movimentoService;
         this.historicoService = historicoService;
         this.contabilidadeService = contabilidadeService;
+        this.comissaoService = comissaoService;
     }
 
     private Usuario getUsuarioAutenticado() {
@@ -59,6 +62,19 @@ public class ParcelaService {
 
         // 3. Regra de negócio: Parcela nasce PENDENTE e calcula o percentual de amortização correspondente
         parcela.setStatus(StatusParcela.PENDENTE);
+
+        // --- Regra de Comissões e Fundo Comum Zerado (Vendas) ---
+        if (parcela.getNumeroParcela() == 1 && cota.getContratoAdesao() != null 
+                && cota.getContratoAdesao().getProposta() != null 
+                && cota.getContratoAdesao().getProposta().getTipoVenda() != null) {
+            
+            TipoVenda tipoVenda = cota.getContratoAdesao().getProposta().getTipoVenda();
+            if (Boolean.TRUE.equals(tipoVenda.getParcelaUmZeroFundoComum())) {
+                BigDecimal fundoComumOriginal = parcela.getValorFundoComum();
+                parcela.setValorTaxaAdministracao(parcela.getValorTaxaAdministracao().add(fundoComumOriginal));
+                parcela.setValorFundoComum(BigDecimal.ZERO);
+            }
+        }
 
         BigDecimal valorFundoComum = parcela.getValorFundoComum();
         BigDecimal valorCredito = cota.getGrupo().getValorCredito();
@@ -157,6 +173,26 @@ public class ParcelaService {
                 parcelaMapeada.getCota().getGrupo().getValorCredito(), parcelaMapeada.getValorFundoComum(),
                 parcelaMapeada.getValorTaxaAdministracao(), parcelaMapeada.getValorFundoReserva(), parcelaMapeada.getValorSeguro(),
                 null, null, usuario);
+
+        // --- Pagamento de Comissão (Gatilho da 1ª Parcela) ---
+        if (Integer.valueOf(1).equals(parcelaMapeada.getNumeroParcela()) && cota.getContratoAdesao() != null) {
+            br.com.estudo.consorcio.domain.model.ContratoAdesao contrato = cota.getContratoAdesao();
+            if (contrato.getProposta() != null && contrato.getProposta().getTipoVenda() != null) {
+                br.com.estudo.consorcio.domain.model.TipoVenda tipoVenda = contrato.getProposta().getTipoVenda();
+                if (Boolean.FALSE.equals(tipoVenda.getLiberacaoComissaoImediata())) {
+                    comissaoService.buscarPorContratoEStatus(contrato.getId(), "PENDENTE").ifPresent(comissao -> {
+                        comissaoService.pagarComissao(comissao);
+                        
+                        contabilidadeService.registrarBaixa(grupo, cota, parcelaMapeada, 
+                                ContabilidadeService.CONTA_TAXA_ADM, 
+                                ContabilidadeService.CONTA_CAIXA, 
+                                comissao.getValorTotalComissao(), 
+                                java.time.LocalDate.now(), 
+                                "Pagamento de comissão pela compensação da 1ª Parcela - Contrato " + contrato.getId());
+                    });
+                }
+            }
+        }
 
         return mapper.toResponse(parcelaMapeada); // Usar o mapper
     }

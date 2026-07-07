@@ -432,4 +432,78 @@ class CotaServiceTest {
         // Verifica o Ledger contábil: Débito de 3240.00 na conta de excluídos e Crédito em Caixa
         verify(contabilidadeService, times(1)).registrarBaixa(grupo, cota, null, ContabilidadeService.CONTA_EXCLUIDOS_DEVOLVER, ContabilidadeService.CONTA_CAIXA, new BigDecimal("3240.00"), LocalDate.now(), "Desembolso de reembolso de excluído - Cota 44");
     }
+
+    @Test
+    @DisplayName("Deve barrar transferência de cota se o cliente cedente (origem) tiver alerta restritivo de compliance")
+    void deveBarrarTransferenciaSeCedenteComAlertaRestritivo() {
+        // --- ARRANGE ---
+        Long cotaId = 1L;
+        Cota cota = new Cota();
+        cota.setId(cotaId);
+        cota.setStatus(StatusCota.ATIVA);
+        cota.setVersao(0);
+
+        Cliente cedente = new Cliente();
+        cedente.setId(10L);
+        cedente.setNome("Cedente");
+        cota.setCliente(cedente);
+
+        Grupo grupo = new Grupo();
+        grupo.setId(2L);
+        cota.setGrupo(grupo);
+
+        Cliente novoCliente = new Cliente();
+        novoCliente.setId(20L);
+        novoCliente.setNome("Cessionario");
+        novoCliente.setStatus(StatusCliente.ATIVO);
+
+        br.com.estudo.consorcio.domain.dto.TransferirCotaRequestDTO dto = 
+                new br.com.estudo.consorcio.domain.dto.TransferirCotaRequestDTO(20L, "Venda", new BigDecimal("100.00"));
+
+        when(cotaRepository.findById(cotaId)).thenReturn(Optional.of(cota));
+        when(clienteRepository.findById(20L)).thenReturn(Optional.of(novoCliente));
+
+        // Mock para o novoCliente (sem alertas)
+        when(alertaComplianceRepository.existsByClienteIdAndStatusIn(eq(20L), anyList())).thenReturn(false);
+        // Mock para o cedente (com alerta)
+        when(alertaComplianceRepository.existsByClienteIdAndStatusIn(eq(10L), anyList())).thenReturn(true);
+
+        // Act & Assert
+        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class, 
+                () -> service.transferirCota(cotaId, dto));
+        assertTrue(exception.getMessage().contains("Transferência bloqueada pelo Compliance. Cliente de origem possui alertas restritivos"));
+        verify(cotaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve barrar readmissão de cota se o cliente tiver alerta restritivo de compliance")
+    void deveBarrarReadmissaoSeClienteComAlertaRestritivo() {
+        // --- ARRANGE ---
+        Long cotaId = 1L;
+        Cota cota = new Cota();
+        cota.setId(cotaId);
+        cota.setStatus(StatusCota.EXCLUIDA);
+        cota.setVersao(0);
+        cota.setReembolsada(false);
+
+        Cliente cliente = new Cliente();
+        cliente.setId(10L);
+        cota.setCliente(cliente);
+
+        Grupo grupo = new Grupo();
+        grupo.setId(2L);
+        cota.setGrupo(grupo);
+
+        when(cotaRepository.findById(cotaId)).thenReturn(Optional.of(cota));
+        when(contemplacaoRepository.findTopByCotaIdOrderByDataContemplacaoDesc(cotaId)).thenReturn(Optional.empty());
+
+        // Mock para o cliente (com alerta)
+        when(alertaComplianceRepository.existsByClienteIdAndStatusIn(eq(10L), anyList())).thenReturn(true);
+
+        // Act & Assert
+        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class, 
+                () -> service.readmitirCota(cotaId));
+        assertTrue(exception.getMessage().contains("Readmissão bloqueada pelo Compliance. Cliente possui alertas restritivos"));
+        verify(cotaRepository, never()).save(any());
+    }
 }

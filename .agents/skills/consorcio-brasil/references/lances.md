@@ -13,7 +13,9 @@ de excluídos, e só ocorrem se houver saldo disponível no fundo comum.
 
 ## 2. Tipos de Lance
 
-### 2.1 Lance Livre
+No consórcio, o lance é uma oferta de antecipação de pagamento. No sistema, a entidade define `tipo` (EMBUTIDO, FIRME, MISTO, FGTS, SEGURO_OBITO) e `modalidade` (LIVRE, FIXO).
+
+### 2.1 Lance Livre (Firme)
 - Consorciado define livremente o valor ou percentual a ofertar
 - Não há limite máximo (exceto o valor total da carta)
 - **Vence o maior percentual** em relação ao valor do crédito do grupo
@@ -59,6 +61,10 @@ Exemplo:
 - Disponível apenas para consórcio de imóveis (moradia própria)
 - Processamento pode ter prazo mais longo (verificação junto à CEF)
 - O valor é tratado como lance livre em termos de apuração percentual
+
+### 2.5 Lance Misto
+- Combinação de recursos próprios (Lance Firme) com parte do crédito (Lance Embutido).
+- Maximiza o percentual ofertado sem exigir descapitalização total imediata.
 
 ---
 
@@ -188,23 +194,35 @@ Solicitar que os empatados ofertem um valor adicional; vence o maior.
 7. Aplicar critério de desempate (configurado em contrato)
 8. Marcar vencedores como VENCEDOR (contemplação CONDICIONAL)
 9. Marcar perdedores como PERDEDOR
-10. Notificar vencedores do prazo de pagamento
+10. Notificar vencedores do prazo de pagamento (transição para PENDENTE_PAGAMENTO)
 11. Job de monitoramento:
-    - Se pago no prazo → confirmar contemplação
-    - Se não pago → desclassificar → promover próximo da fila
+    - Se pago no prazo   status PAGO e cota avança para AGUARDANDO_ANALISE
+    - Se não pago (prazo expira)   status EXPIRADO   desclassificar   promover próximo da fila
+
+> [!CAUTION]
+> **PLD/FT Threshold:** Lances vencedores pagos com recursos próprios em valor ≥ R$ 50.000,00 geram notificação automática de compliance (Siscoaf) conforme Circular BCB 3.978/2020.
 ```
 
 ---
 
 ## 6. Confirmação e Homologação da Contemplação por Lance
 
-- A contemplação por lance é **CONDICIONAL** até o pagamento efetivo
-- Prazo típico: **24h a 72h** após a AGO (definido em contrato)
+- A contemplação por lance é **CONDICIONAL** até o pagamento efetivo (ADR 004).
+- A cota recebe o status intermediário `PENDENTE_INTEGRALIZACAO` para proteger o caixa do grupo.
+- Prazo típico: **2 a 5 dias úteis** após a AGO (definido em contrato).
 - Se o vencedor não pagar:
-  1. Status → `CANCELADO`
-  2. Próximo da fila (2º maior percentual) assume
-  3. Se também não pagar → próximo, e assim por diante
-  4. Se nenhum pagar → SEM contemplação por lance nessa AGO
+  1. Lance expira e cota perde status PENDENTE_INTEGRALIZACAO.
+  2. Status do lance passa a `EXPIRADO` ou `CANCELADO`.
+  3. Próximo da fila (2º maior percentual) assume.
+
+### Status do Lance (`StatusLance` - 7 Estados)
+1. `REGISTRADO`: Oferta captada, aguardando AGO.
+2. `VENCEDOR`: Apurado como maior percentual.
+3. `PERDEDOR`: Não atingiu o corte.
+4. `PENDENTE_PAGAMENTO`: Vencedor aguardando depósito/transferência bancária.
+5. `PAGO`: Recursos confirmados no Fundo Comum.
+6. `EXPIRADO`: Prazo de pagamento encerrou sem recursos.
+7. `CANCELADO`: Cancelado pelo cliente antes da AGO ou por irregularidade.
 
 **Base legal:** Art. 69 do Regulamento Santander (referência de mercado):
 > "A Contemplação por Lance apenas será homologada após o efetivo recebimento pela
@@ -218,7 +236,9 @@ Conforme Art. 9º, Circular 3432 / Resolução BCB 285:
 
 O valor do lance embutido deve:
 1. Ser **deduzido integralmente** do crédito a ser distribuído
-2. Destinar-se ao **abatimento de prestações vincendas** (fundo comum + encargos)
+2. Destinar-se ao abatimento de prestações vincendas (fundo comum + encargos), que pode ocorrer por:
+   - **Redução de Prazo:** Quita as parcelas de trás para frente, mantendo o valor da parcela atual.
+   - **Diluição:** Mantém o prazo original e recalcula o valor das parcelas (reduz a mensalidade).
 3. Ser **contabilizado em conta específica** (separado do fundo comum)
 
 ```

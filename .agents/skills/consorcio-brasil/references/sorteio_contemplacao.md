@@ -220,7 +220,27 @@ Onde `percentual_amortizado` = (meses pagos / prazo total).
 
 ---
 
-## 6. Casos Especiais
+## 6. Ciclo de Vida da Contemplação (`StatusContemplacao`)
+
+A contemplação passa por uma máquina de estados complexa antes do uso da carta:
+
+1. **CONTEMPLADA / AGUARDANDO_PAGAMENTO:** Contemplação registrada (se lance, aguarda integralização - ADR 004).
+2. **PENDENTE_INTEGRALIZACAO:** Status transitório para lances (2-5 dias úteis) para compensação bancária.
+3. **AGUARDANDO_ANALISE:** Sorteio realizado ou lance pago. Início do envio de garantias e comprovação de renda (margem 30%).
+4. **CREDITO_LIBERADO:** Análise aprovada, carta emitida.
+5. **CREDITO_UTILIZADO:** Pagamento efetuado ao fornecedor do bem (Nota Fiscal validada).
+6. **CANCELADA:** Reversão por fraude, falta de garantia, ou desistência.
+
+### Tipos de Contemplação (`TipoContemplacao`)
+- `SORTEIO`: Via pedra-chave Loteria Federal.
+- `LANCE_LIVRE`: Via lance percentual livre.
+- `LANCE_FIXO`: Via lance percentual parametrizado.
+- `LANCE_EMBUTIDO`: Uso do próprio crédito.
+- `LANCE_FGTS`: Via recursos do FGTS.
+
+---
+
+## 7. Casos Especiais
 
 ### Nenhuma cota apta encontrada
 - Registrar na ata: "Não houve contemplação por sorteio nesta AGO por ausência de cota apta"
@@ -239,10 +259,11 @@ Onde `percentual_amortizado` = (meses pagos / prazo total).
 - Ao usar o algoritmo de divisão, `total_cotas_ativas` = contagem real de cotas ativas
 - A pedra-chave é um índice posicional: buscar a N-ésima cota apta na lista ordenada
 - Ou usar o número de cota diretamente, conforme o contrato definir
+- **Cotas canceladas:** Devem ser tratadas conforme política de renumeração/substituição do contrato
 
 ---
 
-## 7. Registro de Auditoria (obrigatório na ata)
+## 8. Registro de Auditoria (obrigatório na ata)
 
 A ata da AGO deve conter:
 ```

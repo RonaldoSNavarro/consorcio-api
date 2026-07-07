@@ -9,6 +9,8 @@ description: >
   reserva, inadimplência, exclusão, restituição, assembleias (AGO/AGE), transferência de cotas,
   regras do BACEN (Circular 3432/2009 e Resolução BCB 285/2023), modelagem de dados,
   desenvolvimento de APIs ou qualquer outro tema relacionado a consórcios no Brasil.
+  Também inclui conhecimentos sobre: PLD/FT (Lavagem de Dinheiro), LGPD, Contabilidade COSIF,
+  Seguros Prestamistas, Análise de Crédito, e Liquidação de Grupos.
   Deve ser usada SEMPRE que o usuário mencionar palavras como "consórcio", "contemplação",
   "assembleia", "cota", "carta de crédito", "fundo comum", "lance", "sorteio", "BACEN consórcio",
   "administradora de consórcio" ou qualquer variante, mesmo que a pergunta pareça simples.
@@ -28,6 +30,9 @@ Sempre que o trabalho envolver:
 - Implementação de algoritmos de sorteio (Loteria Federal)
 - Regras de lance (livre, fixo, embutido, FGTS) e desempate
 - Cálculo de parcelas, reajustes, fundo comum, restituição de excluídos
+- Contabilidade COSIF (partidas dobradas) e obrigações de PLD/FT (COAF)
+- Esteira de Vendas, Análise de Crédito Pós-contemplação e Seguros Prestamistas
+- Encerramento de grupos e regras de anonimização (LGPD)
 - Compliance com regulamentação do BACEN
 - Dúvidas sobre qualquer aspecto operacional ou legal de consórcios
 
@@ -45,6 +50,15 @@ arquivo de referência correspondente:
 | Lances: tipos, apuração e desempate | `references/lances.md` |
 | Financeiro: parcelas, reajustes, índices | `references/financeiro.md` |
 | Grupos e cotas: ciclo de vida e status | `references/grupos_cotas.md` |
+| Inadimplência, PDD e Cobrança | `references/inadimplencia_cobranca.md` |
+| Pipeline de Vendas e Contratos | `references/vendas_pipeline.md` |
+| Contabilidade COSIF (Ledger) | `references/contabilidade_cosif.md` |
+| Compliance, PLD/FT e Jaro-Winkler | `references/compliance_pldft.md` |
+| Encerramento de Grupos e RNP | `references/encerramento_grupo.md` |
+| Seguros e Sinistros | `references/seguros_sinistros.md` |
+| Auditoria e Concorrência (Optimistic) | `references/auditoria_historico.md` |
+| LGPD e Anonimização (Expurgo) | `references/lgpd_anonimizacao.md` |
+| Análise de Crédito e Garantias | `references/analise_credito.md` |
 
 ---
 
@@ -133,21 +147,40 @@ FASE 4 — Registro em Ata
 
 ---
 
-## Status de uma Cota (ciclo de vida)
+## Status de uma Cota (ciclo de vida resumido)
+
+A cota passa por 14 estados no sistema. Aqui estão os principais transicionais:
 
 ```
-NÃO_COMERCIALIZADA → ATIVA → CONTEMPLADA
-                          ↓         ↓
-                      SUSPENSA  (continua pagando)
-                          ↓
-                      EXCLUIDA → (sorteio de excluídos para restituição)
+AGUARDANDO_PAGAMENTO   ATIVA   CONTEMPLADA   PENDENTE_INTEGRALIZACAO   AGUARDANDO_ANALISE   APROVADO   CREDITO_LIBERADO   QUITADA
+                                     
+                      SUSPENSA / INADIMPLENTE
+                           
+                      EXCLUIDA   (sorteio de excluídos para restituição)
+                      
+                      EM_EXECUCAO / JURIDICO
 ```
 
-- **ATIVA:** Adimplente; participa de sorteios e pode ofertar lances
-- **SUSPENSA:** Inadimplente mas ainda não atingiu 3 parcelas; NÃO participa de sorteios de ativos
-- **EXCLUIDA:** ≥3 parcelas consecutivas inadimplentes; participa de sorteio de excluídos para restituição
-- **CONTEMPLADA:** Recebeu a carta de crédito; continua obrigada a pagar parcelas
-- **NÃO_COMERCIALIZADA:** Vaga ainda não vendida; não participa de nenhum sorteio
+- **ATIVA:** Adimplente; participa de sorteios e pode ofertar lances.
+- **PENDENTE_INTEGRALIZACAO:** Venceu lance livre, aguarda pagamento (ADR 004).
+- **AGUARDANDO_ANALISE:** Cota contemplada, aguardando aprovação de garantias/renda.
+- **SUSPENSA:** Inadimplente (1-2 parcelas); NÃO participa de sorteios.
+- **EXCLUIDA:** ≥3 parcelas inadimplentes; participa de sorteio de excluídos.
+- **CONTEMPLADA:** Recebeu a carta de crédito; continua obrigada a pagar parcelas.
+- *(Veja a lista completa de 14 estados em `references/grupos_cotas.md`)*
+
+---
+
+## ADRs Vigentes (Architecture Decision Records)
+O sistema foi desenvolvido seguindo ADRs específicos documentados em `PROJECT_CONTEXT.md`:
+- **ADR 004 (Lances):** Contemplação condicional. A cota vai para `PENDENTE_INTEGRALIZACAO` e aguarda pagamento do lance antes de ir para `AGUARDANDO_ANALISE`.
+- **ADR 005 (Restituição de Excluídos):** Restituição é baseada no *percentual amortizado* vezes o valor do bem atual, com desconto da multa rescisória.
+- **ADR 006 (Encerramento/PDD):** Baixa de inadimplência (write-off) via PDD ativa antes do encerramento oficial do grupo.
+
+---
+
+## Contabilidade de Dupla Entrada (COSIF)
+Todas as movimentações financeiras são duplas (Débito/Crédito) seguindo o Plano Contábil do BACEN (COSIF). As contas principais estão entre 2.1 (Passivo) e 3.1/4.1 (Despesa/Receita). Consultar `references/contabilidade_cosif.md` para detalhes dos lançamentos de arrecadação, pagamento, e baixa/PDD.
 
 ---
 
@@ -164,8 +197,9 @@ NÃO_COMERCIALIZADA → ATIVA → CONTEMPLADA
 
 ## Para Implementação: Carregue os Arquivos de Referência
 
-- **Algoritmos de sorteio detalhados** → `references/sorteio_contemplacao.md`
-- **Regras de lance e desempate** → `references/lances.md`
-- **Reajustes e cálculos financeiros** → `references/financeiro.md`
-- **Ciclo de vida de grupos e cotas** → `references/grupos_cotas.md`
-- **Base legal (Circular 3432, Resolução 285, Lei 11795)** → `references/legislacao.md`
+- **Algoritmos de sorteio e ADR 004**   `references/sorteio_contemplacao.md`
+- **Regras de lance e desempate**   `references/lances.md`
+- **Reajustes e amortizações**   `references/financeiro.md`
+- **Ciclo de vida estendido (14 estados)**   `references/grupos_cotas.md`
+- **Base legal e BACEN**   `references/legislacao.md`
+- *(E os novos módulos: COSIF, PLD/FT, LGPD, Cobrança, Vendas, Análise de Crédito, Seguros, Encerramento e Auditoria na pasta `references/`)*

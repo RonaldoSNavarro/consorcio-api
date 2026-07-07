@@ -45,8 +45,24 @@ public class Lance {
     @Column(name = "modalidade", nullable = false)
     private ModalidadeLance modalidade;
 
+    @Column(name = "notificar_siscoaf", nullable = false)
+    private boolean notificarSiscoaf = false;
+
     @Version
     private Long version;
+
+    public Lance(Long id, Cota cota, Assembleia assembleia, TipoLance tipo, BigDecimal valorOferta, LocalDateTime dataOferta, StatusApuracaoLance statusApuracao, ModalidadeLance modalidade, Long version) {
+        this.id = id;
+        this.cota = cota;
+        this.assembleia = assembleia;
+        this.tipo = tipo;
+        this.valorOferta = valorOferta;
+        this.dataOferta = dataOferta;
+        this.statusApuracao = statusApuracao;
+        this.modalidade = modalidade;
+        this.version = version;
+        this.notificarSiscoaf = false;
+    }
 
     @PrePersist
     protected void onCreate() {
@@ -59,5 +75,18 @@ public class Lance {
         if (this.modalidade == null) {
             this.modalidade = ModalidadeLance.LIVRE;
         }
+        atualizarNotificarSiscoaf();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        atualizarNotificarSiscoaf();
+    }
+
+    private void atualizarNotificarSiscoaf() {
+        this.notificarSiscoaf = this.statusApuracao == StatusApuracaoLance.VENCEDOR
+                && this.tipo == TipoLance.FIRME
+                && this.valorOferta != null
+                && this.valorOferta.compareTo(new BigDecimal("50000.00")) >= 0;
     }
 }

@@ -63,3 +63,9 @@ Your goal is to help me write high-quality Spring Boot applications by following
 - **Spring Security:** Use Spring Security for authentication and authorization.
 - **Password Encoding:** Always encode passwords using a strong hashing algorithm like BCrypt.
 - **Input Sanitization:** Prevent SQL injection by using Spring Data JPA or parameterized queries. Prevent Cross-Site Scripting (XSS) by properly encoding output.
+
+## Padrões Específicos do Consórcio API
+- **Spec-Driven Development (SDD):** A lógica de negócios (`@Service`) deve obrigatoriamente refletir as entidades e agregações descritas na documentação e specs (em `docs/specs/`). A spec é a fonte da verdade.
+- **Concorrência Otimista (Optimistic Locking):** O projeto utiliza mapeamento de concorrência com `@Version` em entidades críticas (Cota, Grupo, etc.). Garanta que as exceções `OptimisticLockException` sejam devidamente tratadas na camada de serviço ou controller com respostas HTTP 409 Conflict (ou retentativas lógicas).
+- **Contabilidade COSIF:** As lógicas transacionais em serviços devem obedecer à regra de Partida Dobrada (natureza débito e crédito) em entidades de log ou de lançamentos de conta.
+- **Jobs Críticos:** As rotinas automatizadas (`@Scheduled`), como `VerificadorInadimplenciaJob` e `LgpdAnonymizationJob`, devem processar volumes elevados empregando paginação e gerindo as transações (via `@Transactional`) em *batches* apropriados, não em uma única grande transação.

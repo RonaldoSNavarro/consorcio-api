@@ -61,3 +61,8 @@ Your goal is to help me write effective unit tests with JUnit 5, covering both s
 - Use `@TestMethodOrder(MethodOrderer.OrderAnnotation.class)` and `@Order` to control test execution order when strictly necessary.
 - Use `@Disabled` to temporarily skip a test method or class, providing a reason.
 - Use `@Nested` to group tests in a nested inner class for better organization and structure.
+
+## Padrões Específicos do Consórcio API
+- **Testes Data-Driven:** Empregue fortemente `@ParameterizedTest` (como `@CsvSource` ou `@EnumSource`) para cobrir todas as transições das máquinas de estado complexas (ex: `StatusCota` com seus 14 estados, `StatusLance`).
+- **Cálculos Financeiros:** Em asserts de cálculo financeiro ou proporções, utilize verificação estrita de `BigDecimal`, garantindo a validação de escalas e do arredondamento (como `RoundingMode.HALF_EVEN`).
+- **Isolamento em Lançamentos COSIF:** Certifique-se de que os testes que validam partidas dobradas financeiras estejam totalmente isolados (ex: mockando serviços externos ou validando o banco em memória para cada teste de persistência).

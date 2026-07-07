@@ -43,6 +43,18 @@ public class TipoVenda {
     @Column(nullable = false)
     private Boolean ativo = true;
 
+    @Column(nullable = false)
+    private Boolean parcelaUmZeroFundoComum = false;
+
+    @Column(nullable = false)
+    private Boolean liberacaoComissaoImediata = false;
+
+    @Column(nullable = false)
+    private Integer mesesGarantiaComissao = 0;
+
+    @Column(nullable = false, precision = 5, scale = 4)
+    private BigDecimal percentualEstorno = BigDecimal.ZERO;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime dataCriacao = LocalDateTime.now();
 
@@ -63,6 +75,14 @@ public class TipoVenda {
     public void setPermiteReajuste(Boolean permiteReajuste) { this.permiteReajuste = permiteReajuste; }
     public Boolean getAtivo() { return ativo; }
     public void setAtivo(Boolean ativo) { this.ativo = ativo; }
+    public Boolean getParcelaUmZeroFundoComum() { return parcelaUmZeroFundoComum; }
+    public void setParcelaUmZeroFundoComum(Boolean parcelaUmZeroFundoComum) { this.parcelaUmZeroFundoComum = parcelaUmZeroFundoComum; }
+    public Boolean getLiberacaoComissaoImediata() { return liberacaoComissaoImediata; }
+    public void setLiberacaoComissaoImediata(Boolean liberacaoComissaoImediata) { this.liberacaoComissaoImediata = liberacaoComissaoImediata; }
+    public Integer getMesesGarantiaComissao() { return mesesGarantiaComissao; }
+    public void setMesesGarantiaComissao(Integer mesesGarantiaComissao) { this.mesesGarantiaComissao = mesesGarantiaComissao; }
+    public BigDecimal getPercentualEstorno() { return percentualEstorno; }
+    public void setPercentualEstorno(BigDecimal percentualEstorno) { this.percentualEstorno = percentualEstorno; }
     public LocalDateTime getDataCriacao() { return dataCriacao; }
     public void setDataCriacao(LocalDateTime dataCriacao) { this.dataCriacao = dataCriacao; }
 }

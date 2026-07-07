@@ -62,6 +62,9 @@ class ContemplacaoServiceTest {
     @org.mockito.Spy
     private br.com.estudo.consorcio.domain.mapper.ContemplacaoMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.ContemplacaoMapper.class);
 
+    @Mock
+    private br.com.estudo.consorcio.domain.repository.AlertaComplianceRepository alertaComplianceRepository;
+
     @InjectMocks
     private ContemplacaoService service;
 
@@ -396,5 +399,50 @@ class ContemplacaoServiceTest {
         verify(cotaService, times(1)).registrarTransicaoVersao(cota, StatusCota.ATIVA, "Contemplação cancelada por atraso na integralização do lance.");
         assertEquals(StatusApuracaoLance.INVALIDO, lance.getStatusApuracao());
         verify(contemplacaoRepository, times(1)).delete(contemplacao);
+    }
+
+    @Test
+    @DisplayName("Deve barrar e lançar exceção ao tentar registrar contemplação para cliente com alertas restritivos de compliance")
+    void deveBarrarContemplacaoComAlertaRestritivo() {
+        // --- ARRANGE ---
+        Long idCota = 1L;
+        Long idAssembleia = 2L;
+
+        Grupo grupo = new Grupo();
+        grupo.setId(10L);
+
+        Assembleia assembleia = new Assembleia();
+        assembleia.setId(idAssembleia);
+        assembleia.setGrupo(grupo);
+        assembleia.setDataAssembleia(LocalDate.now());
+
+        Cliente cliente = new Cliente();
+        cliente.setId(5L);
+
+        Cota cota = new Cota();
+        cota.setId(idCota);
+        cota.setGrupo(grupo);
+        cota.setStatus(StatusCota.ATIVA);
+        cota.setCliente(cliente);
+
+        ContemplacaoRequestDTO request = new ContemplacaoRequestDTO(
+                idCota,
+                idAssembleia,
+                TipoContemplacao.SORTEIO,
+                null,
+                false
+        );
+
+        when(assembleiaRepository.findById(idAssembleia)).thenReturn(Optional.of(assembleia));
+        when(cotaRepository.findById(idCota)).thenReturn(Optional.of(cota));
+        when(alertaComplianceRepository.existsByClienteIdAndStatusIn(
+                eq(5L),
+                anyList()
+        )).thenReturn(true);
+
+        // --- ACT & ASSERT ---
+        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class, () -> service.registrar(request));
+        assertTrue(exception.getMessage().contains("Contemplação bloqueada por Compliance/PLD"));
+        verify(contemplacaoRepository, never()).save(any());
     }
 }

@@ -86,6 +86,14 @@ public class PropostaAdesaoService {
             throw new RegraDeNegocioException("Apenas propostas EM_ANALISE podem ser aprovadas.");
         }
 
+        boolean hasRestrictedAlerts = alertaComplianceRepository.existsByClienteIdAndStatusIn(
+                proposta.getCliente().getId(),
+                List.of(StatusAlertaCompliance.PENDENTE_ANALISE, StatusAlertaCompliance.CONFIRMADO)
+        );
+        if (hasRestrictedAlerts) {
+            throw new RegraDeNegocioException("Venda bloqueada por PLD/FT: Cliente possui alertas restritivos.");
+        }
+
         proposta.setStatus(StatusProposta.APROVADA);
         proposta.setDataAtualizacao(LocalDateTime.now());
         propostaRepository.save(proposta);
@@ -111,6 +119,14 @@ public class PropostaAdesaoService {
 
         if (contrato.getStatus() != StatusContrato.PENDENTE_PAGAMENTO) {
             throw new RegraDeNegocioException("Contrato deve estar PENDENTE_PAGAMENTO para ser efetivado.");
+        }
+
+        boolean hasRestrictedAlerts = alertaComplianceRepository.existsByClienteIdAndStatusIn(
+                contrato.getProposta().getCliente().getId(),
+                List.of(StatusAlertaCompliance.PENDENTE_ANALISE, StatusAlertaCompliance.CONFIRMADO)
+        );
+        if (hasRestrictedAlerts) {
+            throw new RegraDeNegocioException("Venda bloqueada por PLD/FT: Cliente possui alertas restritivos.");
         }
 
         // RN-VND-003: Contrato só gera cota após pagamento

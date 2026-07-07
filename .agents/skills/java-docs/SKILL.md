@@ -19,5 +19,8 @@ description: 'Ensure that Java types are documented with Javadoc comments and fo
 - Use `<pre>{@code ... }</pre>` for code blocks.
 - Use `@since` to indicate when the feature was introduced (e.g., version number).
 - Use `@version` to specify the version of the member.
-- Use `@author` to specify the author of the code.
 - Use `@deprecated` to mark a member as deprecated and provide an alternative.
+
+## Padrões Específicos do Consórcio API
+- Sempre documente a correlação de entidades, métodos e regras de negócio com regulamentações específicas do Banco Central (ex: Circular 3432/2009 e Resolução BCB 285/2023).
+- Ao implementar regras complexas ou críticas (como algoritmos de sorteio, concorrência otimista com `@Version` ou cálculo de restituição), inclua referências no Javadoc para os ADRs em `docs/PROJECT_CONTEXT.md` ou para a documentação técnica pertinente.

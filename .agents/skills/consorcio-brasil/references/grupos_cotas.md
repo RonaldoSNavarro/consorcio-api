@@ -25,9 +25,27 @@
 
 ---
 
-## 2. Status da Cota — Definições Completas
+## 2. Status da Cota (`StatusCota` - 14 Estados)
 
-### ATIVA
+O ciclo de vida da cota é complexo e mapeado em 14 estados no sistema:
+
+- **AGUARDANDO_PAGAMENTO:** Cota criada via contrato de adesão, aguarda pagamento da 1ª parcela.
+- **ATIVA:** Adimplente e apta a sorteios.
+- **INADIMPLENTE:** Flag/status secundário indicando atraso leve.
+- **SUSPENSA:** 1 a 2 parcelas atrasadas. Bloqueada para sorteios.
+- **EXCLUIDA:** ≥ 3 parcelas atrasadas (não contemplada). Participa de sorteio de excluídos.
+- **CANCELADA:** Cota encerrada antes da constituição do grupo ou cancelada por infração. Diferente de EXCLUÍDA (que tem direito a restituição legal).
+- **CONTEMPLADA:** Sorteada, mas ainda no ciclo de avaliação de crédito/uso.
+- **PENDENTE_INTEGRALIZACAO:** Venceu lance livre, aguarda pagamento (ADR 004).
+- **AGUARDANDO_ANALISE:** Cota contemplada, aguardando aprovação de garantias/renda.
+- **APROVADO:** Análise de crédito aprovada, crédito liberado.
+- **EM_EXECUCAO:** Cota contemplada inadimplente (≥ 3 atrasos). Busca e apreensão do bem.
+- **JURIDICO:** Processo judicial ativo (revisão de juros, reintegração).
+- **QUITADA:** Todas as parcelas e obrigações pagas 100%. Carta nula de alienação fiduciária.
+- **NAO_COMERCIALIZADA:** Vaga disponível no pool do grupo.
+- **AGUARDANDO_INAUGURACAO:** Cota vendida em um grupo `EM_FORMACAO`, aguardando a 1ª AGO.
+
+### ATIVA (Detalhes)
 - Parcelas em dia (adimplente)
 - Participa de sorteios de ativos e pode ofertar lances
 - Condição: 0 vencimentos em atraso
@@ -49,7 +67,7 @@ Ocorre em 3 situações (Resolução BCB 285, Art. 32):
 Consequências:
 - Não recebe a carta de crédito normalmente
 - Concorre ao **sorteio de excluídos** para fins de restituição
-- Recebe restituição proporcional ao que pagou ao fundo comum
+- Recebe restituição proporcional baseada no **percentual amortizado sobre o valor do bem atualizado** (ADR 005 - Art. 30, Lei 11.795/08), descontada a multa rescisória (cláusula penal).
 - Pode ser readmitida pelo Art. 31-A (ver seção 6)
 
 ### CONTEMPLADA
@@ -192,6 +210,7 @@ Causas de encerramento (Art. 35, Circular 3432):
 - Descontinuidade do bem
 
 **Na dissolução:**
+0. Status do Grupo transita para: `AGENDADO` → `EM_LIQUIDACAO` → `ENCERRADO_CONTABIL` → `ENCERRADO_DEFINITIVO` (eventualmente `EXPURGADO` via LGPD após 10 anos).
 1. Contemplados continuam pagando parcelas vincendas (exceto parcela de fundo de reserva)
 2. Excluídos recebem restituição em até 60 dias da última AGO
 3. Saldo do fundo de reserva distribuído proporcionalmente

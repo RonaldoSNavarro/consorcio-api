@@ -9,6 +9,13 @@ em tabela no contrato, com valores nominais e percentuais de cada componente:
 Parcela = Fundo Comum + Taxa de Administração + Fundo de Reserva [+ Seguro]
 ```
 
+### Tipos de Movimentação e Natureza
+O sistema mapeia `NaturezaMovimento` (DEBITO, CREDITO) e `TipoMovimentoFinanceiro` com 17 valores, entre eles:
+`PAGAMENTO_PARCELA`, `FUNDO_COMUM`, `TAXA_ADMINISTRACAO`, `FUNDO_RESERVA`, `SEGURO`, `MULTA_ATRASO`, `JUROS_MORA`, `ESTORNO_PAGAMENTO`, `LIBERACAO_CREDITO`, `LANCE_EMBUTIDO`, `PAGAMENTO_BEM`, `REEMBOLSO`, `MULTA_RESCISORIA`, `REAJUSTE_CREDITO`, `AMORTIZACAO`, `LANCAMENTO_MANUAL`, `TAXA_TRANSFERENCIA`, `RENDIMENTO_APLICACAO`.
+
+### Estorno de Parcela
+Se houver erro bancário ou renegociação, o sistema realiza o estorno completo da parcela (`ESTORNO_PAGAMENTO`), revertendo todos os lançamentos COSIF originais associados.
+
 ### 1.1 Fundo Comum (FC)
 
 Principal componente; forma o caixa para contemplações.
@@ -18,6 +25,7 @@ FC_mensal = Valor_Credito_Atual / Número_Meses_Restantes_do_Grupo
 ```
 
 - O valor do crédito é atualizado periodicamente (ver seção 2)
+- O sistema rastreia o `percentualFundoComum` em cada parcela para calcular o percentual amortizado preciso.
 - Após reajuste, a parcela de FC é recalculada proporcionalmente
 - Todos os consorciados (ativos e contemplados) pagam FC até o encerramento do grupo
 
@@ -55,6 +63,7 @@ Colchão de segurança para inadimplências e despesas imprevistas do grupo.
 - **Devolvido parcialmente ao final do grupo**, caso haja saldo positivo
 - Devolução proporcional por participante (conforme percentual definido em contrato)
 - Não há garantia de devolução integral (depende da saúde financeira do grupo)
+- **Rendimentos Financeiros:** O caixa não utilizado do grupo é investido e os rendimentos (`RENDIMENTO_APLICACAO`) são contabilizados a favor do Fundo de Reserva.
 
 ### 1.4 Seguro Prestamista (opcional)
 
@@ -212,6 +221,11 @@ Diferença a devolver = TA_antecipada_cobrada - TA_devida  (se positivo)
 - Vantagem: parcelas antecipadas podem ser usadas como lance livre
 - Parcelas antecipadas eliminam o risco de reajuste futuro naquelas parcelas
 - Contemplado que quer quitar o restante multiplica linearmente as parcelas restantes
+
+### Amortização de Saldo Devedor
+A antecipação (ou uso de lance embutido) pode amortizar o saldo de duas formas (`TipoAmortizacao`):
+1. **Redução de Prazo:** Quita as parcelas de trás para frente (da última para a primeira). Mantém o valor mensal inalterado, mas termina o consórcio mais cedo.
+2. **Diluição:** Mantém o prazo original e dilui o valor antecipado no saldo devedor, reduzindo o valor das parcelas restantes.
 
 ---
 

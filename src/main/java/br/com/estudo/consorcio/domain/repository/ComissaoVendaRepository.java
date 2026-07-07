@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ComissaoVendaRepository extends JpaRepository<ComissaoVenda, Long> {
+    java.util.Optional<ComissaoVenda> findByContratoIdAndStatus(Long contratoId, String status);
 }
