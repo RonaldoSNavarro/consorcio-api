@@ -186,6 +186,9 @@ docker compose up --build
 ```
 A API ficará acessível na porta `8080` do seu localhost normalmente.
 
+> [!NOTE]
+> **Conexão com Banco Local e Variáveis:** O `docker-compose.yml` está configurado para ler automaticamente as variáveis de ambiente de credenciais (`DB_USER`, `DB_PASSWORD`, `JWT_SECRET`) diretamente do seu sistema operacional ou de um arquivo `.env` localizado na raiz do projeto. Caso não possua, ele assumirá o usuário e senha `postgres` por padrão.
+
 ## 📖 Documentação da API (Swagger)
 
 A interface foi organizada para refletir o ciclo de vida real de um consórcio:
