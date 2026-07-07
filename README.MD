@@ -169,11 +169,22 @@ Para gerar um `JWT_SECRET` seguro no PowerShell:
 
 O schema é gerenciado pelo **Flyway**. Ao subir a aplicação pela primeira vez, todas as tabelas são criadas automaticamente. Novas alterações de schema devem ser adicionadas como migrações versionadas em `src/main/resources/db/migration` seguindo o padrão `V2__descricao.sql`, `V3__descricao.sql`, etc.
 
-### Rodando o projeto
+### Rodando o projeto (Local)
 
 ```bash
 ./mvnw spring-boot:run
 ```
+
+### Rodando via Docker (Recomendado)
+
+O projeto já conta com suporte a **Docker** utilizando um build *multi-stage* super leve. A API se conectará automaticamente ao PostgreSQL rodando nativamente na sua máquina hospedeira.
+
+Para subir a aplicação em container, basta ter o Docker instalado e rodar:
+
+```bash
+docker compose up --build
+```
+A API ficará acessível na porta `8080` do seu localhost normalmente.
 
 ## 📖 Documentação da API (Swagger)
 
