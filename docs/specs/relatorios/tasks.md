@@ -10,5 +10,5 @@ Spec ref: `docs/specs/relatorios/spec.md` (v1.1)
 
 ## Frontend (`front_end_consorcio-api`)
 
-- `[ ]` **TASK-REL-004**: Atualizar os schemas Zod e interfaces TypeScript (`EstatisticasGrupoResponseDTO`) para incluir o campo `totalCotasInadimplentes`.
-- `[ ]` **TASK-REL-005**: Garantir que as chamadas para os endpoints de PLD/FT passem as datas corretas e tratem adequadamente o retorno atualizado.
+- `[x]` **TASK-REL-004**: Atualizar os schemas Zod e interfaces TypeScript (`EstatisticasGrupoResponseDTO`) para incluir o campo `totalCotasInadimplentes`.
+- `[x]` **TASK-REL-005**: Garantir que as chamadas para os endpoints de PLD/FT passem as datas corretas e tratem adequadamente o retorno atualizado.
