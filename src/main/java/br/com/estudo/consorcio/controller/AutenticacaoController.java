@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
@@ -41,8 +42,8 @@ public class AutenticacaoController {
     @org.springframework.beans.factory.annotation.Value("${api.security.cookie.secure:false}")
     private boolean secureCookie;
 
-    public AutenticacaoController(AuthenticationManager manager, TokenService tokenService) {
-        this.manager = manager;
+    public AutenticacaoController(AuthenticationConfiguration configuration, TokenService tokenService) throws Exception {
+        this.manager = configuration.getAuthenticationManager();
         this.tokenService = tokenService;
     }
 

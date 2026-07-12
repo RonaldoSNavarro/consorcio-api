@@ -69,3 +69,12 @@ Your goal is to help me write high-quality Spring Boot applications by following
 - **Concorrência Otimista (Optimistic Locking):** O projeto utiliza mapeamento de concorrência com `@Version` em entidades críticas (Cota, Grupo, etc.). Garanta que as exceções `OptimisticLockException` sejam devidamente tratadas na camada de serviço ou controller com respostas HTTP 409 Conflict (ou retentativas lógicas).
 - **Contabilidade COSIF:** As lógicas transacionais em serviços devem obedecer à regra de Partida Dobrada (natureza débito e crédito) em entidades de log ou de lançamentos de conta.
 - **Jobs Críticos:** As rotinas automatizadas (`@Scheduled`), como `VerificadorInadimplenciaJob` e `LgpdAnonymizationJob`, devem processar volumes elevados empregando paginação e gerindo as transações (via `@Transactional`) em *batches* apropriados, não em uma única grande transação.
+
+## Segurança — OAuth2 Resource Server (ADR 008)
+- **Identity Provider:** O sistema utiliza Keycloak self-hosted como Authorization Server (OAuth2/OIDC). O backend atua exclusivamente como Resource Server, validando tokens RS256 via JWKS endpoint. NÃO gerar JWTs próprios.
+- **Frontend:** SPAs devem usar Authorization Code Flow com PKCE via `keycloak-js` adapter. Nunca armazenar tokens em localStorage.
+- **RBAC Granular:** Permissões atômicas (`cota:read`, `assembleia:execute`, etc.) mapeadas como Client Scopes no Keycloak. Usar `hasAuthority('SCOPE_xxx')` ao invés de `hasRole('XXX')`.
+- **IDOR Guard:** Validação de ownership via `@OwnershipGuard` (AOP Aspect customizado). Anotar métodos de service que acessam recursos por ID.
+- **Security Audit Log:** Eventos de segurança (login, IDOR block, access denied, mutações sensíveis) registrados de forma assíncrona (`@Async`) em tabela `security_audit_log`.
+- **2FA:** TOTP obrigatório para roles ADMIN e COMPLIANCE (configurado como Required Action no Keycloak).
+

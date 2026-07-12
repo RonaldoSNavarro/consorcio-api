@@ -1,5 +1,8 @@
 # 🏢 Consórcio API
 
+> [!NOTE]
+> Este é um **projeto de estudos e demonstração de portfólio**, focado na implementação de regras de negócios avançadas para sistemas financeiros e consórcios. Ele não é utilizado em produção.
+
 Um sistema back-end de alta performance para administração e gerenciamento de consórcios, desenvolvido em **Java 21** com **Spring Boot 4.0.6** (Spring Framework 7). Este projeto implementa regras de negócio financeiras reais baseadas nas normativas do Banco Central do Brasil (BCB) e no Código de Defesa do Consumidor (CDC).
 
 ## 🚀 Tecnologias e Ferramentas

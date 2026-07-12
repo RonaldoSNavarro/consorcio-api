@@ -89,7 +89,7 @@ public class RelatorioControllerIntegrationTest {
     void deveNegarAcessoNaoAutenticado() throws Exception {
         mockMvc.perform(get("/api/relatorios/balancete/1")
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

@@ -1,0 +1,164 @@
+{
+  "realm": "consorcio",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "defaultSignatureAlgorithm": "RS256",
+  "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "roles": {
+    "realm": [
+      { "name": "ADMIN", "description": "Administrador do sistema com acesso total" },
+      { "name": "COMPLIANCE", "description": "Oficial de compliance PLD/FT" },
+      { "name": "AUDITOR", "description": "Auditor com acesso de leitura e relatórios" },
+      { "name": "GESTOR", "description": "Gestor operacional de grupos e contemplações" },
+      { "name": "CONSORCIADO", "description": "Consorciado com acesso restrito aos seus dados" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "consorcio-api",
+      "name": "Consórcio API Backend",
+      "description": "Resource Server (confidential client)",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "consorcio-api-dev-secret",
+      "bearerOnly": false,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true
+    },
+    {
+      "clientId": "consorcio-frontend",
+      "name": "Consórcio Frontend SPA",
+      "description": "Public client for React SPA with PKCE",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "rootUrl": "http://localhost:5173",
+      "baseUrl": "/",
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "http://localhost:5174/*",
+        "http://127.0.0.1:5173/*",
+        "http://127.0.0.1:5174/*",
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://localhost:3000"
+      ],
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "email": "admin@consorcio.dev",
+      "firstName": "Admin",
+      "lastName": "Sistema",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["ADMIN"]
+    },
+    {
+      "username": "compliance",
+      "enabled": true,
+      "email": "compliance@consorcio.dev",
+      "firstName": "Oficial",
+      "lastName": "Compliance",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "compliance123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["COMPLIANCE"]
+    },
+    {
+      "username": "auditor",
+      "enabled": true,
+      "email": "auditor@consorcio.dev",
+      "firstName": "Auditor",
+      "lastName": "Externo",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "auditor123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["AUDITOR"]
+    },
+    {
+      "username": "gestor",
+      "enabled": true,
+      "email": "gestor@consorcio.dev",
+      "firstName": "Gestor",
+      "lastName": "Operacional",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "gestor123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["GESTOR"]
+    },
+    {
+      "username": "consorciado",
+      "enabled": true,
+      "email": "consorciado@consorcio.dev",
+      "firstName": "João",
+      "lastName": "Consorciado",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "consorciado123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["CONSORCIADO"]
+    }
+  ]
+}

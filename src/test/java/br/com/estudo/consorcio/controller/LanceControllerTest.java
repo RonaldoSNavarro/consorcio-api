@@ -15,6 +15,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -27,6 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(LanceController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@Import({br.com.estudo.consorcio.config.SecurityConfigurations.class, br.com.estudo.consorcio.service.TokenService.class})
 class LanceControllerTest {
 
     @Autowired

@@ -16,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -30,7 +31,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest(br.com.estudo.consorcio.controller.ClienteController.class)
-@org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc(addFilters = false)
+@Import({br.com.estudo.consorcio.config.SecurityConfigurations.class, br.com.estudo.consorcio.service.TokenService.class})
 class ClienteControllerTest {
 
     @Autowired
