@@ -23,14 +23,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 /**
  * Configuração central de segurança do sistema.
  *
- * <p>Suporta dois mecanismos de autenticação em modo bridge (ADR 008):</p>
- * <ul>
- *   <li><b>Keycloak (primário):</b> Tokens RS256 validados via JWKS endpoint do Keycloak</li>
- *   <li><b>Legado (bridge):</b> Tokens HMAC256 gerados pelo {@code TokenService} interno</li>
- * </ul>
- *
- * <p>O {@link SecurityFilter} atua como bridge, processando tokens legados ANTES
- * do Resource Server do Spring processar tokens Keycloak.</p>
+ * <p>Integração OAuth2 Resource Server com validação JWT via JWKS (ADR 008, Lote 2).</p>
+ * <p>Autenticação local legada (HMAC256) foi totalmente descontinuada e removida.</p>
  *
  * @since ADR 008
  */
@@ -41,15 +35,12 @@ public class SecurityConfigurations {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfigurations.class);
 
-    private final SecurityFilter securityFilter;
     private final br.com.estudo.consorcio.security.IntrusionDetectionFilter intrusionDetectionFilter;
     private final KeycloakJwtConverter keycloakJwtConverter;
 
     public SecurityConfigurations(
-            SecurityFilter securityFilter,
             br.com.estudo.consorcio.security.IntrusionDetectionFilter intrusionDetectionFilter,
             KeycloakJwtConverter keycloakJwtConverter) {
-        this.securityFilter = securityFilter;
         this.intrusionDetectionFilter = intrusionDetectionFilter;
         this.keycloakJwtConverter = keycloakJwtConverter;
     }
@@ -68,75 +59,41 @@ public class SecurityConfigurations {
                     req.requestMatchers(HttpMethod.GET, "/api/auth/keycloak-config").permitAll();
                     req.requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll();
 
-                    // Permissões específicas para GESTOR e ADMIN
-                    req.requestMatchers(HttpMethod.POST, "/api/contemplacoes/lances/{id}/integralizar").hasAnyRole("ADMIN", "GESTOR");
-                    req.requestMatchers(HttpMethod.POST, "/api/cotas/{id}/reembolsar").hasAnyRole("ADMIN", "GESTOR");
+                    // Permissões específicas
+                    req.requestMatchers(HttpMethod.POST, "/api/contemplacoes/lances/{id}/integralizar").hasAnyAuthority("SCOPE_assembleia:execute");
+                    req.requestMatchers(HttpMethod.POST, "/api/cotas/{id}/reembolsar").hasAnyAuthority("SCOPE_financeiro:write", "SCOPE_assembleia:execute");
 
-                    // FC-04 FIX: RBAC granular — operações de escrita requerem ADMIN
-                    req.requestMatchers(HttpMethod.GET, "/api/compliance/**").hasAnyRole("ADMIN", "COMPLIANCE");
-                    req.requestMatchers(HttpMethod.POST, "/api/compliance/**").hasAnyRole("ADMIN", "COMPLIANCE");
-                    req.requestMatchers(HttpMethod.PUT, "/api/compliance/**").hasAnyRole("ADMIN", "COMPLIANCE");
-                    req.requestMatchers(HttpMethod.POST, "/api/**").hasRole("ADMIN");
-                    req.requestMatchers(HttpMethod.PUT, "/api/**").hasRole("ADMIN");
-                    req.requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("ADMIN");
+                    // RBAC granular (Lote 2)
+                    req.requestMatchers(HttpMethod.GET, "/api/compliance/**").hasAnyAuthority("SCOPE_compliance:read");
+                    req.requestMatchers(HttpMethod.POST, "/api/compliance/**").hasAnyAuthority("SCOPE_compliance:screen");
+                    req.requestMatchers(HttpMethod.PUT, "/api/compliance/**").hasAnyAuthority("SCOPE_compliance:screen");
+                    req.requestMatchers(HttpMethod.POST, "/api/**").hasAuthority("SCOPE_admin:full");
+                    req.requestMatchers(HttpMethod.PUT, "/api/**").hasAuthority("SCOPE_admin:full");
+                    req.requestMatchers(HttpMethod.DELETE, "/api/**").hasAuthority("SCOPE_admin:full");
 
-                    // Relatórios BCB: Apenas ADMIN e AUDITOR
-                    req.requestMatchers(HttpMethod.GET, "/api/relatorios/**").hasAnyRole("ADMIN", "AUDITOR");
+                    // Relatórios
+                    req.requestMatchers(HttpMethod.GET, "/api/relatorios/**").hasAnyAuthority("SCOPE_admin:full", "SCOPE_financeiro:read");
 
-                    // Leituras: ADMIN e AUDITOR
-                    req.requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole("ADMIN", "AUDITOR", "CONSORCIADO");
-
-                    // Qualquer outra rota requer autenticação
+                    // Leituras gerais
+                    req.requestMatchers(HttpMethod.GET, "/api/**").authenticated(); // As regras serão mais finas via @PreAuthorize ou OwnershipGuard
+                    
                     req.anyRequest().authenticated();
                 })
-                // OAuth2 Resource Server — valida tokens RS256 do Keycloak (ADR 008)
+                // OAuth2 Resource Server — valida tokens RS256 do Keycloak
                 .oauth2ResourceServer(oauth2 -> oauth2
-                        .bearerTokenResolver(customBearerTokenResolver())
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(keycloakJwtConverter))
                 )
-                // Filtros customizados executam ANTES do Resource Server
-                .addFilterBefore(securityFilter, org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class)
                 .addFilterBefore(intrusionDetectionFilter, org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class)
                 .build();
     }
 
     /**
-     * JwtDecoder resiliente: tenta conectar ao Keycloak; se indisponível,
-     * cria um decoder que sempre falha (forçando o uso do token legado via bridge).
+     * JwtDecoder padrão. (Modo bridge removido no Lote 2).
      */
     @Bean
     public JwtDecoder jwtDecoder(
             @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}") String issuerUri) {
-        try {
-            return JwtDecoders.fromIssuerLocation(issuerUri);
-        } catch (Exception e) {
-            logger.warn("Keycloak indisponível em {}. Modo bridge ativo (somente tokens legados).", issuerUri);
-            return token -> { throw new org.springframework.security.oauth2.jwt.BadJwtException(
-                    "Keycloak indisponível. Use autenticação legada via cookie."); };
-        }
-    }
-
-    private BearerTokenResolver customBearerTokenResolver() {
-        DefaultBearerTokenResolver defaultResolver = new DefaultBearerTokenResolver();
-        return request -> {
-            String token = defaultResolver.resolve(request);
-            if (token == null) return null;
-
-            // Se for um token de teste sem formato JWT
-            if (!token.contains(".")) {
-                return null;
-            }
-
-            try {
-                com.auth0.jwt.interfaces.DecodedJWT jwt = com.auth0.jwt.JWT.decode(token);
-                if ("API Consorcio".equals(jwt.getIssuer())) {
-                    return null; // Oculta tokens legados do filtro OAuth2
-                }
-            } catch (Exception e) {
-                // Ignore decoding errors
-            }
-            return token;
-        };
+        return JwtDecoders.fromIssuerLocation(issuerUri);
     }
 
     @Value("${api.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:3000}")

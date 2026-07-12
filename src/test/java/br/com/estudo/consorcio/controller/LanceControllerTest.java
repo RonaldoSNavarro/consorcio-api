@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(LanceController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@Import({br.com.estudo.consorcio.config.SecurityConfigurations.class, br.com.estudo.consorcio.service.TokenService.class})
+@Import({br.com.estudo.consorcio.config.SecurityConfigurations.class})
 class LanceControllerTest {
 
     @Autowired
@@ -40,7 +40,9 @@ class LanceControllerTest {
     private LanceService lanceService;
 
     @MockitoBean
-    private br.com.estudo.consorcio.config.SecurityFilter securityFilter;
+    private org.springframework.security.oauth2.jwt.JwtDecoder jwtDecoder;
+
+
 
     @MockitoBean
     private br.com.estudo.consorcio.security.IntrusionDetectionService intrusionDetectionService;

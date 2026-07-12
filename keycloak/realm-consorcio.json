@@ -94,7 +94,8 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["ADMIN"]
+      "realmRoles": ["ADMIN"],
+      "requiredActions": ["CONFIGURE_TOTP"]
     },
     {
       "username": "compliance",
@@ -110,7 +111,8 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["COMPLIANCE"]
+      "realmRoles": ["COMPLIANCE"],
+      "requiredActions": ["CONFIGURE_TOTP"]
     },
     {
       "username": "auditor",

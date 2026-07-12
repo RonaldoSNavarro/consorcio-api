@@ -32,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest(br.com.estudo.consorcio.controller.ClienteController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@Import({br.com.estudo.consorcio.config.SecurityConfigurations.class, br.com.estudo.consorcio.service.TokenService.class})
+@Import({br.com.estudo.consorcio.config.SecurityConfigurations.class})
 class ClienteControllerTest {
 
     @Autowired
@@ -50,7 +50,9 @@ class ClienteControllerTest {
     private br.com.estudo.consorcio.service.HistoricoConsorciadoService historicoService;
 
     @MockitoBean
-    private br.com.estudo.consorcio.config.SecurityFilter securityFilter;
+    private org.springframework.security.oauth2.jwt.JwtDecoder jwtDecoder;
+
+
 
     @MockitoBean
     private br.com.estudo.consorcio.security.IntrusionDetectionService intrusionDetectionService;

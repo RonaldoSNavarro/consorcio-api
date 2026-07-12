@@ -49,7 +49,54 @@ public class KeycloakJwtConverter implements Converter<Jwt, AbstractAuthenticati
 
         List<String> roles = (List<String>) realmAccess.get("roles");
         return roles.stream()
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                .flatMap(role -> mapRoleToScopes(role).stream())
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Converte roles legadas de alto nível para permissões granulares (Scopes OAuth2).
+     */
+    private List<GrantedAuthority> mapRoleToScopes(String role) {
+        return switch (role.toUpperCase()) {
+            case "ADMIN" -> List.of(
+                    new SimpleGrantedAuthority("SCOPE_admin:full"),
+                    new SimpleGrantedAuthority("SCOPE_cliente:read"),
+                    new SimpleGrantedAuthority("SCOPE_cliente:write"),
+                    new SimpleGrantedAuthority("SCOPE_cota:read"),
+                    new SimpleGrantedAuthority("SCOPE_cota:write"),
+                    new SimpleGrantedAuthority("SCOPE_grupo:read"),
+                    new SimpleGrantedAuthority("SCOPE_grupo:write"),
+                    new SimpleGrantedAuthority("SCOPE_assembleia:read"),
+                    new SimpleGrantedAuthority("SCOPE_assembleia:execute"),
+                    new SimpleGrantedAuthority("SCOPE_financeiro:read"),
+                    new SimpleGrantedAuthority("SCOPE_financeiro:write")
+            );
+            case "COMPLIANCE" -> List.of(
+                    new SimpleGrantedAuthority("SCOPE_compliance:read"),
+                    new SimpleGrantedAuthority("SCOPE_compliance:screen"),
+                    new SimpleGrantedAuthority("SCOPE_cliente:read")
+            );
+            case "GESTOR" -> List.of(
+                    new SimpleGrantedAuthority("SCOPE_cota:read"),
+                    new SimpleGrantedAuthority("SCOPE_cota:write"),
+                    new SimpleGrantedAuthority("SCOPE_grupo:read"),
+                    new SimpleGrantedAuthority("SCOPE_grupo:write"),
+                    new SimpleGrantedAuthority("SCOPE_assembleia:read"),
+                    new SimpleGrantedAuthority("SCOPE_assembleia:execute")
+            );
+            case "AUDITOR" -> List.of(
+                    new SimpleGrantedAuthority("SCOPE_cliente:read"),
+                    new SimpleGrantedAuthority("SCOPE_cota:read"),
+                    new SimpleGrantedAuthority("SCOPE_grupo:read"),
+                    new SimpleGrantedAuthority("SCOPE_assembleia:read"),
+                    new SimpleGrantedAuthority("SCOPE_financeiro:read"),
+                    new SimpleGrantedAuthority("SCOPE_compliance:read")
+            );
+            case "CONSORCIADO" -> List.of(
+                    new SimpleGrantedAuthority("SCOPE_cota:read"),
+                    new SimpleGrantedAuthority("SCOPE_cliente:read")
+            );
+            default -> List.of(new SimpleGrantedAuthority("ROLE_" + role)); // Fallback para role nativa
+        };
     }
 }
