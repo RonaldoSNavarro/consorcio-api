@@ -18,9 +18,8 @@ import java.util.stream.Collectors;
  * Converte tokens JWT emitidos pelo Keycloak para {@link AbstractAuthenticationToken}
  * do Spring Security, extraindo as realm roles do claim {@code realm_access.roles}.
  *
- * <p>Mapeia cada role do Keycloak para uma {@link SimpleGrantedAuthority} com
- * o prefixo {@code ROLE_}, mantendo compatibilidade com as anotações
- * {@code @PreAuthorize("hasRole(...)")} existentes no sistema.</p>
+ * <p>Mapeia cada role do Keycloak para múltiplas {@link SimpleGrantedAuthority} granulares
+ * com o prefixo {@code SCOPE_}, de acordo com a regra de negócios (ex: ADMIN -> SCOPE_admin:full).</p>
  *
  * @see SecurityConfigurations
  * @since ADR 008 — Migração OAuth2/OIDC via Keycloak
@@ -38,7 +37,7 @@ public class KeycloakJwtConverter implements Converter<Jwt, AbstractAuthenticati
      * Extrai as realm roles do claim {@code realm_access.roles} do JWT do Keycloak.
      *
      * @param jwt token JWT decodificado
-     * @return coleção de {@link GrantedAuthority} com prefixo {@code ROLE_}
+     * @return coleção de {@link GrantedAuthority} com prefixo {@code SCOPE_}
      */
     @SuppressWarnings("unchecked")
     private Collection<GrantedAuthority> extractRealmRoles(Jwt jwt) {

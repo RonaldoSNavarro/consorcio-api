@@ -87,6 +87,7 @@
       "firstName": "Admin",
       "lastName": "Sistema",
       "emailVerified": true,
+      "requiredActions": ["CONFIGURE_TOTP"],
       "credentials": [
         {
           "type": "password",
@@ -104,6 +105,7 @@
       "firstName": "Oficial",
       "lastName": "Compliance",
       "emailVerified": true,
+      "requiredActions": ["CONFIGURE_TOTP"],
       "credentials": [
         {
           "type": "password",

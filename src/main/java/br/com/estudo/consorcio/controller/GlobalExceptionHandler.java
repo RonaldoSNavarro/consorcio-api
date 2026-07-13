@@ -72,6 +72,13 @@ public class GlobalExceptionHandler {
                 .body(new ExceptionDTO("Conflito de concorrência", "O registro foi alterado por outro usuário. Por favor, recarregue os dados e tente novamente."));
     }
 
+    // 403 — Acesso Negado
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ExceptionDTO> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ExceptionDTO("Acesso negado", "Você não tem permissão para acessar este recurso."));
+    }
+
     // 500 — Fallback para erros inesperados (não deve ser atingido em fluxos normais)
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ExceptionDTO> handleRuntimeException(RuntimeException ex) {

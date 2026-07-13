@@ -31,6 +31,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 @org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
+@org.springframework.scheduling.annotation.EnableAsync
 public class SecurityConfigurations {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfigurations.class);
@@ -50,6 +51,11 @@ public class SecurityConfigurations {
         return http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
+                .headers(headers -> headers
+                    .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'; frame-ancestors 'none'; sandbox"))
+                    .frameOptions(frame -> frame.deny())
+                    .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000))
+                )
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(req -> {
                     // Rotas públicas
@@ -92,8 +98,17 @@ public class SecurityConfigurations {
      */
     @Bean
     public JwtDecoder jwtDecoder(
-            @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}") String issuerUri) {
-        return JwtDecoders.fromIssuerLocation(issuerUri);
+            @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}") String issuerUri,
+            @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}") String jwkSetUri) {
+        org.springframework.security.oauth2.jwt.NimbusJwtDecoder jwtDecoder = 
+                org.springframework.security.oauth2.jwt.NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+        
+        org.springframework.security.oauth2.core.OAuth2TokenValidator<org.springframework.security.oauth2.jwt.Jwt> withIssuer = 
+                org.springframework.security.oauth2.jwt.JwtValidators.createDefaultWithIssuer(issuerUri);
+                
+        jwtDecoder.setJwtValidator(withIssuer);
+        
+        return jwtDecoder;
     }
 
     @Value("${api.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:3000}")
