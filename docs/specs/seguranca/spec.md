@@ -19,6 +19,7 @@ Este documento descreve a especificação técnica da migração (Lote 1) da cam
 - O Keycloak usa a porta `8180:8080` no host.
 - A inicialização do Keycloak importa automaticamente o realm configurado no JSON exportado (`keycloak/realm-consorcio.json`).
 
-## 5. Próximos Passos (Lotes 2 e 3)
-1. **Lote 2:** Mapear *Client Scopes* granulares e substituir autorizações baseadas em papel por delegação de escopo OAuth2, migrando o frontend React para o fluxo *Authorization Code + PKCE*.
-2. **Lote 3:** Implementar IDOR Guard (ADR 003), logs de auditoria de segurança (ADR 011) e remoção completa da autenticação legada (HMAC256) e cookies.
+## 5. Status dos Lotes
+1. **Lote 1:** Concluído (Bridge OAuth2, Configuração Docker do Keycloak, Converter JWT).
+2. **Lote 2:** Concluído (Remoção da infraestrutura legada de autenticação `AutenticacaoController`, `TokenService`, `SecurityFilter`, e ajuste nos testes). Configuração do Frontend para integração nativa.
+3. **Lote 3 (Hardening):** Concluído (MFA/TOTP exigido para `COMPLIANCE` e `ADMIN`, Refatoração ABAC para `@PreAuthorize` na camada de Service, IDOR Guard, Auditoria Assíncrona salva em banco via Flyway `security_audit_log`, Security Headers).
