@@ -7,7 +7,7 @@ import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
@@ -30,8 +30,7 @@ public class OwnershipGuard {
     }
 
     /**
-     * Extrai o e-mail do usuário autenticado no Keycloak a partir do JWT.
-     * Assumimos que o e-mail no JWT corresponde ao campo email no banco de dados.
+     * Extrai o e-mail do usuário autenticado no JWT local a partir do SecurityContext.
      */
     private String getCurrentUserEmail() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -39,11 +38,10 @@ public class OwnershipGuard {
             return null;
         }
         
-        if (auth.getPrincipal() instanceof Jwt jwt) {
-            return jwt.getClaimAsString("email");
+        if (auth.getPrincipal() instanceof UserDetails userDetails) {
+            return userDetails.getUsername();
         }
         
-        // Em um cenário de fallback
         return auth.getName();
     }
 

@@ -6,7 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -36,11 +36,8 @@ public class AuditLoggerInterceptor implements HandlerInterceptor {
         String ip = request.getRemoteAddr();
 
         if (auth != null && auth.isAuthenticated()) {
-            if (auth.getPrincipal() instanceof Jwt jwt) {
-                username = jwt.getClaimAsString("preferred_username");
-                if (username == null) {
-                    username = jwt.getSubject();
-                }
+            if (auth.getPrincipal() instanceof UserDetails userDetails) {
+                username = userDetails.getUsername();
             } else {
                 username = auth.getName();
             }

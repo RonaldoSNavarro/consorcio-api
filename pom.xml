@@ -87,13 +87,11 @@
             <version>4.5.2</version>
         </dependency>
 
-        <!-- OAuth2 Resource Server (Keycloak RS256 JWT validation) -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
-        </dependency>
-
-        <!-- Flyway: Starter para auto-configuração + módulo PostgreSQL -->
+            <groupId>dev.samstevens.totp</groupId>
+            <artifactId>totp</artifactId>
+            <version>1.7.1</version>
+        </dependency>        <!-- Flyway: Starter para auto-configuração + módulo PostgreSQL -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-flyway</artifactId>

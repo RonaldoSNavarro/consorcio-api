@@ -13,37 +13,29 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtDecoders;
-import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
-import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
  * Configuração central de segurança do sistema.
  *
- * <p>Integração OAuth2 Resource Server com validação JWT via JWKS (ADR 008, Lote 2).</p>
- * <p>Autenticação local legada (HMAC256) foi totalmente descontinuada e removida.</p>
- *
- * @since ADR 008
+ * <p>Integração de Segurança Revertida para JWT Custom (ADR 008 Anulada).</p>
  */
 @Configuration
 @EnableWebSecurity
-@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 @org.springframework.scheduling.annotation.EnableAsync
 public class SecurityConfigurations {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfigurations.class);
 
+    private final SecurityFilter securityFilter;
     private final br.com.estudo.consorcio.security.IntrusionDetectionFilter intrusionDetectionFilter;
-    private final KeycloakJwtConverter keycloakJwtConverter;
 
     public SecurityConfigurations(
-            br.com.estudo.consorcio.security.IntrusionDetectionFilter intrusionDetectionFilter,
-            KeycloakJwtConverter keycloakJwtConverter) {
+            SecurityFilter securityFilter,
+            br.com.estudo.consorcio.security.IntrusionDetectionFilter intrusionDetectionFilter) {
+        this.securityFilter = securityFilter;
         this.intrusionDetectionFilter = intrusionDetectionFilter;
-        this.keycloakJwtConverter = keycloakJwtConverter;
     }
 
     @Bean
@@ -61,54 +53,34 @@ public class SecurityConfigurations {
                     // Rotas públicas
                     req.requestMatchers(HttpMethod.POST, "/api/login").permitAll();
                     req.requestMatchers(HttpMethod.POST, "/api/login/logout").permitAll();
+                    req.requestMatchers(HttpMethod.POST, "/api/login/mfa-verify").permitAll();
                     req.requestMatchers(HttpMethod.GET, "/api/login/me").permitAll();
-                    req.requestMatchers(HttpMethod.GET, "/api/auth/keycloak-config").permitAll();
                     req.requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll();
 
-                    // Permissões específicas
-                    req.requestMatchers(HttpMethod.POST, "/api/contemplacoes/lances/{id}/integralizar").hasAnyAuthority("SCOPE_assembleia:execute");
-                    req.requestMatchers(HttpMethod.POST, "/api/cotas/{id}/reembolsar").hasAnyAuthority("SCOPE_financeiro:write", "SCOPE_assembleia:execute");
+                    // Permissões específicas para GESTOR e ADMIN
+                    req.requestMatchers(HttpMethod.POST, "/api/contemplacoes/lances/{id}/integralizar").hasAnyRole("ADMIN", "GESTOR");
+                    req.requestMatchers(HttpMethod.POST, "/api/cotas/{id}/reembolsar").hasAnyRole("ADMIN", "GESTOR");
 
-                    // RBAC granular (Lote 2)
-                    req.requestMatchers(HttpMethod.GET, "/api/compliance/**").hasAnyAuthority("SCOPE_compliance:read");
-                    req.requestMatchers(HttpMethod.POST, "/api/compliance/**").hasAnyAuthority("SCOPE_compliance:screen");
-                    req.requestMatchers(HttpMethod.PUT, "/api/compliance/**").hasAnyAuthority("SCOPE_compliance:screen");
-                    req.requestMatchers(HttpMethod.POST, "/api/**").hasAuthority("SCOPE_admin:full");
-                    req.requestMatchers(HttpMethod.PUT, "/api/**").hasAuthority("SCOPE_admin:full");
-                    req.requestMatchers(HttpMethod.DELETE, "/api/**").hasAuthority("SCOPE_admin:full");
+                    // RBAC granular (Lote 2 adaptado para Roles)
+                    req.requestMatchers(HttpMethod.GET, "/api/compliance/**").hasAnyRole("ADMIN", "COMPLIANCE");
+                    req.requestMatchers(HttpMethod.POST, "/api/compliance/**").hasAnyRole("ADMIN", "COMPLIANCE");
+                    req.requestMatchers(HttpMethod.PUT, "/api/compliance/**").hasAnyRole("ADMIN", "COMPLIANCE");
+                    req.requestMatchers(HttpMethod.POST, "/api/**").hasRole("ADMIN");
+                    req.requestMatchers(HttpMethod.PUT, "/api/**").hasRole("ADMIN");
+                    req.requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("ADMIN");
 
-                    // Relatórios
-                    req.requestMatchers(HttpMethod.GET, "/api/relatorios/**").hasAnyAuthority("SCOPE_admin:full", "SCOPE_financeiro:read");
+                    // Relatórios BCB: Apenas ADMIN e AUDITOR
+                    req.requestMatchers(HttpMethod.GET, "/api/relatorios/**").hasAnyRole("ADMIN", "AUDITOR");
 
-                    // Leituras gerais
-                    req.requestMatchers(HttpMethod.GET, "/api/**").authenticated(); // As regras serão mais finas via @PreAuthorize ou OwnershipGuard
-                    
+                    // Leituras: ADMIN e AUDITOR e CONSORCIADO
+                    req.requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole("ADMIN", "AUDITOR", "CONSORCIADO");
+
+                    // Qualquer outra rota requer autenticação
                     req.anyRequest().authenticated();
                 })
-                // OAuth2 Resource Server — valida tokens RS256 do Keycloak
-                .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.jwtAuthenticationConverter(keycloakJwtConverter))
-                )
-                .addFilterBefore(intrusionDetectionFilter, org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class)
+                .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(intrusionDetectionFilter, SecurityFilter.class)
                 .build();
-    }
-
-    /**
-     * JwtDecoder padrão. (Modo bridge removido no Lote 2).
-     */
-    @Bean
-    public JwtDecoder jwtDecoder(
-            @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}") String issuerUri,
-            @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}") String jwkSetUri) {
-        org.springframework.security.oauth2.jwt.NimbusJwtDecoder jwtDecoder = 
-                org.springframework.security.oauth2.jwt.NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
-        
-        org.springframework.security.oauth2.core.OAuth2TokenValidator<org.springframework.security.oauth2.jwt.Jwt> withIssuer = 
-                org.springframework.security.oauth2.jwt.JwtValidators.createDefaultWithIssuer(issuerUri);
-                
-        jwtDecoder.setJwtValidator(withIssuer);
-        
-        return jwtDecoder;
     }
 
     @Value("${api.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:3000}")
@@ -127,7 +99,11 @@ public class SecurityConfigurations {
         return source;
     }
 
-
+    // Ensina o Spring a injetar o Gerenciador de Autenticação nos Controllers
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
+    }
 
     // Define qual é o algoritmo de criptografia (Hash) que usaremos nas senhas
     @Bean

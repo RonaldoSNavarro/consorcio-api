@@ -31,6 +31,12 @@ public class Usuario implements UserDetails {
     @Column(length = 100)
     private String email;
 
+    @Column(name = "mfa_enabled", nullable = false)
+    private boolean mfaEnabled = false;
+
+    @Column(name = "mfa_secret", length = 32)
+    private String mfaSecret;
+
     public Usuario() {
     }
 
@@ -73,6 +79,22 @@ public class Usuario implements UserDetails {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public boolean isMfaEnabled() {
+        return mfaEnabled;
+    }
+
+    public void setMfaEnabled(boolean mfaEnabled) {
+        this.mfaEnabled = mfaEnabled;
+    }
+
+    public String getMfaSecret() {
+        return mfaSecret;
+    }
+
+    public void setMfaSecret(String mfaSecret) {
+        this.mfaSecret = mfaSecret;
     }
 
     // Métodos obrigatórios da interface UserDetails do Spring Security
