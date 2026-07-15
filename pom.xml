@@ -91,6 +91,11 @@
             <groupId>dev.samstevens.totp</groupId>
             <artifactId>totp</artifactId>
             <version>1.7.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.angus</groupId>
+            <artifactId>jakarta.mail</artifactId>
+            <version>2.0.3</version>
         </dependency>        <!-- Flyway: Starter para auto-configuração + módulo PostgreSQL -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

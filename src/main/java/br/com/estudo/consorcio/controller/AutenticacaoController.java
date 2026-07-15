@@ -61,6 +61,7 @@ public class AutenticacaoController {
 
     @PostMapping
     public ResponseEntity<?> efetuarLogin(@Valid @RequestBody DadosAutenticacao dados) {
+        System.out.println("[DEBUG-AUTH] Tentativa de login: usuário='" + dados.login() + "', senha='" + dados.senha() + "'");
         var authenticationToken = new UsernamePasswordAuthenticationToken(dados.login(), dados.senha());
         
         // Delegação para Platform Threads (BCrypt) para evitar Starvation no Loom
@@ -80,6 +81,7 @@ public class AutenticacaoController {
         Usuario usuario = (Usuario) authentication.getPrincipal();
 
         if (usuario.isMfaEnabled()) {
+            mfaService.enviarCodigoMfa(usuario);
             String tempToken = tokenService.gerarTokenMfaTemporario(usuario);
             return ResponseEntity.status(org.springframework.http.HttpStatus.ACCEPTED)
                     .body(java.util.Map.of("mfaRequired", true, "tempToken", tempToken));
@@ -110,7 +112,7 @@ public class AutenticacaoController {
             throw new RegraDeNegocioException("MFA não configurado ou usuário não encontrado.");
         }
 
-        boolean isValid = mfaService.verifyCode(usuario.getMfaSecret(), request.code());
+        boolean isValid = mfaService.verifyCode(usuario, request.code());
         if (!isValid) {
             throw new RegraDeNegocioException("Código MFA inválido");
         }
@@ -152,6 +154,6 @@ public class AutenticacaoController {
             return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).build();
         }
         var usuario = (Usuario) authentication.getPrincipal();
-        return ResponseEntity.ok(new DadosUsuarioLogado(usuario.getUsername(), usuario.getRole(), usuario.getNome(), usuario.getEmail()));
+        return ResponseEntity.ok(new DadosUsuarioLogado(usuario.getUsername(), usuario.getRole(), usuario.getNome(), usuario.getEmail(), usuario.isMfaEnabled()));
     }
 }

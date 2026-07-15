@@ -37,6 +37,12 @@ public class Usuario implements UserDetails {
     @Column(name = "mfa_secret", length = 32)
     private String mfaSecret;
 
+    @Column(name = "mfa_code", length = 6)
+    private String mfaCode;
+
+    @Column(name = "mfa_code_expires_at")
+    private java.time.LocalDateTime mfaCodeExpiresAt;
+
     public Usuario() {
     }
 
@@ -140,5 +146,21 @@ public class Usuario implements UserDetails {
     @Override
     public boolean isEnabled() {
         return true; // Usuário ativo
+    }
+
+    public String getMfaCode() {
+        return mfaCode;
+    }
+
+    public void setMfaCode(String mfaCode) {
+        this.mfaCode = mfaCode;
+    }
+
+    public java.time.LocalDateTime getMfaCodeExpiresAt() {
+        return mfaCodeExpiresAt;
+    }
+
+    public void setMfaCodeExpiresAt(java.time.LocalDateTime mfaCodeExpiresAt) {
+        this.mfaCodeExpiresAt = mfaCodeExpiresAt;
     }
 }

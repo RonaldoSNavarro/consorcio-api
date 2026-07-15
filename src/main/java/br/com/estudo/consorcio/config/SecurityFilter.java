@@ -63,21 +63,21 @@ public class SecurityFilter extends OncePerRequestFilter {
             }
 
             if (subject != null) {
-                Usuario usuario;
-                if (id == null) {
-                    try {
-                        var userDetails = repository.findByLogin(subject);
-                        if (userDetails instanceof Usuario) {
-                            usuario = (Usuario) userDetails;
-                        } else {
-                            usuario = new Usuario(subject, "", role, nome, email);
-                        }
-                    } catch (Exception e) {
-                        usuario = new Usuario(subject, "", role, nome, email);
+                Usuario usuario = null;
+                try {
+                    var userDetails = repository.findByLogin(subject);
+                    if (userDetails instanceof Usuario) {
+                        usuario = (Usuario) userDetails;
                     }
-                } else {
+                } catch (Exception e) {
+                    // Ignore
+                }
+                
+                if (usuario == null) {
                     usuario = new Usuario(subject, "", role, nome, email);
-                    usuario.setId(id);
+                    if (id != null) {
+                        usuario.setId(id);
+                    }
                 }
 
                 // Força a autenticação no contexto do Spring Security

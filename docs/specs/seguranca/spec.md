@@ -22,4 +22,4 @@ Este documento descreve a especificação técnica da migração (Lote 1) da cam
 ## 5. Status dos Lotes
 1. **Lote 1:** Concluído (Bridge OAuth2, Configuração Docker do Keycloak, Converter JWT).
 2. **Lote 2:** Concluído (Remoção da infraestrutura legada de autenticação `AutenticacaoController`, `TokenService`, `SecurityFilter`, e ajuste nos testes). Configuração do Frontend para integração nativa.
-3. **Lote 3 (Hardening):** Concluído (MFA/TOTP exigido para `COMPLIANCE` e `ADMIN`, Refatoração ABAC para `@PreAuthorize` na camada de Service, IDOR Guard, Auditoria Assíncrona salva em banco via Flyway `security_audit_log`, Security Headers).
+3. **Lote 3 (Hardening):** Concluído (MFA por E-mail exigido para `COMPLIANCE` e `ADMIN` com e-mail cadastrado como `ronaldoguitarrista@gmail.com`, Refatoração ABAC para `@PreAuthorize` na camada de Service, IDOR Guard, Auditoria Assíncrona salva em banco via Flyway `security_audit_log`, Security Headers, Migração do MFA TOTP para Código enviado por E-mail).
