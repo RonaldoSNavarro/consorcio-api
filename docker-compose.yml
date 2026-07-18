@@ -4,9 +4,9 @@ services:
     container_name: consorcio-api
     ports:
       - "8081:8081"
+    env_file:
+      - .env
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:5432/consorcio_db
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-postgres}
     extra_hosts:
       - "host.docker.internal:host-gateway"

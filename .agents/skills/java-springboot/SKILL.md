@@ -70,11 +70,11 @@ Your goal is to help me write high-quality Spring Boot applications by following
 - **Contabilidade COSIF:** As lógicas transacionais em serviços devem obedecer à regra de Partida Dobrada (natureza débito e crédito) em entidades de log ou de lançamentos de conta.
 - **Jobs Críticos:** As rotinas automatizadas (`@Scheduled`), como `VerificadorInadimplenciaJob` e `LgpdAnonymizationJob`, devem processar volumes elevados empregando paginação e gerindo as transações (via `@Transactional`) em *batches* apropriados, não em uma única grande transação.
 
-## Segurança — OAuth2 Resource Server (ADR 008)
-- **Identity Provider:** O sistema utiliza Keycloak self-hosted como Authorization Server (OAuth2/OIDC). O backend atua exclusivamente como Resource Server, validando tokens RS256 via JWKS endpoint. NÃO gerar JWTs próprios.
-- **Frontend:** SPAs devem usar Authorization Code Flow com PKCE via `keycloak-js` adapter. Nunca armazenar tokens em localStorage.
-- **RBAC Granular:** Permissões atômicas (`cota:read`, `assembleia:execute`, etc.) mapeadas como Client Scopes no Keycloak. Usar `hasAuthority('SCOPE_xxx')` ao invés de `hasRole('XXX')`.
+## Segurança — Custom JWT & MFA (ADR 012)
+- **Identity Provider:** O sistema gera seus próprios tokens JWT (HMAC256) via backend (`AuthService`) e os fornece como cookies HttpOnly para proteção contra XSS.
+- **Frontend:** O SPA gerencia a sessão baseado nos cookies (State-Free backend).
+- **RBAC:** Uso de roles nativos do Spring (`ROLE_ADMIN`, `ROLE_CLIENTE`) em endpoints via `@PreAuthorize("hasRole('ADMIN')")`.
 - **IDOR Guard:** Validação de ownership via `@OwnershipGuard` (AOP Aspect customizado). Anotar métodos de service que acessam recursos por ID.
 - **Security Audit Log:** Eventos de segurança (login, IDOR block, access denied, mutações sensíveis) registrados de forma assíncrona (`@Async`) em tabela `security_audit_log`.
-- **2FA:** TOTP obrigatório para roles ADMIN e COMPLIANCE (configurado como Required Action no Keycloak).
+- **2FA (MFA):** Implementação local de código de uso único (TOTP por E-mail via SMTP Terra) gerido nativamente no Spring Boot.
 
