@@ -31,6 +31,18 @@ public class Usuario implements UserDetails {
     @Column(length = 100)
     private String email;
 
+    @Column(name = "mfa_enabled", nullable = false)
+    private boolean mfaEnabled = false;
+
+    @Column(name = "mfa_secret", length = 32)
+    private String mfaSecret;
+
+    @Column(name = "mfa_code", length = 6)
+    private String mfaCode;
+
+    @Column(name = "mfa_code_expires_at")
+    private java.time.LocalDateTime mfaCodeExpiresAt;
+
     public Usuario() {
     }
 
@@ -73,6 +85,22 @@ public class Usuario implements UserDetails {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public boolean isMfaEnabled() {
+        return mfaEnabled;
+    }
+
+    public void setMfaEnabled(boolean mfaEnabled) {
+        this.mfaEnabled = mfaEnabled;
+    }
+
+    public String getMfaSecret() {
+        return mfaSecret;
+    }
+
+    public void setMfaSecret(String mfaSecret) {
+        this.mfaSecret = mfaSecret;
     }
 
     // Métodos obrigatórios da interface UserDetails do Spring Security
@@ -118,5 +146,21 @@ public class Usuario implements UserDetails {
     @Override
     public boolean isEnabled() {
         return true; // Usuário ativo
+    }
+
+    public String getMfaCode() {
+        return mfaCode;
+    }
+
+    public void setMfaCode(String mfaCode) {
+        this.mfaCode = mfaCode;
+    }
+
+    public java.time.LocalDateTime getMfaCodeExpiresAt() {
+        return mfaCodeExpiresAt;
+    }
+
+    public void setMfaCodeExpiresAt(java.time.LocalDateTime mfaCodeExpiresAt) {
+        this.mfaCodeExpiresAt = mfaCodeExpiresAt;
     }
 }

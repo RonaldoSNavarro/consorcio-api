@@ -50,12 +50,19 @@ class ClienteControllerTest {
     private br.com.estudo.consorcio.service.HistoricoConsorciadoService historicoService;
 
     @MockitoBean
-    private org.springframework.security.oauth2.jwt.JwtDecoder jwtDecoder;
-
-
+    private br.com.estudo.consorcio.security.IntrusionDetectionService intrusionDetectionService;
 
     @MockitoBean
-    private br.com.estudo.consorcio.security.IntrusionDetectionService intrusionDetectionService;
+    private br.com.estudo.consorcio.config.SecurityFilter securityFilter;
+
+    @MockitoBean
+    private br.com.estudo.consorcio.security.IntrusionDetectionFilter intrusionDetectionFilter;
+
+    @MockitoBean
+    private br.com.estudo.consorcio.service.TokenService tokenService;
+
+    @MockitoBean
+    private br.com.estudo.consorcio.service.SecurityAuditService securityAuditService;
 
     // ========================================================================
     // TESTES DE CADASTRO (POST)

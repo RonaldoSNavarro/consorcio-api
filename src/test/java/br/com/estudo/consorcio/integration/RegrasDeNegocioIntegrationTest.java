@@ -44,9 +44,6 @@ class RegrasDeNegocioIntegrationTest {
     @org.springframework.test.context.bean.override.mockito.MockitoBean
     private ViaCepService viaCepService;
 
-    @org.springframework.test.context.bean.override.mockito.MockitoBean
-    private org.springframework.security.oauth2.jwt.JwtDecoder jwtDecoder;
-
     private Long idCliente;
     private Long idGrupo;
 

@@ -50,11 +50,8 @@ public class RelatorioControllerIntegrationTest {
     @MockitoBean
     private RelatorioService relatorioService;
 
-    @MockitoBean
-    private org.springframework.security.oauth2.jwt.JwtDecoder jwtDecoder;
-
     @Test
-    @WithMockUser(authorities = "SCOPE_admin:full")
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("Deve permitir acesso ao balancete para ADMIN")
     void devePermitirAdminAcessarBalancete() throws Exception {
         BalanceteResponseDTO mockResponse = new BalanceteResponseDTO(1L, "G-001", LocalDate.now(), List.of());
@@ -67,7 +64,7 @@ public class RelatorioControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(authorities = "SCOPE_financeiro:read")
+    @WithMockUser(roles = "AUDITOR")
     @DisplayName("Deve permitir acesso ao balancete para AUDITOR")
     void devePermitirAuditorAcessarBalancete() throws Exception {
         BalanceteResponseDTO mockResponse = new BalanceteResponseDTO(1L, "G-001", LocalDate.now(), List.of());
@@ -79,7 +76,7 @@ public class RelatorioControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(authorities = "SCOPE_cota:read")
+    @WithMockUser(roles = "CONSORCIADO")
     @DisplayName("Deve negar acesso ao balancete para CONSORCIADO (Forbidden 403)")
     void deveNegarConsorciadoAcessarBalancete() throws Exception {
         mockMvc.perform(get("/api/relatorios/balancete/1")
@@ -92,11 +89,11 @@ public class RelatorioControllerIntegrationTest {
     void deveNegarAcessoNaoAutenticado() throws Exception {
         mockMvc.perform(get("/api/relatorios/balancete/1")
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     @Test
-    @WithMockUser(authorities = "SCOPE_admin:full")
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("Deve permitir ADMIN acessar estatísticas e PLD/FT")
     void devePermitirAdminAcessarEstatisticasEPldFt() throws Exception {
         EstatisticasGrupoResponseDTO mockEst = new EstatisticasGrupoResponseDTO(

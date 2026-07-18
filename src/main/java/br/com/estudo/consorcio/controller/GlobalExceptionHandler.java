@@ -79,6 +79,13 @@ public class GlobalExceptionHandler {
                 .body(new ExceptionDTO("Acesso negado", "Você não tem permissão para acessar este recurso."));
     }
 
+    // 401 — Falha de Autenticação
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<ExceptionDTO> handleAuthentication(org.springframework.security.core.AuthenticationException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ExceptionDTO("Falha na autenticação", "Usuário inexistente ou senha inválida."));
+    }
+
     // 500 — Fallback para erros inesperados (não deve ser atingido em fluxos normais)
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ExceptionDTO> handleRuntimeException(RuntimeException ex) {

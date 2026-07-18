@@ -20,7 +20,7 @@ public class DatabaseSeeder implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         if (repository.count() == 0) {
-            Usuario admin = new Usuario("admin", passwordEncoder.encode("admin"), "ADMIN", "Administrador", "admin@consorcio.com.br");
+            Usuario admin = new Usuario("admin", passwordEncoder.encode("admin"), "ADMIN", "Administrador", "ronaldoguitarrista@gmail.com");
             repository.save(admin);
 
             Usuario gestor = new Usuario("gestor", passwordEncoder.encode("admin"), "ADMIN", "Gestor", "gestor@consorcio.com.br"); // Gestor com senha admin
@@ -41,7 +41,7 @@ public class DatabaseSeeder implements CommandLineRunner {
                 admin.setRole("ADMIN");
                 admin.setSenha(passwordEncoder.encode("admin"));
                 admin.setNome("Administrador");
-                admin.setEmail("admin@consorcio.com.br");
+                admin.setEmail("ronaldoguitarrista@gmail.com");
                 repository.save(admin);
                 System.out.println("🌱 Senha do usuário 'admin' restaurada para 'admin'!");
             }

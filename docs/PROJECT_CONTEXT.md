@@ -97,6 +97,16 @@ O `AuthContext.jsx` inicializa o token a partir do `localStorage.getItem('consor
 *   **Decisão:** Implementação de Logs de Auditoria injetando metadados estruturados (IP, CPF/Username do JWT, Horário, Ação e Recurso).
 *   **Consequência:** Conformidade elevada a padrões institucionais e regulatórios estritos, permitindo análise retroativa por analistas SOC/Compliance.
 
+### ADR 012: Reversão para JWT Customizado e Retirada do Keycloak
+*   **Contexto:** Após testes operacionais da interface do IdP Keycloak, optou-se por retornar a responsabilidade de autenticação e tela de login para a aplicação principal.
+*   **Decisão:** Revogação da ADR 008, remoção do Keycloak da infraestrutura e retorno à autenticação baseada em JWT local (HMAC256) via cookies HttpOnly.
+*   **Consequência:** Controle total sobre UX de login e simplificação do stack conteinerizado.
+
+### ADR 013: Migração de MFA TOTP para Código enviado por E-mail
+*   **Contexto:** Dessincronização de relógios de hardware (entre servidores locais e dispositivos móveis) causava falhas falsas de validação TOTP em ambiente local.
+*   **Decisão:** Substituição do TOTP de aplicativo autenticador pelo envio de código numérico de 6 dígitos enviado por e-mail (usando Jakarta Mail local com fallback de impressão no console).
+*   **Consequência:** Fluxo operacional resiliente e livre de problemas de drift de relógio local.
+
 ---
 
 ## ðŸ“ˆ 4. Estado Atual do Projeto
