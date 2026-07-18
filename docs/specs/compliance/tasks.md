@@ -36,3 +36,4 @@
 - `[x]` TASK-COMP-020 (Backend): Criar endpoint `GET /api/compliance/execucoes` e atualizar `POST /api/compliance/sincronizar` para retornar `ComplianceSyncResultDTO`.
 - `[x]` TASK-COMP-021 (Frontend): Na `CompliancePainelPage`, integrar a aba "Agendamento de Job" ao endpoint de execuções para exibir os logs históricos.
 - `[x]` TASK-COMP-022 (Frontend): Na aba "Importar Listas", implementar card informativo de status da API OFAC.
+- `[x]` **TASK-COMP-023 (Backend)**: Migrar a busca de similaridade textual de Jaro-Winkler em memória Java para a extensão `pg_trgm` do PostgreSQL. Criar a migration `V55__add_pg_trgm_extension.sql` com índices GIN funcionais (`UPPER(nome)`) e utilizar o operador nativo de similaridade `%` no repositório `AlertaComplianceRepository` para garantir alta performance.

@@ -29,13 +29,14 @@ Adicionalmente, o sistema permite uploads manuais das listas PEP (CSV), ONU (XML
 9. **REQ-COMP-009**: O sistema deve manter um histórico de execuções das sincronizações (seja manual ou por agendamento automático) e prover um endpoint `/api/compliance/execucoes` para visualização dos últimos logs.
 10. **REQ-COMP-010**: O endpoint de sincronização manual `/api/compliance/sincronizar` deve retornar informações em tempo real sobre a disponibilidade das APIs externas (como a OFAC) e a contagem de registros processados.
 11. **REQ-COMP-011**: O processamento de arquivos em massa (como a Lista PEP) deve utilizar processamento em lote (batching) e mitigação de N+1 queries para evitar sobrecarga no banco de dados e garantir escalabilidade.
+12. **REQ-COMP-012**: A busca e matching textual de nomes deve ser delegada ao banco de dados PostgreSQL utilizando a extensão `pg_trgm`, índices de expressão `GIN` e o operador de similaridade (`%`) para assegurar alta performance.
 
 ## 3. Regras de Negócio (Inegociáveis)
 
-- **RN-COMP-001 (Match Sensível)**: A comparação de nomes deve utilizar algoritmos de Similaridade/Distância de Levenshtein ou Jaro-Winkler para tratar variações de grafia em nomes estrangeiros oriundos da ONU/OFAC.
+- **RN-COMP-001 (Match Sensível)**: A comparação de nomes deve utilizar algoritmos avançados para tratar variações de grafia em nomes estrangeiros oriundos da ONU/OFAC, processados exclusivamente no nível do banco de dados para garantir performance em grandes volumes.
 - **RN-COMP-002 (Bloqueio Cautelar)**: Clientes com alerta de Terrorismo (ONU/OFAC) ativo e confirmado pelo compliance devem ter o pagamento de lances, sorteios e restituições **bloqueados** via `CotaStatus.BLOQUEADA_COMPLIANCE`. 
 - **RN-COMP-003 (Sigilo)**: Usuários comuns (`ROLE_ATENDIMENTO`) não podem visualizar alertas de compliance na ficha do cliente para evitar *tipping-off* (aviso ao suspeito).
-- **RN-COMP-004 (Matching PEP Mascarado)**: Como a lista de PEP contém CPFs mascarados no formato `***.531.324-**` (somente os 6 dígitos centrais visíveis), a validação por documento contra a lista PEP deve extrair os 6 dígitos centrais do CPF do cliente (caracteres de índice 3 a 8 do CPF numérico limpo) e compará-los com os 6 dígitos expostos da lista. Havendo correspondência de CPF E Jaro-Winkler do nome >= 90%, o alerta é gerado.
+- **RN-COMP-004 (Matching PEP Mascarado)**: Como a lista de PEP contém CPFs mascarados no formato `***.531.324-**` (somente os 6 dígitos centrais visíveis), a validação por documento contra a lista PEP deve extrair os 6 dígitos centrais do CPF do cliente (caracteres de índice 3 a 8 do CPF numérico limpo) e compará-los com os 6 dígitos expostos da lista. Havendo correspondência de CPF E similaridade do nome (`pg_trgm` >= limite de similaridade do SGBD), o alerta é gerado.
 - **RN-COMP-005 (Fronteira e Cidades Gêmeas)**: Clientes que residam em municípios da faixa de fronteira ou cidades gêmeas (cruzando `localidade` e `uf` do cliente contra a lista IBGE normalizada) devem ter sua classificação de risco marcada ou gerar alertas específicos de atenção `IBGE`.
 - **RN-COMP-006 (OFAC Resilience)**: Caso a API do OFAC esteja inacessível ou falhe na requisição de download do XML, o sistema deve registrar o erro no log e prosseguir com a execução das demais listas locais.
 

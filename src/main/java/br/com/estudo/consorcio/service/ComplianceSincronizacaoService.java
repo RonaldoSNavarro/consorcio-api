@@ -16,12 +16,10 @@ import java.io.BufferedReader;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Optional;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamConstants;
+import javax.xml.stream.XMLStreamReader;
+import javax.xml.stream.events.XMLEvent;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Row;
@@ -89,6 +87,7 @@ public class ComplianceSincronizacaoService {
         try {
             log.info("Iniciando download e processamento de lista OFAC...");
             java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
+                    .followRedirects(java.net.http.HttpClient.Redirect.NORMAL)
                     .connectTimeout(java.time.Duration.ofSeconds(10))
                     .build();
                     
@@ -131,23 +130,51 @@ public class ComplianceSincronizacaoService {
 
     public int processarOfacXml(InputStream inputStream) throws Exception {
         int count = 0;
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        DocumentBuilder builder = factory.newDocumentBuilder();
-        Document doc = builder.parse(inputStream);
-        doc.getDocumentElement().normalize();
+        XMLInputFactory factory = XMLInputFactory.newInstance();
+        factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, Boolean.FALSE);
+        factory.setProperty(XMLInputFactory.SUPPORT_DTD, Boolean.FALSE);
+        XMLStreamReader reader = factory.createXMLStreamReader(inputStream);
 
-        NodeList translations = doc.getElementsByTagName("translation");
-        for (int i = 0; i < translations.getLength(); i++) {
-            Node node = translations.item(i);
-            if (node.getNodeType() == Node.ELEMENT_NODE) {
-                Element transEl = (Element) node;
-                String fullName = getXmlTagValue(transEl, "formattedFullName");
-                if (!fullName.isEmpty()) {
-                    inserirOuAtualizarRegistro(fullName.toUpperCase(), null, OrigemListaRestritiva.OFAC);
-                    count++;
-                }
+        boolean insideDocumentedName = false;
+        boolean insideNamePartValue = false;
+        StringBuilder fullNameBuilder = new StringBuilder();
+
+        while (reader.hasNext()) {
+            int event = reader.next();
+
+            switch (event) {
+                case XMLEvent.START_ELEMENT:
+                    String localName = reader.getLocalName();
+                    if ("DocumentedName".equals(localName)) {
+                        insideDocumentedName = true;
+                        fullNameBuilder.setLength(0);
+                    } else if ("NamePartValue".equals(localName) && insideDocumentedName) {
+                        insideNamePartValue = true;
+                    }
+                    break;
+
+                case XMLEvent.CHARACTERS:
+                    if (insideNamePartValue) {
+                        fullNameBuilder.append(reader.getText().trim()).append(" ");
+                    }
+                    break;
+
+                case XMLEvent.END_ELEMENT:
+                    String endName = reader.getLocalName();
+                    if ("DocumentedName".equals(endName)) {
+                        insideDocumentedName = false;
+                        String fullName = fullNameBuilder.toString().trim();
+                        if (!fullName.isEmpty()) {
+                            inserirOuAtualizarRegistro(fullName.toUpperCase(), null, OrigemListaRestritiva.OFAC);
+                            count++;
+                        }
+                    } else if ("NamePartValue".equals(endName)) {
+                        insideNamePartValue = false;
+                    }
+                    break;
             }
         }
+        reader.close();
         return count;
     }
 
@@ -204,61 +231,85 @@ public class ComplianceSincronizacaoService {
     @Transactional
     public int processarOnuXml(InputStream inputStream) throws Exception {
         int count = 0;
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        DocumentBuilder builder = factory.newDocumentBuilder();
-        Document doc = builder.parse(inputStream);
-        doc.getDocumentElement().normalize();
+        XMLInputFactory xmlInputFactory = XMLInputFactory.newInstance();
+        xmlInputFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+        xmlInputFactory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+        XMLStreamReader reader = xmlInputFactory.createXMLStreamReader(inputStream);
 
-        // 1. Processar INDIVIDUALS
-        NodeList individuals = doc.getElementsByTagName("INDIVIDUAL");
-        for (int i = 0; i < individuals.getLength(); i++) {
-            Node node = individuals.item(i);
-            if (node.getNodeType() == Node.ELEMENT_NODE) {
-                Element element = (Element) node;
-                
-                String firstName = getXmlTagValue(element, "FIRST_NAME");
-                String secondName = getXmlTagValue(element, "SECOND_NAME");
-                String thirdName = getXmlTagValue(element, "THIRD_NAME");
-                String fourthName = getXmlTagValue(element, "FOURTH_NAME");
-                
-                StringBuilder fullNameBuilder = new StringBuilder();
-                if (!firstName.isEmpty()) fullNameBuilder.append(firstName).append(" ");
-                if (!secondName.isEmpty()) fullNameBuilder.append(secondName).append(" ");
-                if (!thirdName.isEmpty()) fullNameBuilder.append(thirdName).append(" ");
-                if (!fourthName.isEmpty()) fullNameBuilder.append(fourthName);
-                
-                String fullName = fullNameBuilder.toString().trim().replaceAll("\\s+", " ").toUpperCase();
-                
-                String docNum = "";
-                NodeList docNodes = element.getElementsByTagName("INDIVIDUAL_DOCUMENT");
-                if (docNodes.getLength() > 0 && docNodes.item(0).getNodeType() == Node.ELEMENT_NODE) {
-                    Element docEl = (Element) docNodes.item(0);
-                    docNum = getXmlTagValue(docEl, "NUMBER");
-                }
-                
-                if (!fullName.isEmpty()) {
-                    inserirOuAtualizarRegistro(fullName, docNum.isEmpty() ? null : docNum, OrigemListaRestritiva.ONU);
-                    count++;
-                }
+        String currentElement = "";
+        boolean inIndividual = false;
+        boolean inEntity = false;
+        boolean inDocument = false;
+
+        String firstName = "";
+        String secondName = "";
+        String thirdName = "";
+        String fourthName = "";
+        String docNum = "";
+
+        while (reader.hasNext()) {
+            int event = reader.next();
+
+            switch (event) {
+                case XMLStreamConstants.START_ELEMENT:
+                    currentElement = reader.getLocalName();
+                    if ("INDIVIDUAL".equals(currentElement)) {
+                        inIndividual = true;
+                        firstName = ""; secondName = ""; thirdName = ""; fourthName = ""; docNum = "";
+                    } else if ("ENTITY".equals(currentElement)) {
+                        inEntity = true;
+                        firstName = "";
+                    } else if ("INDIVIDUAL_DOCUMENT".equals(currentElement)) {
+                        inDocument = true;
+                    }
+                    break;
+
+                case XMLStreamConstants.CHARACTERS:
+                    if (reader.isWhiteSpace()) break;
+                    String text = reader.getText().trim();
+                    if (text.isEmpty()) break;
+
+                    if (inIndividual) {
+                        if ("FIRST_NAME".equals(currentElement)) firstName += text;
+                        else if ("SECOND_NAME".equals(currentElement)) secondName += text;
+                        else if ("THIRD_NAME".equals(currentElement)) thirdName += text;
+                        else if ("FOURTH_NAME".equals(currentElement)) fourthName += text;
+                        else if (inDocument && "NUMBER".equals(currentElement)) docNum += text;
+                    } else if (inEntity) {
+                        if ("FIRST_NAME".equals(currentElement)) firstName += text;
+                    }
+                    break;
+
+                case XMLStreamConstants.END_ELEMENT:
+                    String endElement = reader.getLocalName();
+                    if ("INDIVIDUAL".equals(endElement)) {
+                        StringBuilder fullNameBuilder = new StringBuilder();
+                        if (!firstName.isEmpty()) fullNameBuilder.append(firstName).append(" ");
+                        if (!secondName.isEmpty()) fullNameBuilder.append(secondName).append(" ");
+                        if (!thirdName.isEmpty()) fullNameBuilder.append(thirdName).append(" ");
+                        if (!fourthName.isEmpty()) fullNameBuilder.append(fourthName);
+
+                        String fullName = fullNameBuilder.toString().trim().replaceAll("\\s+", " ").toUpperCase();
+                        if (!fullName.isEmpty()) {
+                            inserirOuAtualizarRegistro(fullName, docNum.isEmpty() ? null : docNum, OrigemListaRestritiva.ONU);
+                            count++;
+                        }
+                        inIndividual = false;
+                    } else if ("ENTITY".equals(endElement)) {
+                        String fullName = firstName.trim().replaceAll("\\s+", " ").toUpperCase();
+                        if (!fullName.isEmpty()) {
+                            inserirOuAtualizarRegistro(fullName, null, OrigemListaRestritiva.ONU);
+                            count++;
+                        }
+                        inEntity = false;
+                    } else if ("INDIVIDUAL_DOCUMENT".equals(endElement)) {
+                        inDocument = false;
+                    }
+                    currentElement = "";
+                    break;
             }
         }
-
-        // 2. Processar ENTITIES
-        NodeList entities = doc.getElementsByTagName("ENTITY");
-        for (int i = 0; i < entities.getLength(); i++) {
-            Node node = entities.item(i);
-            if (node.getNodeType() == Node.ELEMENT_NODE) {
-                Element element = (Element) node;
-                String firstName = getXmlTagValue(element, "FIRST_NAME");
-                String fullName = firstName.trim().replaceAll("\\s+", " ").toUpperCase();
-                
-                if (!fullName.isEmpty()) {
-                    inserirOuAtualizarRegistro(fullName, null, OrigemListaRestritiva.ONU);
-                    count++;
-                }
-            }
-        }
-        
+        reader.close();
         return count;
     }
 
@@ -322,17 +373,6 @@ public class ComplianceSincronizacaoService {
             default:
                 return "";
         }
-    }
-
-    private String getXmlTagValue(Element element, String tagName) {
-        NodeList nodeList = element.getElementsByTagName(tagName);
-        if (nodeList.getLength() > 0) {
-            Node node = nodeList.item(0);
-            if (node != null && node.getFirstChild() != null) {
-                return node.getFirstChild().getNodeValue().trim();
-            }
-        }
-        return "";
     }
 
     private void inserirOuAtualizarRegistro(String nome, String documento, OrigemListaRestritiva origem) {
