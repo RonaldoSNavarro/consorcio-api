@@ -24,7 +24,7 @@ public class ScratchTest {
             boolean matchesAdmin = passwordEncoder.matches("admin", user.getPassword());
             boolean matchesAdmin123 = passwordEncoder.matches("admin123", user.getPassword());
             System.out.println("User: " + user.getUsername());
-            System.out.println("  Role: " + user.getRole());
+            System.out.println("  Role: " + (user.getPerfil() != null ? user.getPerfil().getNome() : "null"));
             System.out.println("  Hash: " + user.getPassword());
             System.out.println("  Matches 'admin': " + matchesAdmin);
             System.out.println("  Matches 'admin123': " + matchesAdmin123);

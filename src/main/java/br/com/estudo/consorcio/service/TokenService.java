@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import org.springframework.security.core.GrantedAuthority;
 
 @Service
 public class TokenService {
@@ -25,7 +26,8 @@ public class TokenService {
                     .withIssuer("API Consorcio")
                     .withSubject(usuario.getUsername())
                     .withClaim("id", usuario.getId())
-                    .withClaim("role", usuario.getRole())
+                    .withClaim("role", usuario.getPerfil() != null ? usuario.getPerfil().getNome() : null)
+                    .withClaim("authorities", usuario.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList())
                     .withClaim("nome", usuario.getNome())
                     .withClaim("email", usuario.getEmail())
                     .withExpiresAt(dataExpiracao())

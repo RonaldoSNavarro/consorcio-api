@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 
@@ -26,6 +27,7 @@ public class ContemplacaoController {
 
     @Operation(summary = "Registra uma nova contemplação",
             description = "Processa sorteios e lances. Valida regras do Banco Central, incluindo trava de saldo do Fundo Comum e limite máximo de 30% para lances embutidos.")
+    @PreAuthorize("hasAuthority('MANAGE_GRUPOS')")
     @PostMapping
     public ResponseEntity<ContemplacaoResponseDTO> registrar(@Valid @RequestBody ContemplacaoRequestDTO dto) {
         ContemplacaoResponseDTO salva = service.registrar(dto);
@@ -34,6 +36,7 @@ public class ContemplacaoController {
 
     @Operation(summary = "Lista contemplados por Assembleia",
             description = "Retorna o histórico de todas as cotas contempladas em uma assembleia específica.")
+    @PreAuthorize("hasAuthority('VIEW_GRUPOS')")
     @GetMapping("/assembleia/{assembleiaId}")
     public ResponseEntity<List<ContemplacaoResponseDTO>> listarPorAssembleia(@PathVariable Long assembleiaId) {
         return ResponseEntity.ok(service.listarPorAssembleia(assembleiaId));
@@ -41,6 +44,7 @@ public class ContemplacaoController {
 
     @Operation(summary = "Lista contemplacoes pendentes de integralizacao",
             description = "Retorna todas as cotas que estao aguardando o pagamento de lance livre ou fixo.")
+    @PreAuthorize("hasAuthority('VIEW_GRUPOS')")
     @GetMapping("/pendentes-integralizacao")
     public ResponseEntity<List<ContemplacaoResponseDTO>> listarPendentesIntegralizacao() {
         return ResponseEntity.ok(service.listarPendentesIntegralizacao());
@@ -48,6 +52,7 @@ public class ContemplacaoController {
 
     @Operation(summary = "Pagar o bem da contemplação",
             description = "Realiza o pagamento/faturamento do bem (DÉBITO do valor do crédito liberado no fundo do grupo).")
+    @PreAuthorize("hasAuthority('MANAGE_GRUPOS')")
     @PostMapping("/{id}/pagamento-bem")
     public ResponseEntity<ContemplacaoResponseDTO> pagarBem(@PathVariable Long id) {
         ContemplacaoResponseDTO response = service.pagarBem(id);
@@ -56,6 +61,7 @@ public class ContemplacaoController {
 
     @Operation(summary = "Confirmar integralização de lance livre",
             description = "Registra a compensação bancária do lance livre. Transita o status da cota para AGUARDANDO_ANALISE e gera os lançamentos contábeis no Ledger.")
+    @PreAuthorize("hasAuthority('MANAGE_GRUPOS')")
     @PostMapping("/lances/{id}/integralizar")
     public ResponseEntity<CotaResponseDTO> confirmarIntegralizacao(@PathVariable Long id) {
         CotaResponseDTO response = service.confirmarPagamentoLance(id);
@@ -64,6 +70,7 @@ public class ContemplacaoController {
 
     @Operation(summary = "Cancelar contemplação por falta de pagamento",
             description = "Cancela a contemplação e o lance correspondente, voltando a cota para ATIVA.")
+    @PreAuthorize("hasAuthority('MANAGE_GRUPOS')")
     @PostMapping("/lances/{id}/cancelar")
     public ResponseEntity<Void> cancelarContemplacao(@PathVariable Long id) {
         service.cancelarContemplacaoPorAtraso(id);

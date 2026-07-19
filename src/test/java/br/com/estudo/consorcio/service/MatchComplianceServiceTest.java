@@ -12,6 +12,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -39,88 +41,54 @@ public class MatchComplianceServiceTest {
     @InjectMocks
     private MatchComplianceService matchComplianceService;
 
+    @Captor
+    private ArgumentCaptor<List<AlertaCompliance>> alertasCaptor;
+
     @BeforeEach
     void setUp() {
         matchComplianceService.setSimilarityThreshold(0.90);
     }
 
-    @ParameterizedTest
-    @CsvSource({
-            "Ronaldo Navarro, Ronaldo Navarro, true",
-            "Ronaldo Navarro, Ronaaldo Navarro, true",
-            "Roberto da Silva, Roberrto da Silva, true",
-            "João Paulo, Joao Paulo, true",
-            "Marcos Antonio, Marcos Antonio Junior, true",
-            "Ronaldo Navarro, Carlos Eduardo, false",
-            "Roberto da Silva, Joao da Silva, false",
-            "Marcos Antonio, Marcos, false"
-    })
-    @DisplayName("Teste parametrizado - Algoritmo Jaro-Winkler para similaridade de nomes na ONU")
-    void testJaroWinklerSimilarity(String nomeCliente, String nomeLista, boolean expectedMatch) {
-        Cliente cliente = new Cliente();
-        cliente.setId(1L);
-        cliente.setNome(nomeCliente);
-        cliente.setCpfCnpj("11122233344");
-        
-        // Use a PageImpl to support the upcoming pagination refactor (R4)
-        Page<Cliente> clientePage = new PageImpl<>(List.of(cliente));
-        when(clienteRepository.findAll(any(Pageable.class))).thenReturn(clientePage).thenReturn(Page.empty());
+    @org.junit.jupiter.api.Test
+    @DisplayName("Deve salvar alertas quando existirem matches do IBGE, PEP e OFAC/ONU")
+    void testCruzarBaseDeClientes() {
+        AlertaComplianceRepository.MatchResultProjection ibgeMatch = mock(AlertaComplianceRepository.MatchResultProjection.class);
+        when(ibgeMatch.getClienteId()).thenReturn(1L);
+        when(ibgeMatch.getListaId()).thenReturn(10L);
+        when(ibgeMatch.getScore()).thenReturn(1.0);
 
-        ListaRestritiva lista = new ListaRestritiva();
-        lista.setId(10L);
-        lista.setNome(nomeLista);
-        lista.setOrigem(OrigemListaRestritiva.ONU);
+        AlertaComplianceRepository.MatchResultProjection pepMatch = mock(AlertaComplianceRepository.MatchResultProjection.class);
+        when(pepMatch.getClienteId()).thenReturn(2L);
+        when(pepMatch.getListaId()).thenReturn(20L);
+        when(pepMatch.getScore()).thenReturn(0.95);
 
-        when(listaRestritivaRepository.findAll()).thenReturn(List.of(lista));
+        when(alertaComplianceRepository.findIbgeMatches()).thenReturn(List.of(ibgeMatch));
+        when(alertaComplianceRepository.findPepMatches(0.90)).thenReturn(List.of(pepMatch));
+        when(alertaComplianceRepository.findOfacOnuMatches(0.90)).thenReturn(List.of());
 
-        if (expectedMatch) {
-            when(alertaComplianceRepository.existsByClienteIdAndListaRestritivaId(1L, 10L)).thenReturn(false);
-        }
+        Cliente cliente1 = new Cliente(); cliente1.setId(1L);
+        Cliente cliente2 = new Cliente(); cliente2.setId(2L);
+        ListaRestritiva lista1 = new ListaRestritiva(); lista1.setId(10L);
+        ListaRestritiva lista2 = new ListaRestritiva(); lista2.setId(20L);
+
+        when(clienteRepository.getReferenceById(1L)).thenReturn(cliente1);
+        when(clienteRepository.getReferenceById(2L)).thenReturn(cliente2);
+        when(listaRestritivaRepository.getReferenceById(10L)).thenReturn(lista1);
+        when(listaRestritivaRepository.getReferenceById(20L)).thenReturn(lista2);
 
         matchComplianceService.cruzarBaseDeClientes();
 
-        if (expectedMatch) {
-            verify(alertaComplianceRepository, times(1)).save(any(AlertaCompliance.class));
-        } else {
-            verify(alertaComplianceRepository, never()).save(any(AlertaCompliance.class));
-        }
-    }
-
-    @ParameterizedTest
-    @CsvSource({
-            "Marcelo Antonio Carreira, 111.531.324-88, MARCELO ANTONIO CARREIRA, ***.531.324-**, true",
-            "Marcelo A Carreira, 111.531.324-88, MARCELO ANTONIO CARREIRA, ***.531.324-**, true",
-            "Pedro Albuquerque, 111.531.324-88, MARCELO ANTONIO CARREIRA, ***.531.324-**, false",
-            "Marcelo Antonio Carreira, 111.999.324-88, MARCELO ANTONIO CARREIRA, ***.531.324-**, false"
-    })
-    @DisplayName("Teste parametrizado - Regra PEP combinando CPF mascarado e Jaro-Winkler")
-    void testPepCpfMaskingAndJaroWinkler(String nomeCliente, String cpfCliente, String nomeLista, String documentoLista, boolean expectedMatch) {
-        Cliente cliente = new Cliente();
-        cliente.setId(1L);
-        cliente.setNome(nomeCliente);
-        cliente.setCpfCnpj(cpfCliente);
+        verify(alertaComplianceRepository, times(2)).saveAll(alertasCaptor.capture());
         
-        Page<Cliente> clientePage = new PageImpl<>(List.of(cliente));
-        when(clienteRepository.findAll(any(Pageable.class))).thenReturn(clientePage).thenReturn(Page.empty());
-
-        ListaRestritiva lista = new ListaRestritiva();
-        lista.setId(20L);
-        lista.setNome(nomeLista);
-        lista.setDocumentoOrigem(documentoLista);
-        lista.setOrigem(OrigemListaRestritiva.PEP);
-
-        when(listaRestritivaRepository.findAll()).thenReturn(List.of(lista));
-
-        if (expectedMatch) {
-            when(alertaComplianceRepository.existsByClienteIdAndListaRestritivaId(1L, 20L)).thenReturn(false);
-        }
-
-        matchComplianceService.cruzarBaseDeClientes();
-
-        if (expectedMatch) {
-            verify(alertaComplianceRepository, times(1)).save(any(AlertaCompliance.class));
-        } else {
-            verify(alertaComplianceRepository, never()).save(any(AlertaCompliance.class));
-        }
+        List<List<AlertaCompliance>> allSaved = alertasCaptor.getAllValues();
+        org.junit.jupiter.api.Assertions.assertEquals(2, allSaved.size());
+        
+        List<AlertaCompliance> alertasIbge = allSaved.get(0);
+        org.junit.jupiter.api.Assertions.assertEquals(1, alertasIbge.size());
+        org.junit.jupiter.api.Assertions.assertEquals(1L, alertasIbge.get(0).getCliente().getId());
+        
+        List<AlertaCompliance> alertasPep = allSaved.get(1);
+        org.junit.jupiter.api.Assertions.assertEquals(1, alertasPep.size());
+        org.junit.jupiter.api.Assertions.assertEquals(2L, alertasPep.get(0).getCliente().getId());
     }
 }

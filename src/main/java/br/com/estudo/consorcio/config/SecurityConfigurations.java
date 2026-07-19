@@ -23,6 +23,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  */
 @Configuration
 @EnableWebSecurity
+@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 @org.springframework.scheduling.annotation.EnableAsync
 public class SecurityConfigurations {
 
@@ -57,25 +58,9 @@ public class SecurityConfigurations {
                     req.requestMatchers(HttpMethod.GET, "/api/login/me").permitAll();
                     req.requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll();
 
-                    // Permissões específicas para GESTOR e ADMIN
-                    req.requestMatchers(HttpMethod.POST, "/api/contemplacoes/lances/{id}/integralizar").hasAnyRole("ADMIN", "GESTOR");
-                    req.requestMatchers(HttpMethod.POST, "/api/cotas/{id}/reembolsar").hasAnyRole("ADMIN", "GESTOR");
 
-                    // RBAC granular (Lote 2 adaptado para Roles)
-                    req.requestMatchers(HttpMethod.GET, "/api/compliance/**").hasAnyRole("ADMIN", "COMPLIANCE");
-                    req.requestMatchers(HttpMethod.POST, "/api/compliance/**").hasAnyRole("ADMIN", "COMPLIANCE");
-                    req.requestMatchers(HttpMethod.PUT, "/api/compliance/**").hasAnyRole("ADMIN", "COMPLIANCE");
-                    req.requestMatchers(HttpMethod.POST, "/api/**").hasRole("ADMIN");
-                    req.requestMatchers(HttpMethod.PUT, "/api/**").hasRole("ADMIN");
-                    req.requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("ADMIN");
 
-                    // Relatórios BCB: Apenas ADMIN e AUDITOR
-                    req.requestMatchers(HttpMethod.GET, "/api/relatorios/**").hasAnyRole("ADMIN", "AUDITOR");
-
-                    // Leituras: ADMIN e AUDITOR e CONSORCIADO
-                    req.requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole("ADMIN", "AUDITOR", "CONSORCIADO");
-
-                    // Qualquer outra rota requer autenticação
+                    // Qualquer outra rota requer autenticação (Autorização granular via @PreAuthorize nos Controllers)
                     req.anyRequest().authenticated();
                 })
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)

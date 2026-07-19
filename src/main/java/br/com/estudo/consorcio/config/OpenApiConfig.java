@@ -42,12 +42,17 @@ public class OpenApiConfig {
             // A ordem exata da sua jornada
             List<String> ordemDesejada = List.of(
                     "Autenticação",
+                    "MFA / 2FA",
                     "Clientes",
+                    "Vendas",
+                    "Análise de Crédito",
                     "Grupos",
                     "Cotas",
                     "Parcelas",
                     "Assembleias",
+                    "Loteria Federal",
                     "Contemplações",
+                    "Movimentos Financeiros",
                     "Compliance",
                     "Relatórios BCB"
             );

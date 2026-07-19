@@ -16,6 +16,8 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     // 400 — Regras de negócio violadas (ex: saldo insuficiente, lance acima do limite)
     @ExceptionHandler(RegraDeNegocioException.class)
     public ResponseEntity<ExceptionDTO> handleRegraDeNegocio(RegraDeNegocioException ex) {
@@ -60,9 +62,12 @@ public class GlobalExceptionHandler {
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
                 .collect(Collectors.toList());
 
+        String errorMsg = String.join("; ", errors);
+        logger.warn("Erro de validação (@Valid): {}", errorMsg);
+
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(new ExceptionDTO("Erro de validação", String.join("; ", errors)));
+                .body(new ExceptionDTO("Erro de validação", errorMsg));
     }
 
     // 409 — Conflito de concorrência (Lock Otimista)
@@ -89,7 +94,7 @@ public class GlobalExceptionHandler {
     // 500 — Fallback para erros inesperados (não deve ser atingido em fluxos normais)
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ExceptionDTO> handleRuntimeException(RuntimeException ex) {
-        ex.printStackTrace();
+        logger.error("Erro interno do servidor não tratado", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ExceptionDTO("Erro interno do servidor",
                         "Ocorreu um erro inesperado. Entre em contato com o suporte."));

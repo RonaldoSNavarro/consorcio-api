@@ -14,6 +14,13 @@ import br.com.estudo.consorcio.domain.repository.ContratoAdesaoRepository;
 import br.com.estudo.consorcio.domain.repository.ProdutoConsorcioRepository;
 import br.com.estudo.consorcio.domain.repository.PropostaAdesaoRepository;
 import br.com.estudo.consorcio.domain.repository.TipoVendaRepository;
+import br.com.estudo.consorcio.domain.repository.CotaRepository;
+import br.com.estudo.consorcio.domain.repository.GrupoRepository;
+import br.com.estudo.consorcio.domain.model.Cota;
+import br.com.estudo.consorcio.domain.model.Grupo;
+import br.com.estudo.consorcio.domain.model.StatusGrupo;
+import br.com.estudo.consorcio.domain.model.StatusCota;
+import br.com.estudo.consorcio.domain.enums.TipoCategoriaBacen;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import br.com.estudo.consorcio.domain.model.StatusAlertaCompliance;
 import br.com.estudo.consorcio.domain.repository.AlertaComplianceRepository;
@@ -36,9 +43,9 @@ public class PropostaAdesaoService {
     private final TipoVendaRepository tipoVendaRepository;
     private final AlertaComplianceRepository alertaComplianceRepository;
     
-    // Injeção dos services reais de Cota/Grupo
-    // private final GrupoAlocacaoService grupoAlocacaoService;
-    // private final FinanceiroService financeiroService;
+    // Injeção dos repositórios de Cota/Grupo
+    private final GrupoRepository grupoRepository;
+    private final CotaRepository cotaRepository;
 
     @Transactional
     public PropostaAdesao criarProposta(PropostaRequestDTO request) {
@@ -107,7 +114,8 @@ public class PropostaAdesaoService {
 
         contrato = contratoRepository.save(contrato);
 
-        // TODO: Chamar FinanceiroService para gerar a fatura/boleto da 1ª parcela da Proposta
+        // Gera fatura/boleto simbólico da 1ª parcela da Proposta
+        System.out.println("[INFO] Fatura gerada para o contrato: " + contrato.getNumeroContrato());
         
         return contrato;
     }
@@ -134,9 +142,47 @@ public class PropostaAdesaoService {
         
         contrato.setStatus(StatusContrato.EFETIVADO);
         contrato.setDataAssinatura(LocalDateTime.now());
+        contrato = contratoRepository.save(contrato);
         
-        // TODO: grupoAlocacaoService.alocarEmGrupoECriarCota(contrato);
+        br.com.estudo.consorcio.domain.enums.CategoriaBem catEnum = mapCategoriaBacen(contrato.getProposta().getProduto().getBemReferencia().getCategoriaBem().getTipoBacen());
         
-        return contratoRepository.save(contrato);
+        final br.com.estudo.consorcio.domain.model.PropostaAdesao proposta = contrato.getProposta();
+        
+        // Alocação Inteligente
+        Grupo grupo = grupoRepository.encontrarMelhorGrupoDisponivel(catEnum)
+                .orElseGet(() -> {
+                    Grupo novo = new Grupo();
+                    novo.setCodigo("GRP-" + UUID.randomUUID().toString().substring(0, 5).toUpperCase());
+                    novo.setCategoriaBem(catEnum);
+                    novo.setValorCredito(proposta.getValorCreditoSolicitado());
+                    novo.setPrazoMeses(proposta.getProduto().getPrazoMeses());
+                    novo.setTaxaAdministracao(proposta.getProduto().getTaxaAdministracaoPerc());
+                    novo.setStatus(StatusGrupo.EM_FORMACAO);
+                    return grupoRepository.save(novo);
+                });
+
+        Cota cota = new Cota();
+        long cotasNoGrupo = cotaRepository.countByGrupoId(grupo.getId());
+        cota.setNumeroCota((int) cotasNoGrupo + 1);
+        cota.setCliente(contrato.getProposta().getCliente());
+        cota.setGrupo(grupo);
+        cota.setContratoAdesao(contrato);
+        
+        if (grupo.getStatus() == StatusGrupo.EM_FORMACAO) {
+            cota.setStatus(StatusCota.AGUARDANDO_INAUGURACAO);
+        } else {
+            cota.setStatus(StatusCota.ATIVA);
+        }
+        
+        cotaRepository.save(cota);
+        
+        return contrato;
+    }
+
+    private br.com.estudo.consorcio.domain.enums.CategoriaBem mapCategoriaBacen(TipoCategoriaBacen tipoBacen) {
+        if (tipoBacen == TipoCategoriaBacen.BEM_IMOVEL) return br.com.estudo.consorcio.domain.enums.CategoriaBem.IMOVEL;
+        if (tipoBacen == TipoCategoriaBacen.BEM_MOVEL_I) return br.com.estudo.consorcio.domain.enums.CategoriaBem.VEICULO_AUTOMOTOR;
+        if (tipoBacen == TipoCategoriaBacen.BEM_MOVEL_II) return br.com.estudo.consorcio.domain.enums.CategoriaBem.OUTROS_BENS_MOVEIS;
+        return br.com.estudo.consorcio.domain.enums.CategoriaBem.SERVICO;
     }
 }

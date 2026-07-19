@@ -1,0 +1,20 @@
+package br.com.estudo.consorcio.domain.model;
+
+public enum Permissao {
+    VIEW_DASHBOARD,
+    MANAGE_USERS,
+    MANAGE_ROLES,
+    VIEW_COTAS,
+    MANAGE_COTAS,
+    VIEW_GRUPOS,
+    MANAGE_GRUPOS,
+    VIEW_FINANCEIRO,
+    MANAGE_FINANCEIRO,
+    VIEW_COMPLIANCE,
+    MANAGE_COMPLIANCE,
+    VIEW_MEUS_DADOS,
+    VIEW_CLIENTES,
+    MANAGE_CLIENTES,
+    VIEW_RELATORIOS,
+    MANAGE_VENDAS
+}

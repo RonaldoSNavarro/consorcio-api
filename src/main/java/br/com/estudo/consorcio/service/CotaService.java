@@ -107,7 +107,7 @@ public class CotaService {
     }
 
     @Transactional(readOnly = true)
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('SCOPE_admin:full', 'SCOPE_gestor:read', 'SCOPE_auditor:read', 'SCOPE_compliance:read') or @ownershipGuard.canAccessCota(#cotaId)")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('VIEW_COTAS', 'VIEW_COMPLIANCE') or @ownershipGuard.canAccessCota(#cotaId)")
     public List<HistoricoVersaoCotaResponseDTO> listarVersoes(Long cotaId) {
         // Garantir que a cota existe
         if (!cotaRepository.existsById(cotaId)) {
@@ -181,7 +181,7 @@ public class CotaService {
     }
 
     @Transactional
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('SCOPE_admin:full', 'SCOPE_gestor:write')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('MANAGE_COTAS')")
     public CotaResponseDTO cancelarCota(Long cotaId) {
         Cota cota = cotaRepository.findById(cotaId)
                 .orElseThrow(() -> new RegraDeNegocioException("Cota não encontrada."));
@@ -245,7 +245,7 @@ public class CotaService {
     }
 
     @Transactional
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('SCOPE_admin:full', 'SCOPE_gestor:write', 'SCOPE_financeiro:write')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('MANAGE_COTAS', 'MANAGE_FINANCEIRO')")
     public CotaReembolsoResponseDTO reembolsarCota(Long cotaId) {
         Cota cota = cotaRepository.findById(cotaId)
                 .orElseThrow(() -> new RegraDeNegocioException("Cota não encontrada."));
@@ -357,13 +357,13 @@ public class CotaService {
         );
     }
 
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('SCOPE_admin:full', 'SCOPE_compliance:read', 'SCOPE_auditor:read', 'SCOPE_gestor:read')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('VIEW_COTAS', 'VIEW_COMPLIANCE')")
     public Page<CotaResponseDTO> listarTodas(Pageable pageable) {
         return cotaRepository.findAll(pageable)
                 .map(mapper::toResponse);
     }
 
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('SCOPE_admin:full', 'SCOPE_compliance:read', 'SCOPE_auditor:read', 'SCOPE_gestor:read') or @ownershipGuard.canAccessCliente(#clienteId)")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('VIEW_COTAS', 'VIEW_COMPLIANCE') or @ownershipGuard.canAccessCliente(#clienteId)")
     public Page<CotaResponseDTO> listarPorCliente(Long clienteId, Pageable pageable) {
         Cliente cliente = clienteRepository.findById(clienteId)
                 .orElseThrow(() -> new RegraDeNegocioException("Cliente não encontrado."));
@@ -371,7 +371,12 @@ public class CotaService {
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getName() != null) {
             String username = auth.getName();
-            if (!username.equals("admin") && !username.equals(cliente.getCpfCnpj()) && !username.equals(cliente.getEmail())) {
+            boolean hasGlobalAccess = auth.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("VIEW_COTAS") || 
+                                   a.getAuthority().equals("MANAGE_COTAS") || 
+                                   a.getAuthority().equals("ROLE_ADMIN"));
+
+            if (!hasGlobalAccess && !username.equals("admin") && !username.equals(cliente.getCpfCnpj()) && !username.equals(cliente.getEmail())) {
                 throw new AccessDeniedException("Acesso negado. Você só pode acessar seus próprios dados.");
             }
         }
@@ -380,7 +385,7 @@ public class CotaService {
                 .map(mapper::toResponse);
     }
 
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('SCOPE_admin:full', 'SCOPE_compliance:read', 'SCOPE_auditor:read', 'SCOPE_gestor:read')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('VIEW_COTAS', 'VIEW_COMPLIANCE')")
     public Page<CotaResponseDTO> listarPorGrupo(Long grupoId, Pageable pageable) {
         return cotaRepository.findByGrupoId(grupoId, pageable)
                 .map(mapper::toResponse);
@@ -394,7 +399,7 @@ public class CotaService {
     }
 
     @Transactional(readOnly = true)
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('SCOPE_admin:full', 'SCOPE_gestor:read')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('VIEW_COTAS')")
     public List<CotaReembolsoSimulacaoDTO> listarPendentesReembolso() {
         List<Cota> cotas = cotaRepository.findByStatusAndReembolsadaFalse(StatusCota.CANCELADA);
         return cotas.stream().map(cota -> {

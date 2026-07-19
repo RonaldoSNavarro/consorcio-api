@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -24,6 +25,7 @@ public class LoteriaFederalController {
     }
 
     @Operation(summary = "Registra um novo extrato da Loteria Federal")
+    @PreAuthorize("hasAuthority('MANAGE_GRUPOS')")
     @PostMapping
     public ResponseEntity<LoteriaFederalDTO> registrar(@RequestBody LoteriaFederalDTO dto) {
         LoteriaFederal model = new LoteriaFederal();
@@ -40,6 +42,7 @@ public class LoteriaFederalController {
     }
 
     @Operation(summary = "Lista todos os extratos da Loteria Federal")
+    @PreAuthorize("hasAuthority('VIEW_GRUPOS')")
     @GetMapping
     public ResponseEntity<List<LoteriaFederalDTO>> listar() {
         List<LoteriaFederalDTO> list = repository.findAll().stream()

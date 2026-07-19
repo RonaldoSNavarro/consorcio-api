@@ -59,6 +59,7 @@ A cota deve estar sempre atrelada a um bem que dite o seu reajuste.
 - RN-VND-004: Propostas Reprovadas são canceladas definitivamente.
 - RN-VND-005 (Comissionamento): A comissão do corretor é diluída ao longo das parcelas pagas pelo cliente. Comissões poderão ser bloqueadas ou estornadas caso o cliente se torne inadimplente.
 - RN-VND-006 (Alocação Inteligente): O sistema sempre prioriza preencher grupos existentes (`EM_ANDAMENTO` e `EM_FORMACAO`) antes de abrir novos. O limite da query atual do sistema está em 100 cotas/grupo como hard-limit, atrelado à categoria de bem.
+- RN-VND-007 (Geração de Cota): Ao efetivar o contrato, a cota gerada deve obrigatoriamente receber um número sequencial calculado dinamicamente de acordo com o total de cotas atuais do grupo alocado (restrição NOT NULL no banco de dados).
 
 ## 6. Diretrizes Técnicas / Notas de Arquitetura
 - **Persistência / Serialização:** Entidades chave do módulo (como `ProdutoConsorcio` e `BemReferencia`) possuem dependências aninhadas. Deve-se adotar `FetchType.EAGER` ou Projetar em DTOs a fim de contornar `LazyInitializationException` no momento de retorno via Jackson API.

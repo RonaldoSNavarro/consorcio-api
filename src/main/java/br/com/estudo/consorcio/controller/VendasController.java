@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.security.access.prepost.PreAuthorize;
 import br.com.estudo.consorcio.domain.model.TipoVenda;
 import br.com.estudo.consorcio.domain.model.ProdutoConsorcio;
 import br.com.estudo.consorcio.domain.repository.TipoVendaRepository;
@@ -33,33 +34,39 @@ public class VendasController {
     private final TipoVendaRepository tipoVendaRepository;
     private final ProdutoConsorcioRepository produtoRepository;
 
+    @PreAuthorize("hasAuthority('MANAGE_VENDAS')")
     @GetMapping("/tipos")
     public ResponseEntity<List<TipoVenda>> listarTiposVenda() {
         return ResponseEntity.ok(tipoVendaRepository.findAll());
     }
 
+    @PreAuthorize("hasAuthority('MANAGE_VENDAS')")
     @GetMapping("/tipos/todos")
     public ResponseEntity<List<TipoVenda>> listarTiposTodos() {
         return ResponseEntity.ok(tipoVendaRepository.findAll());
     }
 
+    @PreAuthorize("hasAuthority('MANAGE_VENDAS')")
     @GetMapping("/produtos")
     public ResponseEntity<List<ProdutoConsorcio>> listarProdutos() {
         return ResponseEntity.ok(produtoRepository.findAll());
     }
 
+    @PreAuthorize("hasAuthority('MANAGE_VENDAS')")
     @PostMapping("/propostas")
     public ResponseEntity<PropostaResponseDTO> criarProposta(@RequestBody @Valid PropostaRequestDTO request) {
         PropostaAdesao proposta = propostaService.criarProposta(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(mapper.toResponse(proposta));
     }
 
+    @PreAuthorize("hasAuthority('MANAGE_VENDAS')")
     @PostMapping("/propostas/{id}/aprovar")
     public ResponseEntity<ContratoResponseDTO> aprovarProposta(@PathVariable Long id) {
         ContratoAdesao contrato = propostaService.aprovarProposta(id);
         return ResponseEntity.ok(mapper.toContratoResponse(contrato));
     }
 
+    @PreAuthorize("hasAuthority('MANAGE_VENDAS')")
     @PostMapping("/contratos/{id}/efetivar")
     public ResponseEntity<ContratoResponseDTO> efetivarContrato(@PathVariable Long id) {
         ContratoAdesao contrato = propostaService.efetivarContrato(id);

@@ -57,7 +57,7 @@ public class ComplianceController {
     @Operation(summary = "Sincronização manual de listas restritivas",
             description = "Dispara a rotina assíncrona de ingestão das bases PEP (Portal da Transparência), OFAC e ONU, executando em seguida o cruzamento (matching) com a base de clientes cadastrados.")
     @PostMapping("/sincronizar")
-    @PreAuthorize("hasAnyAuthority('SCOPE_compliance:screen', 'SCOPE_compliance:read')")
+    @PreAuthorize("hasAnyAuthority('VIEW_COMPLIANCE')")
     public ResponseEntity<ComplianceSyncResultDTO> sincronizarListasManualmente() {
         sincronizacaoService.sincronizarListas();
         return ResponseEntity.accepted().body(ComplianceSyncResultDTO.iniciado());
@@ -66,7 +66,7 @@ public class ComplianceController {
     @Operation(summary = "Listar alertas de compliance",
             description = "Retorna todos os alertas gerados a partir do cruzamento de clientes contra as listas restritivas. Permite filtragem opcional por status do alerta.")
     @GetMapping("/alertas")
-    @PreAuthorize("hasAnyAuthority('SCOPE_compliance:screen', 'SCOPE_compliance:read')")
+    @PreAuthorize("hasAnyAuthority('VIEW_COMPLIANCE')")
     public ResponseEntity<List<AlertaComplianceResponseDTO>> listarAlertas(
             @Parameter(description = "Status do alerta para filtragem (PENDENTE_ANALISE, FALSO_POSITIVO, CONFIRMADO)")
             @RequestParam(required = false) StatusAlertaCompliance status) {
@@ -97,7 +97,7 @@ public class ComplianceController {
     @Operation(summary = "Listar logs de execucao de compliance",
             description = "Retorna o historico de execucao de sincronizacao de listas.")
     @GetMapping("/execucoes")
-    @PreAuthorize("hasAnyAuthority('SCOPE_compliance:screen', 'SCOPE_compliance:read')")
+    @PreAuthorize("hasAnyAuthority('VIEW_COMPLIANCE')")
     public ResponseEntity<List<ComplianceExecucaoLogResponseDTO>> listarExecucoes() {
         return ResponseEntity.ok(execucaoLogRepository.findTop50ByOrderByDataExecucaoDesc().stream()
                 .map(execucaoLogMapper::toResponse)
@@ -107,7 +107,7 @@ public class ComplianceController {
     @Operation(summary = "Deliberar sobre alerta de compliance",
             description = "Permite registrar o veredito do analista de compliance (FALSO_POSITIVO ou CONFIRMADO) para um determinado alerta, com o fornecimento obrigatório de uma justificativa formal.")
     @PutMapping("/alertas/{alertaId}/deliberar")
-    @PreAuthorize("hasAnyAuthority('SCOPE_compliance:screen', 'SCOPE_compliance:read')")
+    @PreAuthorize("hasAnyAuthority('VIEW_COMPLIANCE')")
     public ResponseEntity<Void> deliberarSobreAlerta(
             @Parameter(description = "ID do alerta de compliance") @PathVariable Long alertaId,
             @Valid @RequestBody DeliberarAlertaRequestDTO request) {
@@ -125,7 +125,7 @@ public class ComplianceController {
     @Operation(summary = "Upload de arquivo PEP (CSV)",
             description = "Recebe e processa o arquivo CSV contendo os CPFs mascarados e nomes de Pessoas Expostas Politicamente.")
     @PostMapping(value = "/upload/pep", consumes = "multipart/form-data")
-    @PreAuthorize("hasAnyAuthority('SCOPE_compliance:screen', 'SCOPE_compliance:read')")
+    @PreAuthorize("hasAnyAuthority('VIEW_COMPLIANCE')")
     public ResponseEntity<Map<String, Object>> uploadPep(
             @RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
@@ -144,7 +144,7 @@ public class ComplianceController {
     @Operation(summary = "Upload de arquivo ONU (XML)",
             description = "Recebe e processa o arquivo XML contendo indivíduos e entidades sancionados pelo Conselho de Segurança da ONU.")
     @PostMapping(value = "/upload/onu", consumes = "multipart/form-data")
-    @PreAuthorize("hasAnyAuthority('SCOPE_compliance:screen', 'SCOPE_compliance:read')")
+    @PreAuthorize("hasAnyAuthority('VIEW_COMPLIANCE')")
     public ResponseEntity<Map<String, Object>> uploadOnu(
             @RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
@@ -163,7 +163,7 @@ public class ComplianceController {
     @Operation(summary = "Upload de arquivo IBGE (XLS)",
             description = "Recebe e processa a planilha XLS contendo os Municípios de Faixa de Fronteira e Cidades Gêmeas do IBGE.")
     @PostMapping(value = "/upload/ibge", consumes = "multipart/form-data")
-    @PreAuthorize("hasAnyAuthority('SCOPE_compliance:screen', 'SCOPE_compliance:read')")
+    @PreAuthorize("hasAnyAuthority('VIEW_COMPLIANCE')")
     public ResponseEntity<Map<String, Object>> uploadIbge(
             @RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
@@ -182,7 +182,7 @@ public class ComplianceController {
     @Operation(summary = "Obter configuração do agendador cron",
             description = "Retorna a frequência, o horário de disparo e a expressão cron atual do job automático de compliance.")
     @GetMapping("/config")
-    @PreAuthorize("hasAnyAuthority('SCOPE_compliance:screen', 'SCOPE_compliance:read')")
+    @PreAuthorize("hasAnyAuthority('VIEW_COMPLIANCE')")
     public ResponseEntity<ComplianceConfigDTO> getConfig() {
         ComplianceConfig config = configRepository.findById(1L)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Configuração do agendador não encontrada."));
@@ -198,7 +198,7 @@ public class ComplianceController {
     @Operation(summary = "Atualizar configuração do agendador cron",
             description = "Permite alterar a frequência (DIARIO, SEMANAL, MENSAL) e o horário (HH:mm) do processamento automático. O trigger do agendamento é recalculado em tempo de execução.")
     @PutMapping("/config")
-    @PreAuthorize("hasAnyAuthority('SCOPE_compliance:screen', 'SCOPE_compliance:read')")
+    @PreAuthorize("hasAnyAuthority('VIEW_COMPLIANCE')")
     public ResponseEntity<ComplianceConfigDTO> updateConfig(
             @Valid @RequestBody ComplianceConfigDTO request) {
         
