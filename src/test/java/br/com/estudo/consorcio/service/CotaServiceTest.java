@@ -57,11 +57,22 @@ class CotaServiceTest {
     @Mock
     private br.com.estudo.consorcio.domain.repository.AlertaComplianceRepository alertaComplianceRepository;
 
+    @Mock
+    private br.com.estudo.consorcio.service.ComissaoVendaService comissaoService;
+
+    @Mock
+    private br.com.estudo.consorcio.service.CorretorService corretorService;
+
     @org.mockito.Spy
     private br.com.estudo.consorcio.domain.mapper.CotaMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.CotaMapper.class);
 
     @InjectMocks
     private CotaService service;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        org.springframework.test.util.ReflectionTestUtils.setField(mapper, "parcelaRepository", parcelaRepository);
+    }
 
     @Test
     @DisplayName("Deve lançar exceção ao tentar salvar cota para um cliente inexistente")
@@ -91,6 +102,8 @@ class CotaServiceTest {
 
         when(clienteRepository.findById(1L)).thenReturn(Optional.of(cliente));
         when(grupoRepository.findById(2L)).thenReturn(Optional.of(grupo));
+
+        when(cotaRepository.findByGrupoId(any(), any())).thenReturn(Page.empty());
 
         // Simula o repositório devolvendo a cota salva
         when(cotaRepository.save(any(Cota.class))).thenAnswer(i -> i.getArguments()[0]);

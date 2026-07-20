@@ -18,9 +18,12 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import org.springframework.security.test.context.support.WithMockUser;
+
 @SpringBootTest
 @Transactional
 @ActiveProfiles("test") // Evita carregar configs de prod e sobe o H2
+@WithMockUser(username = "admin", authorities = {"MANAGE_COTAS", "MANAGE_GRUPOS", "MANAGE_FINANCEIRO", "VIEW_COTAS", "VIEW_FINANCEIRO", "VIEW_COMPLIANCE"})
 class RegrasDeNegocioIntegrationTest {
 
     @Autowired

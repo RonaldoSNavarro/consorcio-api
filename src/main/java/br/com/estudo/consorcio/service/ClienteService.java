@@ -130,8 +130,13 @@ public class ClienteService {
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getName() != null) {
             String username = auth.getName();
-            // IDOR Protection: allow admin or the owner
-            if (!username.equals("admin") && !username.equals(cliente.getCpfCnpj()) && !username.equals(cliente.getEmail())) {
+            boolean hasGlobalAccess = auth.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("VIEW_CLIENTES") || 
+                                   a.getAuthority().equals("MANAGE_CLIENTES") || 
+                                   a.getAuthority().equals("ROLE_ADMIN"));
+
+            // IDOR Protection: allow managers, admin, or the owner
+            if (!hasGlobalAccess && !username.equals("admin") && !username.equals(cliente.getCpfCnpj()) && !username.equals(cliente.getEmail())) {
                 throw new AccessDeniedException("Acesso negado. Você só pode acessar seus próprios dados.");
             }
         }

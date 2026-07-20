@@ -16,6 +16,15 @@ public interface ParcelaRepository extends JpaRepository<Parcela, Long> {
     // Lista parcelas pelo id da cota
     List<Parcela> findByCotaId(Long cotaId);
 
+    // Conta parcelas pelo id da cota
+    long countByCotaId(Long cotaId);
+
+    @Query("SELECT COALESCE(SUM(p.valorParcela), 0) FROM Parcela p WHERE p.cota.id = :cotaId AND p.status = 'PAGA'")
+    BigDecimal somarValorPagoPorCota(@Param("cotaId") Long cotaId);
+
+    @Query("SELECT COALESCE(SUM(p.valorParcela), 0) FROM Parcela p WHERE p.cota.id = :cotaId")
+    BigDecimal somarValorTotalPorCota(@Param("cotaId") Long cotaId);
+
     // Busca a última parcela gerada da cota
     java.util.Optional<Parcela> findTopByCotaIdOrderByNumeroParcelaDesc(Long cotaId);
 

@@ -3,6 +3,7 @@ package br.com.estudo.consorcio.domain.repository;
 import br.com.estudo.consorcio.domain.model.Cota;
 import br.com.estudo.consorcio.domain.model.StatusCota;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import org.springframework.data.domain.Page;
@@ -12,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface CotaRepository extends JpaRepository<Cota, Long> {
+public interface CotaRepository extends JpaRepository<Cota, Long>, JpaSpecificationExecutor<Cota> {
 
     Page<Cota> findByClienteId(Long clienteId, Pageable pageable);
 
@@ -22,6 +23,8 @@ public interface CotaRepository extends JpaRepository<Cota, Long> {
 
     Page<Cota> findByGrupoId(Long grupoId, Pageable pageable);
     
+    Optional<Cota> findFirstByGrupoIdAndStatusOrderByNumeroCotaAsc(Long grupoId, StatusCota status);
+
     // For internal processing that still needs List
     List<Cota> findByGrupoId(Long grupoId);
 

@@ -1,0 +1,1 @@
+ALTER TABLE perfil_permissoes DROP CONSTRAINT IF EXISTS perfil_permissoes_permissao_check;

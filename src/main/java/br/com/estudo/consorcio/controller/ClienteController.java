@@ -18,6 +18,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 import java.util.List;
 
 @RestController
@@ -37,6 +38,7 @@ public class ClienteController {
 
     @Operation(summary = "Registrar novo cliente",
             description = "Cria um novo consorciado. Valida duplicidade de CPF/CNPJ.")
+    @PreAuthorize("hasAuthority('MANAGE_CLIENTES')")
     @PostMapping
     public ResponseEntity<ClienteResponseDTO> cadastrar(
             @Valid @RequestBody ClienteRequestDTO dto) {
@@ -48,6 +50,7 @@ public class ClienteController {
 
     @Operation(summary = "Listar clientes com paginação",
             description = "Retorna os consorciados paginados. Padrão: 20 por página, ordenado por nome.")
+    @PreAuthorize("hasAuthority('VIEW_CLIENTES')")
     @GetMapping
     public ResponseEntity<Page<ClienteResponseDTO>> listar(
             @RequestParam(required = false) String search,
@@ -57,6 +60,7 @@ public class ClienteController {
     }
 
     @Operation(summary = "Buscar cliente por ID")
+    @PreAuthorize("hasAuthority('VIEW_CLIENTES')")
     @GetMapping("/{id}")
     public ResponseEntity<ClienteResponseDTO> buscarPorId(
             @Parameter(description = "ID do cliente") @PathVariable Long id) {
@@ -66,6 +70,7 @@ public class ClienteController {
 
     @Operation(summary = "Atualizar dados do cliente",
             description = "Atualiza os dados cadastrais. CPF/CNPJ não podem ser alterados após o cadastro.")
+    @PreAuthorize("hasAuthority('MANAGE_CLIENTES')")
     @PutMapping("/{id}")
     public ResponseEntity<ClienteResponseDTO> atualizar(
             @PathVariable Long id,
@@ -76,6 +81,7 @@ public class ClienteController {
 
     @Operation(summary = "Inativar cliente",
             description = "Inativação lógica — o registro é mantido por obrigação legal (LGPD Art. 16, inciso II).")
+    @PreAuthorize("hasAuthority('MANAGE_CLIENTES')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> inativar(@PathVariable Long id) {
         service.inativar(id);
@@ -84,6 +90,7 @@ public class ClienteController {
 
     @Operation(summary = "Buscar endereço por CEP",
             description = "Consulta a API externa do ViaCEP para obter os dados completos do endereço.")
+    @PreAuthorize("hasAuthority('VIEW_CLIENTES')")
     @GetMapping("/busca-cep/{cep}")
     public ResponseEntity<ViaCepResponseDTO> buscarCep(
             @Parameter(description = "CEP com 8 dígitos") @PathVariable String cep) {
@@ -92,6 +99,7 @@ public class ClienteController {
 
     @Operation(summary = "Obter histórico completo do consorciado",
             description = "Retorna todas as interações e snapshots financeiros do cliente, filtrados opcionalmente por tipo de interação.")
+    @PreAuthorize("hasAuthority('VIEW_CLIENTES')")
     @GetMapping("/{id}/historico")
     public ResponseEntity<List<HistoricoConsorciadoResponseDTO>> obterHistorico(
             @Parameter(description = "ID do cliente") @PathVariable Long id,

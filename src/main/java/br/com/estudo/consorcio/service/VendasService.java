@@ -19,7 +19,14 @@ import br.com.estudo.consorcio.domain.repository.ContratoAdesaoRepository;
 import br.com.estudo.consorcio.domain.repository.GrupoRepository;
 import br.com.estudo.consorcio.domain.repository.PropostaAdesaoRepository;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
+import br.com.estudo.consorcio.domain.repository.AssembleiaRepository;
+import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
+import br.com.estudo.consorcio.domain.model.Assembleia;
+import br.com.estudo.consorcio.domain.model.StatusParcela;
+import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import lombok.RequiredArgsConstructor;
+import java.util.List;
+import java.util.ArrayList;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +44,9 @@ public class VendasService {
     private final CotaRepository cotaRepository;
     private final ComissaoVendaService comissaoService;
     private final ContabilidadeService contabilidadeService;
+    private final AssembleiaRepository assembleiaRepository;
+    private final ParcelaRepository parcelaRepository;
+    private final java.time.Clock clock;
 
     @Transactional
     public PropostaAdesao criarProposta(Cliente cliente, ProdutoConsorcio produto, TipoVenda tipoVenda, Corretor corretor, BigDecimal valorCredito) {
@@ -48,8 +58,8 @@ public class VendasService {
                 .corretor(corretor)
                 .valorCreditoSolicitado(valorCredito)
                 .status(StatusProposta.EM_ANALISE)
-                .dataProposta(LocalDateTime.now())
-                .dataAtualizacao(LocalDateTime.now())
+                .dataProposta(LocalDateTime.now(clock))
+                .dataAtualizacao(LocalDateTime.now(clock))
                 .build();
         return propostaRepository.save(proposta);
     }
@@ -64,13 +74,13 @@ public class VendasService {
         }
 
         proposta.setStatus(StatusProposta.APROVADA);
-        proposta.setDataAtualizacao(LocalDateTime.now());
+        proposta.setDataAtualizacao(LocalDateTime.now(clock));
         propostaRepository.save(proposta);
 
         ContratoAdesao contrato = ContratoAdesao.builder()
                 .numeroContrato("CTR-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
                 .proposta(proposta)
-                .dataAssinatura(LocalDateTime.now())
+                .dataAssinatura(LocalDateTime.now(clock))
                 .status(StatusContrato.PENDENTE_PAGAMENTO)
                 .build();
         
@@ -78,26 +88,60 @@ public class VendasService {
 
         br.com.estudo.consorcio.domain.enums.CategoriaBem catEnum = mapCategoriaBacen(proposta.getProduto().getBemReferencia().getCategoriaBem().getTipoBacen());
         
-        // Alocação Inteligente
         Grupo grupo = grupoRepository.encontrarMelhorGrupoDisponivel(catEnum)
-                .orElseGet(() -> {
-                    Grupo novo = new Grupo();
-                    novo.setCodigo("GRP-" + UUID.randomUUID().toString().substring(0, 5).toUpperCase());
-                    novo.setCategoriaBem(catEnum);
-                    novo.setValorCredito(proposta.getValorCreditoSolicitado());
-                    novo.setPrazoMeses(proposta.getProduto().getPrazoMeses());
-                    novo.setTaxaAdministracao(proposta.getProduto().getTaxaAdministracaoPerc());
-                    novo.setStatus(StatusGrupo.EM_FORMACAO);
-                    return grupoRepository.save(novo);
-                });
+                .orElseThrow(() -> new RegraDeNegocioException("Nenhum grupo com cotas disponíveis encontrado."));
 
-        Cota cota = new Cota();
+        Cota cota = cotaRepository.findFirstByGrupoIdAndStatusOrderByNumeroCotaAsc(grupo.getId(), StatusCota.DISPONIVEL)
+                .orElseThrow(() -> new RegraDeNegocioException("Não há cotas disponíveis neste grupo."));
+
         cota.setCliente(proposta.getCliente());
-        cota.setGrupo(grupo);
         cota.setContratoAdesao(contrato);
+        cota.setBemReferencia(proposta.getProduto().getBemReferencia());
+        cota.setPrazoMeses(proposta.getProduto().getPrazoMeses());
         cota.setStatus(StatusCota.AGUARDANDO_PAGAMENTO);
         
         cotaRepository.save(cota);
+
+        List<Assembleia> assembleias = assembleiaRepository.findByGrupoIdOrderByDataAssembleiaAsc(grupo.getId());
+        List<Parcela> parcelas = new ArrayList<>();
+        int numero = 1;
+        BigDecimal valorParcela = proposta.getValorCreditoSolicitado().divide(BigDecimal.valueOf(proposta.getProduto().getPrazoMeses()), 2, java.math.RoundingMode.HALF_UP);
+        // Simplificado, ideal seria calcular taxa adm e seguro separados
+        BigDecimal taxaAdm = valorParcela.multiply(grupo.getTaxaAdministracao()).divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+        BigDecimal fundoComum = valorParcela.subtract(taxaAdm);
+
+        // -- NOVA LÓGICA DE PARCELA 1 AQUI --
+        Parcela adesao = new Parcela();
+        adesao.setCota(cota);
+        adesao.setNumeroParcela(numero++);
+        adesao.setDataVencimento(java.time.LocalDate.now(clock));
+        adesao.setValorParcela(valorParcela);
+        adesao.setValorFundoComum(fundoComum);
+        adesao.setValorTaxaAdministracao(taxaAdm);
+        adesao.setValorFundoReserva(BigDecimal.ZERO);
+        adesao.setValorSeguro(BigDecimal.ZERO);
+        adesao.setStatus(StatusParcela.PENDENTE);
+        parcelas.add(adesao);
+
+        for (Assembleia assembleia : assembleias) {
+            if (numero > proposta.getProduto().getPrazoMeses()) break;
+            if (assembleia.getDataAssembleia().isBefore(java.time.LocalDate.now(clock))) continue;
+
+            Parcela p = new Parcela();
+            p.setCota(cota);
+            p.setNumeroParcela(numero++);
+            p.setDataVencimento(assembleia.getDataAssembleia().minusDays(grupo.getDiasAntecedenciaVencimento()));
+            p.setValorParcela(valorParcela);
+            p.setValorFundoComum(fundoComum);
+            p.setValorTaxaAdministracao(taxaAdm);
+            p.setValorFundoReserva(BigDecimal.ZERO);
+            p.setValorSeguro(BigDecimal.ZERO);
+            p.setStatus(StatusParcela.PENDENTE);
+            parcelas.add(p);
+        }
+        if (!parcelas.isEmpty()) {
+            parcelaRepository.saveAll(parcelas);
+        }
 
         return contrato;
     }
@@ -136,7 +180,7 @@ public class VendasService {
                         br.com.estudo.consorcio.service.ContabilidadeService.CONTA_TAXA_ADM, 
                         br.com.estudo.consorcio.service.ContabilidadeService.CONTA_CAIXA, 
                         comissao, 
-                        java.time.LocalDate.now(), 
+                        java.time.LocalDate.now(clock), 
                         "Pagamento imediato de comissão - Contrato " + contrato.getId());
             }
         }

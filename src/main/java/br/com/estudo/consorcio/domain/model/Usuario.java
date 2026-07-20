@@ -22,8 +22,9 @@ public class Usuario implements UserDetails {
     @Column(nullable = false)
     private String senha;
 
-    @Column(nullable = false, length = 20)
-    private String role = "ADMIN";
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "perfil_id")
+    private Perfil perfil;
 
     @Column(length = 100)
     private String nome;
@@ -51,10 +52,10 @@ public class Usuario implements UserDetails {
         this.senha = senha;
     }
 
-    public Usuario(String login, String senha, String role, String nome, String email) {
+    public Usuario(String login, String senha, Perfil perfil, String nome, String email) {
         this.login = login;
         this.senha = senha;
-        this.role = role;
+        this.perfil = perfil;
         this.nome = nome;
         this.email = email;
     }
@@ -63,12 +64,16 @@ public class Usuario implements UserDetails {
         return id;
     }
 
-    public String getRole() {
-        return role;
+    public void setLogin(String login) {
+        this.login = login;
     }
 
-    public void setRole(String role) {
-        this.role = role;
+    public Perfil getPerfil() {
+        return perfil;
+    }
+
+    public void setPerfil(Perfil perfil) {
+        this.perfil = perfil;
     }
 
     public String getNome() {
@@ -106,8 +111,18 @@ public class Usuario implements UserDetails {
     // Métodos obrigatórios da interface UserDetails do Spring Security
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // FC-04 FIX: Retorna a role real do banco de dados para controle RBAC granular
-        return List.of(new SimpleGrantedAuthority("ROLE_" + role));
+        java.util.List<GrantedAuthority> authorities = new java.util.ArrayList<>();
+        // Adiciona ROLE_<perfil> para compatibilidade com hasRole()/hasAnyRole()
+        if (perfil != null && perfil.getNome() != null) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_" + perfil.getNome()));
+        }
+        // Adiciona permissões granulares
+        if (perfil != null && perfil.getPermissoes() != null) {
+            perfil.getPermissoes().forEach(
+                permissao -> authorities.add(new SimpleGrantedAuthority(permissao.name()))
+            );
+        }
+        return authorities;
     }
 
     @Override

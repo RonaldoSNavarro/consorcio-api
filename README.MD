@@ -27,6 +27,7 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 * **Mapeamento Declarativo com MapStruct:** Camada de conversão compilada de alta performance entre entidades e DTOs, garantindo separação rígida e eliminando boilerplate.
 * **Bloqueio Otimista (Optimistic Locking):** Prevenção de concorrência e race conditions (condições de corrida) por meio do mapeamento de atributos `@Version` nas tabelas críticas (`cotas`, `grupos` e `parcelas`), impedindo sobrescrita de dados financeiros por requisições concorrentes.
 * **Paginação Robusta de Recursos:** Migração de listagens gerais para o padrão `Pageable` do Spring Data nos endpoints de Clientes, Grupos e Cotas, protegendo a memória Heap contra gargalos de volume massivo.
+* **Busca Avançada via Specifications:** Implementação do padrão `Specification` do Spring Data JPA na entidade Cota, provendo uma API de busca flexível e paginada por múltiplos critérios (Grupo, Número, Versão, CPF/CNPJ).
 
 ## 🧪 Qualidade de Software e Testes
 
@@ -43,7 +44,7 @@ A proteção da aplicação segue os mais altos padrões de cibersegurança e co
 
 * **Sessões Seguras via Cookies HttpOnly (ADR 001 & ADR 007):** A aplicação utiliza tokens JWT customizados (HMAC256) encapsulados em cookies seguros com diretivas `HttpOnly`, `SameSite=Strict`, e `Secure`, mitigando riscos de XSS. O frontend SPA implementa validação ativa (F5-safety) contra perdas de estado.
 * **MFA por E-mail Obrigatório (ADR 013):** Perfis administrativos (`COMPLIANCE` e `ADMIN`) exigem Autenticação Multifator de segundo fator via código dinâmico de 6 dígitos enviado por e-mail (usando Jakarta Mail com fallback resiliente de logs em console), eliminando problemas de dessincronização de relógio de hardware (clock drift).
-* **Proteção Ativa contra IDOR (Insecure Direct Object Reference):** Camada rigorosa de validação de propriedade na camada de serviço (`ClienteService`, `CotaService`, `ParcelaService`). O usuário autenticado só pode obter, visualizar ou modificar recursos associados diretamente à sua identidade (comparando o subject do token com atributos via `@ownershipGuard`). O controle de permissões baseado em escopos/roles também opera via anotação `@PreAuthorize` nativa.
+* **Proteção Ativa contra IDOR (Insecure Direct Object Reference):** Camada rigorosa de validação de propriedade na camada de serviço (`ClienteService`, `CotaService`, `ParcelaService`). O usuário autenticado só pode obter, visualizar ou modificar recursos associados diretamente à sua identidade (comparando o subject do token com atributos via `@ownershipGuard`). Para gestores e administradores, o sistema avalia corretamente as permissões organizacionais globais (ex: `MANAGE_CLIENTES`) via `SecurityContextHolder` para permitir acesso global, contornando o bloqueio IDOR adequadamente. O controle de permissões baseado em escopos/roles também opera via anotação `@PreAuthorize` nativa.
 * **Auditoria Assíncrona Total:** Um interceptador global (`AuditLoggerInterceptor`) opera de forma não bloqueante para registrar metadados de acesso (Endpoint, IP, Status HTTP, User) via transação independente (`REQUIRES_NEW`), gerando rastreabilidade regulatória completa gravada no banco de dados.
 * **Mascaramento Dinâmico de Dados e Intrusion Detection (RN-AUTH-004):** Mitigação de exfiltração em massa e scraping. O sistema conta com um Rate Limiter (`IntrusionDetectionFilter`) que classifica sessões anômalas (ex: requisições excessivas). Quando classificada como "Suspeita", o `MaskingResponseBodyAdvice` (Defesa em Profundidade) aciona dinamicamente a ofuscação LGPD nos objetos de resposta da API (ex: trocando parte do CPF/Email por asteriscos), protegendo os dados mesmo após a autenticação.
 * **Security Headers:** Envio rigoroso de headers de proteção (CSP, HSTS, X-Frame-Options, X-Content-Type-Options).
@@ -143,7 +144,7 @@ O sistema implementa regras de negócio financeiras extremamente robustas basead
 ### 14. Esteira de Vendas de Cotas (CRM/Comercial)
 * **Gestão de Produtos e Categorias:** Criação de Planos de Consórcio embasados em Bens de Referência (ex: Tabela FIPE ou INCC), garantindo parametrização estrita de taxas e fundos.
 * **Proposta e Análise:** Geração de propostas de adesão (Status `EM_ANALISE`), travando o valor do crédito base do produto.
-  * **Efetivação de Contratos e Inauguração:** Ao aprovar uma proposta, gera-se o contrato e the fatura de adesão. A cota nasce aguardando a inauguração do grupo (`AGUARDANDO_INAUGURACAO`) se o mesmo for novo (`EM_FORMACAO`). As cotas só são transicionadas para `ATIVA` em lote através da oficialização da 1ª AGO, ou instantaneamente caso entrem como reposição num grupo `EM_ANDAMENTO`.
+  * **Efetivação de Contratos e Inauguração:** Ao aprovar uma proposta, gera-se o contrato e a fatura de adesão. A cota nasce recebendo obrigatoriamente um número sequencial dinâmico na base de dados, aguardando a inauguração do grupo (`AGUARDANDO_INAUGURACAO`) se o mesmo for novo (`EM_FORMACAO`). As cotas só são transicionadas para `ATIVA` em lote através da oficialização da 1ª AGO, ou instantaneamente caso entrem como reposição num grupo `EM_ANDAMENTO`.
 * **Performance Híbrida (Anti N+1):** O motor de fechamento de vendas combina Queries Projetadas em DTOs (para tempo real) e Materialized Views (para analítico), evitando degradação de banco (N+1 Fetching).
 
 ## ⚙️ Configuração e Setup
@@ -184,12 +185,14 @@ O projeto já conta com suporte a **Docker** utilizando um build *multi-stage* s
 Para subir a aplicação em container, basta ter o Docker instalado e rodar:
 
 ```bash
-docker compose up --build
+docker-compose up --build
 ```
-A API ficará acessível na porta `8080` do seu localhost normalmente.
+Após o build, a aplicação estará disponível da seguinte forma:
+* **Frontend (Aplicação Consórcio):** `http://localhost` (Porta 80)
+* **Backend (API Direta):** `http://localhost:8081`
 
 > [!NOTE]
-> **Conexão com Banco Local e Variáveis:** O `docker-compose.yml` está configurado para ler automaticamente as variáveis de ambiente de credenciais (`DB_USER`, `DB_PASSWORD`, `JWT_SECRET`) diretamente do seu sistema operacional ou de um arquivo `.env` localizado na raiz do projeto. Caso não possua, ele assumirá o usuário e senha `postgres` por padrão.
+> **Conexão com Banco Local e Variáveis:** O `docker-compose.yml` está configurado para ler automaticamente as variáveis de ambiente de credenciais (`DB_USER`, `DB_PASSWORD`, `JWT_SECRET`) do seu sistema operacional ou de um arquivo `.env` localizado na raiz do projeto. Caso não possua, ele assumirá o usuário e senha `postgres` por padrão e procurará o PostgreSQL na máquina hospedeira (`host.docker.internal:5432`).
 
 ## 📖 Documentação da API (Swagger)
 
@@ -199,7 +202,7 @@ A interface foi organizada para refletir o ciclo de vida real de um consórcio:
 3.  **Parcelas:** Gestão de cobranças e pagamentos.
 4.  **Assembleias e Contemplações:** Eventos de entrega de bens.
 
-> **Acesse em:** `http://localhost:8080/swagger-ui.html`
+> **Acesse em:** `http://localhost:8081/swagger-ui.html`
 
 ---
 **Status Final do Projeto:** Todas as Capabilities principais foram entregues e validadas por meio de testes unitários e de integração (100% de sucesso). Este é um **projeto de estudos** para fins de portfólio (não opera em produção), com o objetivo de demonstrar habilidades em Engenharia de Back-end, arquitetura limpa e desenvolvimento guiado a domínio em sistemas financeiros complexos.

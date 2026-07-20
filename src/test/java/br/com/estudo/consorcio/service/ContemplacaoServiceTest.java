@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -78,7 +79,9 @@ class ContemplacaoServiceTest {
         // 1. Criamos um grupo com crédito de 100 mil
         Grupo grupo = new Grupo();
         grupo.setId(10L);
-        grupo.setValorCredito(new BigDecimal("100000.00"));
+        BemReferencia bem = new BemReferencia();
+        bem.setValorAtual(new BigDecimal("100000.00"));
+        grupo.setBensPermitidos(List.of(bem));
         grupo.setPercentualLanceEmbutidoMaximo(new BigDecimal("0.30"));
 
         // 2. Vinculamos a assembleia ao grupo
@@ -132,7 +135,9 @@ class ContemplacaoServiceTest {
         // 1. Grupo com crédito de 50.000
         Grupo grupo = new Grupo();
         grupo.setId(idGrupo);
-        grupo.setValorCredito(new BigDecimal("50000.00"));
+        BemReferencia bem = new BemReferencia();
+        bem.setValorAtual(new BigDecimal("50000.00"));
+        grupo.setBensPermitidos(List.of(bem));
 
         Assembleia assembleia = new Assembleia();
         assembleia.setId(idAssembleia);
@@ -183,7 +188,9 @@ class ContemplacaoServiceTest {
 
         Grupo grupo = new Grupo();
         grupo.setId(idGrupo);
-        grupo.setValorCredito(new BigDecimal("50000.00"));
+        BemReferencia bem = new BemReferencia();
+        bem.setValorAtual(new BigDecimal("50000.00"));
+        grupo.setBensPermitidos(List.of(bem));
 
         Assembleia assembleia = new Assembleia();
         assembleia.setId(idAssembleia);
@@ -236,7 +243,9 @@ class ContemplacaoServiceTest {
 
         Grupo grupo = new Grupo();
         grupo.setId(idGrupo);
-        grupo.setValorCredito(new BigDecimal("50000.00"));
+        BemReferencia bem = new BemReferencia();
+        bem.setValorAtual(new BigDecimal("50000.00"));
+        grupo.setBensPermitidos(List.of(bem));
 
         Assembleia assembleia = new Assembleia();
         assembleia.setId(idAssembleia);
@@ -276,7 +285,9 @@ class ContemplacaoServiceTest {
 
         Grupo grupo = new Grupo();
         grupo.setId(10L);
-        grupo.setValorCredito(new BigDecimal("100000.00"));
+        BemReferencia bem = new BemReferencia();
+        bem.setValorAtual(new BigDecimal("100000.00"));
+        grupo.setBensPermitidos(List.of(bem));
         grupo.setPercentualLanceEmbutidoMaximo(new BigDecimal("0.30"));
 
         Assembleia assembleia = new Assembleia();
@@ -318,7 +329,9 @@ class ContemplacaoServiceTest {
 
         Grupo grupo = new Grupo();
         grupo.setId(10L);
-        grupo.setValorCredito(new BigDecimal("100000.00"));
+        BemReferencia bem = new BemReferencia();
+        bem.setValorAtual(new BigDecimal("100000.00"));
+        grupo.setBensPermitidos(List.of(bem));
 
         Cota cota = new Cota();
         cota.setId(idCota);
@@ -342,7 +355,7 @@ class ContemplacaoServiceTest {
 
         when(lanceRepository.findById(idLance)).thenReturn(Optional.of(lance));
         when(contemplacaoRepository.findTopByCotaIdOrderByDataContemplacaoDesc(idCota)).thenReturn(Optional.of(contemplacao));
-        when(cotaMapper.toResponse(any(Cota.class))).thenReturn(new CotaResponseDTO(idCota, 44, 3L, 10L, StatusCota.AGUARDANDO_ANALISE, 0));
+        when(cotaMapper.toResponse(any(Cota.class))).thenReturn(new CotaResponseDTO(idCota, 44, 3L, 10L, "001", "Cliente Teste", java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, 1L, "Bem", java.math.BigDecimal.ZERO, br.com.estudo.consorcio.domain.enums.CategoriaBem.VEICULO_AUTOMOTOR, 60, StatusCota.AGUARDANDO_ANALISE, 0));
 
         // --- ACT ---
         CotaResponseDTO response = service.confirmarPagamentoLance(idLance);
@@ -366,7 +379,9 @@ class ContemplacaoServiceTest {
 
         Grupo grupo = new Grupo();
         grupo.setId(10L);
-        grupo.setValorCredito(new BigDecimal("100000.00"));
+        BemReferencia bem = new BemReferencia();
+        bem.setValorAtual(new BigDecimal("100000.00"));
+        grupo.setBensPermitidos(List.of(bem));
 
         Assembleia assembleia = new Assembleia();
         assembleia.setId(idAssembleia);

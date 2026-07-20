@@ -51,7 +51,7 @@ public class ParcelaService {
     }
 
     @Transactional
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('SCOPE_admin:full', 'SCOPE_gestor:write', 'SCOPE_financeiro:write')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('MANAGE_FINANCEIRO')")
     public ParcelaResponseDTO salvar(ParcelaRequestDTO dto) {
         // 1. Valida e busca a Cota
         Cota cota = cotaRepository.findById(dto.cotaId())
@@ -99,7 +99,7 @@ public class ParcelaService {
     }
 
     @Transactional
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('SCOPE_admin:full', 'SCOPE_gestor:write', 'SCOPE_financeiro:write') or @ownershipGuard.canAccessParcela(#parcelaId)")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('MANAGE_FINANCEIRO') or @ownershipGuard.canAccessParcela(#parcelaId)")
     public ParcelaResponseDTO pagar(Long parcelaId, LocalDate dataPagamento) {
         Parcela parcela = parcelaRepository.findById(parcelaId)
                 .orElseThrow(() -> new RegraDeNegocioException("Parcela não encontrada."));
@@ -200,7 +200,7 @@ public class ParcelaService {
     }
 
     @Transactional
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('SCOPE_admin:full', 'SCOPE_gestor:write', 'SCOPE_financeiro:write')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('MANAGE_FINANCEIRO')")
     public ParcelaResponseDTO estornar(Long parcelaId) {
         Parcela parcela = parcelaRepository.findById(parcelaId)
                 .orElseThrow(() -> new RegraDeNegocioException("Parcela não encontrada."));
@@ -261,7 +261,7 @@ public class ParcelaService {
 
     // Os métodos de amortização continuam iguais, pois eles operam listas internas no banco
     @Transactional
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('SCOPE_admin:full', 'SCOPE_gestor:write')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('MANAGE_FINANCEIRO')")
     public void amortizarPorReducaoDePrazo(Long cotaId, BigDecimal valorLance) {
         List<Parcela> parcelasDeTrasParaFrente = parcelaRepository.findByCotaIdAndStatusOrderByNumeroParcelaDesc(cotaId, StatusParcela.PENDENTE);
         BigDecimal saldoLance = valorLance;
@@ -286,7 +286,7 @@ public class ParcelaService {
     }
 
     @Transactional
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('SCOPE_admin:full', 'SCOPE_gestor:write')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('MANAGE_FINANCEIRO')")
     public void amortizarPorDiluicao(Long cotaId, BigDecimal valorLance) {
         List<Parcela> parcelasPendentes = parcelaRepository.findByCotaIdAndStatusOrderByNumeroParcelaAsc(cotaId, StatusParcela.PENDENTE);
         if (parcelasPendentes.isEmpty()) throw new RegraDeNegocioException("Não há parcelas pendentes para amortizar.");
@@ -308,7 +308,7 @@ public class ParcelaService {
         parcelaRepository.saveAll(parcelasPendentes);
     }
 
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('SCOPE_admin:full', 'SCOPE_gestor:read', 'SCOPE_auditor:read', 'SCOPE_compliance:read') or @ownershipGuard.canAccessCota(#cotaId)")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('VIEW_FINANCEIRO', 'VIEW_COMPLIANCE') or @ownershipGuard.canAccessCota(#cotaId)")
     public List<ParcelaResponseDTO> listarPorCota(Long cotaId) {
         return parcelaRepository.findByCotaId(cotaId).stream()
                 .map(mapper::toResponse) // Usar o mapper

@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/analises-credito")
@@ -21,6 +22,7 @@ public class AnaliseCreditoController {
 
     @PostMapping("/avaliar")
     @Operation(summary = "Avaliar Análise de Crédito de Cota Contemplada", description = "Valida a margem consignável (30% da renda) e as garantias. Aprova ou reprova a liberação de crédito.")
+    @PreAuthorize("hasAuthority('MANAGE_COTAS')")
     public ResponseEntity<AnaliseCreditoResponseDTO> avaliarAnalise(@RequestBody AnaliseCreditoRequestDTO dto) {
         AnaliseCreditoResponseDTO response = analiseCreditoService.avaliarAnalise(dto);
         return ResponseEntity.ok(response);

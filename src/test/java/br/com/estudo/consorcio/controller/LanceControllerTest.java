@@ -16,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -62,6 +63,7 @@ class LanceControllerTest {
     private br.com.estudo.consorcio.service.HistoricoConsorciadoService historicoService;
 
     @Test
+    @WithMockUser(authorities = {"MANAGE_COTAS"})
     @DisplayName("Deve devolver 201 Created e o JSON do lance ao cadastrar com sucesso")
     void deveRetornar201AoCadastrarLance() throws Exception {
         // Arrange

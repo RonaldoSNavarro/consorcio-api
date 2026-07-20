@@ -49,10 +49,19 @@ class VendasServiceTest {
     private CotaRepository cotaRepository;
 
     @Mock
+    private br.com.estudo.consorcio.domain.repository.AssembleiaRepository assembleiaRepository;
+
+    @Mock
+    private br.com.estudo.consorcio.domain.repository.ParcelaRepository parcelaRepository;
+
+    @Mock
     private ComissaoVendaService comissaoService;
 
     @Mock
     private ContabilidadeService contabilidadeService;
+
+    @org.mockito.Spy
+    private java.time.Clock clock = java.time.Clock.systemDefaultZone();
 
     @InjectMocks
     private VendasService vendasService;
@@ -109,9 +118,18 @@ class VendasServiceTest {
         Grupo grupoExistente = new Grupo();
         grupoExistente.setId(1L);
         grupoExistente.setStatus(StatusGrupo.EM_ANDAMENTO);
+        grupoExistente.setTaxaAdministracao(new java.math.BigDecimal("0.10"));
         when(grupoRepository.encontrarMelhorGrupoDisponivel(any())).thenReturn(Optional.of(grupoExistente));
         
+        Cota cotaDisponivel = new Cota();
+        cotaDisponivel.setId(10L);
+        cotaDisponivel.setStatus(StatusCota.DISPONIVEL);
+        cotaDisponivel.setGrupo(grupoExistente);
+        when(cotaRepository.findFirstByGrupoIdAndStatusOrderByNumeroCotaAsc(grupoExistente.getId(), StatusCota.DISPONIVEL)).thenReturn(Optional.of(cotaDisponivel));
+        
         when(cotaRepository.save(any(Cota.class))).thenAnswer(i -> i.getArgument(0));
+
+        when(assembleiaRepository.findByGrupoIdOrderByDataAssembleiaAsc(grupoExistente.getId())).thenReturn(java.util.Collections.emptyList());
 
         ContratoAdesao contrato = vendasService.aprovarProposta(1L);
 

@@ -12,6 +12,12 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.GrantedAuthority;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.stream.Collectors;
+import br.com.estudo.consorcio.domain.model.Perfil;
 
 import java.io.IOException;
 
@@ -35,6 +41,7 @@ public class SecurityFilter extends OncePerRequestFilter {
         if (tokenJWT != null) {
             String subject = null;
             String role = "ADMIN";
+            List<GrantedAuthority> authorities = new ArrayList<>();
             String nome = "";
             String email = "";
             Long id = null;
@@ -47,6 +54,19 @@ public class SecurityFilter extends OncePerRequestFilter {
                     id = (claimId != null && !claimId.isNull()) ? claimId.asLong() : null;
                     var claimRole = decodedJWT.getClaim("role");
                     role = (claimRole != null && !claimRole.isNull()) ? claimRole.asString() : "ADMIN";
+                    var claimAuthorities = decodedJWT.getClaim("authorities");
+                    if (claimAuthorities != null && !claimAuthorities.isNull()) {
+                        authorities = claimAuthorities.asList(String.class).stream()
+                            .map(SimpleGrantedAuthority::new)
+                            .collect(Collectors.toList());
+                    }
+                    // Garante ROLE_<perfil> nas authorities para compatibilidade com hasRole()
+                    if (role != null && !role.isBlank()) {
+                        String roleAuth = "ROLE_" + role;
+                        if (authorities.stream().noneMatch(a -> a.getAuthority().equals(roleAuth))) {
+                            authorities.add(new SimpleGrantedAuthority(roleAuth));
+                        }
+                    }
                     var claimNome = decodedJWT.getClaim("nome");
                     nome = (claimNome != null && !claimNome.isNull()) ? claimNome.asString() : "";
                     var claimEmail = decodedJWT.getClaim("email");
@@ -55,10 +75,13 @@ public class SecurityFilter extends OncePerRequestFilter {
                     subject = tokenService.getSubject(tokenJWT);
                 }
             } catch (Exception e) {
+                System.err.println("Erro ao decodificar JWT no SecurityFilter:");
+                e.printStackTrace();
                 try {
                     subject = tokenService.getSubject(tokenJWT);
                 } catch (Exception ex) {
-                    // Ignore
+                    System.err.println("Erro ao obter subject do JWT no SecurityFilter (fallback):");
+                    ex.printStackTrace();
                 }
             }
 
@@ -74,14 +97,16 @@ public class SecurityFilter extends OncePerRequestFilter {
                 }
                 
                 if (usuario == null) {
-                    usuario = new Usuario(subject, "", role, nome, email);
+                    Perfil mockPerfil = new Perfil(role);
+                    usuario = new Usuario(subject, "", mockPerfil, nome, email);
                     if (id != null) {
                         usuario.setId(id);
                     }
                 }
 
                 // Força a autenticação no contexto do Spring Security
-                var authentication = new UsernamePasswordAuthenticationToken(usuario, null, usuario.getAuthorities());
+                var auths = !authorities.isEmpty() ? authorities : usuario.getAuthorities();
+                var authentication = new UsernamePasswordAuthenticationToken(usuario, null, auths);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }

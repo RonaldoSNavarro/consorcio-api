@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -24,6 +25,7 @@ public class MovimentoFinanceiroController {
 
     @Operation(summary = "Obter extrato financeiro do grupo",
             description = "Retorna todos os lançamentos de crédito e débito no fundo comum e de reserva do grupo.")
+    @PreAuthorize("hasAuthority('VIEW_FINANCEIRO')")
     @GetMapping("/grupos/{grupoId}/movimentos")
     public ResponseEntity<List<MovimentoFinanceiroResponseDTO>> listarPorGrupo(
             @Parameter(description = "ID do grupo") @PathVariable Long grupoId) {
@@ -32,6 +34,7 @@ public class MovimentoFinanceiroController {
 
     @Operation(summary = "Obter extrato financeiro da cota",
             description = "Retorna todos os pagamentos e amortizações detalhados de uma cota específica.")
+    @PreAuthorize("hasAuthority('VIEW_FINANCEIRO')")
     @GetMapping("/cotas/{cotaId}/movimentos")
     public ResponseEntity<List<MovimentoFinanceiroResponseDTO>> listarPorCota(
             @Parameter(description = "ID da cota") @PathVariable Long cotaId) {
@@ -40,6 +43,7 @@ public class MovimentoFinanceiroController {
 
     @Operation(summary = "Obter saldo atual do grupo",
             description = "Calcula a soma das entradas (CRÉDITO) menos as saídas (DÉBITO) do grupo.")
+    @PreAuthorize("hasAuthority('VIEW_FINANCEIRO')")
     @GetMapping("/grupos/{grupoId}/saldo")
     public ResponseEntity<BigDecimal> obterSaldoGrupo(
             @Parameter(description = "ID do grupo") @PathVariable Long grupoId) {

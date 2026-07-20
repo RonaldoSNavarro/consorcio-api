@@ -159,13 +159,19 @@ public class ComplianceServiceTest {
         pep.setDocumentoOrigem("***.531.324-**");
         pep.setOrigem(OrigemListaRestritiva.PEP);
 
-        when(clienteRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cliente))).thenReturn(Page.empty());
-        when(listaRestritivaRepository.findAll()).thenReturn(List.of(pep));
-        when(alertaComplianceRepository.existsByClienteIdAndListaRestritivaId(1L, 10L)).thenReturn(false);
+        AlertaComplianceRepository.MatchResultProjection match = new AlertaComplianceRepository.MatchResultProjection() {
+            public Long getClienteId() { return 1L; }
+            public Long getListaId() { return 10L; }
+            public Double getScore() { return 1.0; }
+        };
+
+        when(alertaComplianceRepository.findPepMatches(anyDouble())).thenReturn(List.of(match));
+        when(clienteRepository.getReferenceById(1L)).thenReturn(cliente);
+        when(listaRestritivaRepository.getReferenceById(10L)).thenReturn(pep);
 
         matchComplianceService.cruzarBaseDeClientes();
 
-        verify(alertaComplianceRepository).save(any());
+        verify(alertaComplianceRepository).saveAll(any());
     }
 
     @Test
@@ -183,13 +189,19 @@ public class ComplianceServiceTest {
         ibge.setDocumentoOrigem("IBGE:RO:ALTA FLORESTA D'OESTE");
         ibge.setOrigem(OrigemListaRestritiva.IBGE);
 
-        when(clienteRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cliente))).thenReturn(Page.empty());
-        when(listaRestritivaRepository.findAll()).thenReturn(List.of(ibge));
-        when(alertaComplianceRepository.existsByClienteIdAndListaRestritivaId(2L, 20L)).thenReturn(false);
+        AlertaComplianceRepository.MatchResultProjection match = new AlertaComplianceRepository.MatchResultProjection() {
+            public Long getClienteId() { return 2L; }
+            public Long getListaId() { return 20L; }
+            public Double getScore() { return 1.0; }
+        };
+
+        when(alertaComplianceRepository.findIbgeMatches()).thenReturn(List.of(match));
+        when(clienteRepository.getReferenceById(2L)).thenReturn(cliente);
+        when(listaRestritivaRepository.getReferenceById(20L)).thenReturn(ibge);
 
         matchComplianceService.cruzarBaseDeClientes();
 
-        verify(alertaComplianceRepository).save(any());
+        verify(alertaComplianceRepository).saveAll(any());
     }
 
     @ParameterizedTest

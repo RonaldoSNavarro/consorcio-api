@@ -83,6 +83,7 @@ public class ComplianceChallengerTest {
         lanceRepository = mock(LanceRepository.class);
 
         cotaMapper = Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.CotaMapper.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(cotaMapper, "parcelaRepository", parcelaRepository);
         contemplacaoMapper = Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.ContemplacaoMapper.class);
 
         // MatchComplianceService
@@ -108,7 +109,9 @@ public class ComplianceChallengerTest {
         // PropostaAdesaoService
         propostaAdesaoService = new PropostaAdesaoService(
                 propostaRepository, contratoRepository, clienteRepository,
-                produtoRepository, tipoVendaRepository, alertaComplianceRepository
+                produtoRepository, tipoVendaRepository, alertaComplianceRepository,
+                grupoRepository, cotaRepository, assembleiaRepository, parcelaRepository,
+                java.time.Clock.systemDefaultZone()
         );
     }
 
@@ -140,15 +143,21 @@ public class ComplianceChallengerTest {
             listEntry.setNome(listName);
             listEntry.setOrigem(OrigemListaRestritiva.ONU);
 
-            when(clienteRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cliente))).thenReturn(Page.empty());
-            when(listaRestritivaRepository.findAll()).thenReturn(List.of(listEntry));
-            when(alertaComplianceRepository.existsByClienteIdAndListaRestritivaId(1L, 100L)).thenReturn(false);
+            AlertaComplianceRepository.MatchResultProjection match = new AlertaComplianceRepository.MatchResultProjection() {
+                public Long getClienteId() { return 1L; }
+                public Long getListaId() { return 100L; }
+                public Double getScore() { return 0.95; }
+            };
 
-            when(clienteRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cliente))).thenReturn(Page.empty());
+            when(alertaComplianceRepository.findOfacOnuMatches(0.90)).thenReturn(List.of(match));
+            when(clienteRepository.getReferenceById(1L)).thenReturn(cliente);
+            when(listaRestritivaRepository.getReferenceById(100L)).thenReturn(listEntry);
+
             matchComplianceService.cruzarBaseDeClientes();
 
             // Should save an alert
-            verify(alertaComplianceRepository, atLeastOnce()).save(argThat(alerta -> {
+            verify(alertaComplianceRepository, atLeastOnce()).saveAll(argThat(alertas -> {
+                AlertaCompliance alerta = ((List<AlertaCompliance>) alertas).get(0);
                 assertEquals(cliente.getId(), alerta.getCliente().getId());
                 assertEquals(listEntry.getId(), alerta.getListaRestritiva().getId());
                 assertTrue(alerta.getScore().doubleValue() >= 0.90);
@@ -163,14 +172,12 @@ public class ComplianceChallengerTest {
         nonMatchingEntry.setNome("GEORGE BUSH");
         nonMatchingEntry.setOrigem(OrigemListaRestritiva.ONU);
 
-        when(clienteRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cliente))).thenReturn(Page.empty());
-        when(listaRestritivaRepository.findAll()).thenReturn(List.of(nonMatchingEntry));
-        when(alertaComplianceRepository.existsByClienteIdAndListaRestritivaId(1L, 101L)).thenReturn(false);
+        when(alertaComplianceRepository.findOfacOnuMatches(0.90)).thenReturn(Collections.emptyList());
 
         matchComplianceService.cruzarBaseDeClientes();
 
         // Should NOT save an alert
-        verify(alertaComplianceRepository, never()).save(any());
+        verify(alertaComplianceRepository, never()).saveAll(any());
         Mockito.clearInvocations(alertaComplianceRepository);
 
         // Test configurable threshold increased to 0.96
@@ -182,10 +189,10 @@ public class ComplianceChallengerTest {
         benLadenEntry.setNome("OSAMA BEN LADEN");
         benLadenEntry.setOrigem(OrigemListaRestritiva.ONU);
 
-        when(listaRestritivaRepository.findAll()).thenReturn(List.of(benLadenEntry));
+        when(alertaComplianceRepository.findOfacOnuMatches(0.96)).thenReturn(Collections.emptyList());
 
         matchComplianceService.cruzarBaseDeClientes();
-        verify(alertaComplianceRepository, never()).save(any());
+        verify(alertaComplianceRepository, never()).saveAll(any());
     }
 
     // =========================================================================
@@ -207,13 +214,20 @@ public class ComplianceChallengerTest {
         pepMasked.setDocumentoOrigem("***.531.324-**");
         pepMasked.setOrigem(OrigemListaRestritiva.PEP);
 
-        when(clienteRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cliente))).thenReturn(Page.empty());
-        when(listaRestritivaRepository.findAll()).thenReturn(List.of(pepMasked));
-        when(alertaComplianceRepository.existsByClienteIdAndListaRestritivaId(2L, 200L)).thenReturn(false);
+        AlertaComplianceRepository.MatchResultProjection match = new AlertaComplianceRepository.MatchResultProjection() {
+            public Long getClienteId() { return 2L; }
+            public Long getListaId() { return 200L; }
+            public Double getScore() { return 1.0; }
+        };
+
+        when(alertaComplianceRepository.findPepMatches(anyDouble())).thenReturn(List.of(match));
+        when(clienteRepository.getReferenceById(2L)).thenReturn(cliente);
+        when(listaRestritivaRepository.getReferenceById(200L)).thenReturn(pepMasked);
 
         matchComplianceService.cruzarBaseDeClientes();
 
-        verify(alertaComplianceRepository, times(1)).save(argThat(alerta -> {
+        verify(alertaComplianceRepository, times(1)).saveAll(argThat(alertas -> {
+            AlertaCompliance alerta = ((List<AlertaCompliance>) alertas).get(0);
             assertEquals(2L, alerta.getCliente().getId());
             assertEquals(200L, alerta.getListaRestritiva().getId());
             return true;
@@ -222,17 +236,17 @@ public class ComplianceChallengerTest {
 
         // Test non-matching client CPF centrais
         cliente.setCpfCnpj("111.666.324-88"); // central: 666324, PEP: 531324
-        when(clienteRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cliente))).thenReturn(Page.empty());
+        when(alertaComplianceRepository.findPepMatches(anyDouble())).thenReturn(Collections.emptyList());
         matchComplianceService.cruzarBaseDeClientes();
-        verify(alertaComplianceRepository, never()).save(any());
+        verify(alertaComplianceRepository, never()).saveAll(any());
         Mockito.clearInvocations(alertaComplianceRepository);
 
         // Test matching with full CPF in PEP (unmasked)
         cliente.setCpfCnpj("111.531.324-88");
         pepMasked.setDocumentoOrigem("111.531.324-88"); // full CPF
-        when(clienteRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cliente))).thenReturn(Page.empty());
+        when(alertaComplianceRepository.findPepMatches(anyDouble())).thenReturn(List.of(match));
         matchComplianceService.cruzarBaseDeClientes();
-        verify(alertaComplianceRepository, times(1)).save(any());
+        verify(alertaComplianceRepository, times(1)).saveAll(any());
     }
 
     // =========================================================================

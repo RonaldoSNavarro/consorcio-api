@@ -1,12 +1,27 @@
+version: '3.8'
+
 services:
-  api:
-    build: .
-    container_name: consorcio-api
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: consorcio-api-backend
     ports:
       - "8081:8081"
     env_file:
       - .env
     environment:
+      - SPRING_PROFILES_ACTIVE=demo
       - SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:5432/consorcio_db
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  frontend:
+    build:
+      context: ../front_end_consorcio-api
+      dockerfile: Dockerfile
+    container_name: consorcio-api-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend

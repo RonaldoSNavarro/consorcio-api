@@ -30,6 +30,7 @@ public class RelatorioController {
 
     @GetMapping("/balancete/{grupoId}")
     @Operation(summary = "Gerar Balancete Contábil (Doc 4110)", description = "Retorna o saldo consolidado de todas as contas COSIF do grupo.")
+    @PreAuthorize("hasAuthority('VIEW_RELATORIOS')")
     public ResponseEntity<BalanceteResponseDTO> gerarBalancete(
             @PathVariable Long grupoId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataReferencia) {
@@ -44,6 +45,7 @@ public class RelatorioController {
 
     @GetMapping("/estatisticas/{grupoId}")
     @Operation(summary = "Estatísticas do Grupo (Doc 2080)", description = "Retorna o consolidado de adesões, exclusões, lances e contemplações no período.")
+    @PreAuthorize("hasAuthority('VIEW_RELATORIOS')")
     public ResponseEntity<EstatisticasGrupoResponseDTO> gerarEstatisticas(
             @PathVariable Long grupoId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
@@ -55,6 +57,7 @@ public class RelatorioController {
 
     @GetMapping("/pld-ft")
     @Operation(summary = "Alerta PLD/FT", description = "Lista todos os lances registrados acima de R$ 50.000,00 no período informado para monitoramento de lavagem de dinheiro.")
+    @PreAuthorize("hasAuthority('VIEW_RELATORIOS')")
     public ResponseEntity<List<AlertaPldFtResponseDTO>> gerarAlertaPldFt(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataInicio,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataFim) {
@@ -65,6 +68,7 @@ public class RelatorioController {
 
     @GetMapping(value = "/balancete/{grupoId}/csv", produces = "text/csv")
     @Operation(summary = "Exportar Balancete Contábil (Doc 4110)", description = "Gera um arquivo CSV com o balancete.")
+    @PreAuthorize("hasAuthority('VIEW_RELATORIOS')")
     public ResponseEntity<String> exportarBalanceteCsv(
             @PathVariable Long grupoId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataReferencia) {
@@ -91,6 +95,7 @@ public class RelatorioController {
 
     @GetMapping(value = "/estatisticas/{grupoId}/csv", produces = "text/csv")
     @Operation(summary = "Exportar Estatísticas do Grupo (Doc 2080)", description = "Gera um arquivo CSV com as estatísticas.")
+    @PreAuthorize("hasAuthority('VIEW_RELATORIOS')")
     public ResponseEntity<String> exportarEstatisticasCsv(
             @PathVariable Long grupoId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,

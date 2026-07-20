@@ -29,6 +29,8 @@ import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 @Tag(name = "Autenticação", description = "Endpoint para login e geração de Token JWT")
 public class AutenticacaoController {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AutenticacaoController.class);
+
     private final AuthenticationManager manager;
     private final TokenService tokenService;
     private final ExecutorService platformExecutor = Executors.newFixedThreadPool(
@@ -61,7 +63,7 @@ public class AutenticacaoController {
 
     @PostMapping
     public ResponseEntity<?> efetuarLogin(@Valid @RequestBody DadosAutenticacao dados) {
-        System.out.println("[DEBUG-AUTH] Tentativa de login: usuário='" + dados.login() + "', senha='" + dados.senha() + "'");
+        logger.info("Tentativa de login para o usuário: {}", dados.login());
         var authenticationToken = new UsernamePasswordAuthenticationToken(dados.login(), dados.senha());
         
         // Delegação para Platform Threads (BCrypt) para evitar Starvation no Loom
@@ -154,6 +156,9 @@ public class AutenticacaoController {
             return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).build();
         }
         var usuario = (Usuario) authentication.getPrincipal();
-        return ResponseEntity.ok(new DadosUsuarioLogado(usuario.getUsername(), usuario.getRole(), usuario.getNome(), usuario.getEmail(), usuario.isMfaEnabled()));
+        java.util.List<String> authorities = usuario.getAuthorities().stream()
+                .map(org.springframework.security.core.GrantedAuthority::getAuthority)
+                .toList();
+        return ResponseEntity.ok(new DadosUsuarioLogado(usuario.getUsername(), usuario.getPerfil() != null ? usuario.getPerfil().getNome() : null, usuario.getNome(), usuario.getEmail(), usuario.isMfaEnabled(), authorities));
     }
 }

@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,6 +33,7 @@ public class GrupoController {
     }
 
     @Operation(summary = "Criar novo grupo", description = "Define os parâmetros do grupo: valor do crédito, taxa de administração e prazo total em meses. O status inicial é definido automaticamente como 'EM_FORMACAO'.")
+    @PreAuthorize("hasAuthority('MANAGE_GRUPOS')")
     @PostMapping
     public ResponseEntity<GrupoResponseDTO> cadastrar(@Valid @RequestBody GrupoRequestDTO dto) {
         GrupoResponseDTO grupoSalvo = service.salvar(dto);
@@ -39,12 +41,14 @@ public class GrupoController {
     }
 
     @Operation(summary = "Listar Grupos", description = "Lista grupos cadastrados no sistema de forma paginada.")
+    @PreAuthorize("hasAuthority('VIEW_GRUPOS')")
     @GetMapping
     public ResponseEntity<Page<GrupoResponseDTO>> listar(@PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(service.listarTodos(pageable));
     }
 
     @Operation(summary = "Inaugurar grupo", description = "Altera o status do grupo para 'EM_ANDAMENTO'. Esta operação valida se o grupo está em formação e registra a data da 1ª AGO.")
+    @PreAuthorize("hasAuthority('MANAGE_GRUPOS')")
     @PutMapping("/{id}/inaugurar")
     public ResponseEntity<GrupoResponseDTO> inaugurar(@PathVariable Long id, @RequestParam LocalDate dataAssembleia) {
         GrupoResponseDTO grupoInaugurado = service.inaugurar(id, dataAssembleia);
@@ -52,6 +56,7 @@ public class GrupoController {
     }
 
     @Operation(summary = "Reajustar valor do crédito", description = "Atualiza o valor do crédito do grupo e reajusta todas as parcelas em aberto proporcionalmente.")
+    @PreAuthorize("hasAuthority('MANAGE_GRUPOS')")
     @PutMapping("/{id}/reajuste")
     public ResponseEntity<GrupoResponseDTO> reajustar(@PathVariable Long id, @RequestParam BigDecimal novoValorCredito) {
         GrupoResponseDTO grupoReajustado = service.reajustarGrupo(id, novoValorCredito);
@@ -59,12 +64,14 @@ public class GrupoController {
     }
 
     @Operation(summary = "Relatório financeiro do grupo", description = "Consolida a arrecadação de Fundo Comum, Fundo de Reserva, Taxa de Administração e créditos já pagos.")
+    @PreAuthorize("hasAuthority('VIEW_GRUPOS')")
     @GetMapping("/{id}/financeiro")
     public ResponseEntity<GrupoFinanceiroResponseDTO> obterFinanceiro(@PathVariable Long id) {
         return ResponseEntity.ok(service.obterRelatorioFinanceiro(id));
     }
 
     @Operation(summary = "Encerrar grupo", description = "Encerra as atividades do grupo de consórcio caso todas as obrigações financeiras de todas as cotas tenham sido quitadas.")
+    @PreAuthorize("hasAuthority('MANAGE_GRUPOS')")
     @PostMapping("/{id}/encerrar")
     public ResponseEntity<GrupoEncerrarResponseDTO> encerrar(@PathVariable Long id) {
         GrupoEncerrarResponseDTO grupoEncerrado = service.encerrarGrupo(id);

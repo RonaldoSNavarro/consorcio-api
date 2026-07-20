@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import br.com.estudo.consorcio.domain.enums.CategoriaBem;
 import br.com.estudo.consorcio.domain.enums.DestinacaoMultaRescisoria;
 
@@ -19,11 +20,30 @@ public class Grupo {
     @Column(nullable = false, unique = true)
     private String codigo;
 
-    @Column(nullable = false)
-    private BigDecimal valorCredito;
+    @Column(name = "quantidade_cotas", nullable = false)
+    private Integer quantidadeCotas = 120;
 
-    @Column(nullable = false)
-    private Integer prazoMeses;
+    @Column(name = "dia_base_assembleias", nullable = false)
+    private Integer diaBaseAssembleias = 15;
+
+    @Column(name = "dias_antecedencia_vencimento", nullable = false)
+    private Integer diasAntecedenciaVencimento = 5;
+
+    @Column(name = "prazo_maximo_meses", nullable = false)
+    private Integer prazoMaximoMeses = 120;
+
+    @ElementCollection
+    @CollectionTable(name = "grupo_prazos_permitidos", joinColumns = @JoinColumn(name = "grupo_id"))
+    @Column(name = "prazo_meses")
+    private List<Integer> prazosPermitidos;
+
+    @ManyToMany
+    @JoinTable(
+        name = "grupo_bens_permitidos",
+        joinColumns = @JoinColumn(name = "grupo_id"),
+        inverseJoinColumns = @JoinColumn(name = "bem_referencia_id")
+    )
+    private List<BemReferencia> bensPermitidos;
 
     @Column(nullable = false)
     private BigDecimal taxaAdministracao;
@@ -84,11 +104,46 @@ public class Grupo {
     public String getCodigo() { return codigo; }
     public void setCodigo(String codigo) { this.codigo = codigo; }
 
-    public BigDecimal getValorCredito() { return valorCredito; }
-    public void setValorCredito(BigDecimal valorCredito) { this.valorCredito = valorCredito; }
+    public Integer getQuantidadeCotas() { return quantidadeCotas; }
+    public void setQuantidadeCotas(Integer quantidadeCotas) { this.quantidadeCotas = quantidadeCotas; }
 
-    public Integer getPrazoMeses() { return prazoMeses; }
-    public void setPrazoMeses(Integer prazoMeses) { this.prazoMeses = prazoMeses; }
+    public Integer getDiaBaseAssembleias() { return diaBaseAssembleias; }
+    public void setDiaBaseAssembleias(Integer diaBaseAssembleias) { this.diaBaseAssembleias = diaBaseAssembleias; }
+
+    public Integer getDiasAntecedenciaVencimento() { return diasAntecedenciaVencimento; }
+    public void setDiasAntecedenciaVencimento(Integer diasAntecedenciaVencimento) { this.diasAntecedenciaVencimento = diasAntecedenciaVencimento; }
+
+    public Integer getPrazoMaximoMeses() { return prazoMaximoMeses; }
+    public void setPrazoMaximoMeses(Integer prazoMaximoMeses) { this.prazoMaximoMeses = prazoMaximoMeses; }
+
+    @Transient
+    public BigDecimal getValorCredito() {
+        if (bensPermitidos != null && !bensPermitidos.isEmpty() && bensPermitidos.get(0).getValorAtual() != null) {
+            return bensPermitidos.get(0).getValorAtual();
+        }
+        return BigDecimal.valueOf(100000); // fallback
+    }
+
+    @Transient
+    public void setValorCredito(BigDecimal valorCredito) {
+        // ignore
+    }
+
+    @Transient
+    public Integer getPrazoMeses() {
+        return prazoMaximoMeses;
+    }
+
+    @Transient
+    public void setPrazoMeses(Integer prazoMeses) {
+        this.prazoMaximoMeses = prazoMeses;
+    }
+
+    public List<Integer> getPrazosPermitidos() { return prazosPermitidos; }
+    public void setPrazosPermitidos(List<Integer> prazosPermitidos) { this.prazosPermitidos = prazosPermitidos; }
+
+    public List<BemReferencia> getBensPermitidos() { return bensPermitidos; }
+    public void setBensPermitidos(List<BemReferencia> bensPermitidos) { this.bensPermitidos = bensPermitidos; }
 
     public BigDecimal getTaxaAdministracao() { return taxaAdministracao; }
     public void setTaxaAdministracao(BigDecimal taxaAdministracao) { this.taxaAdministracao = taxaAdministracao; }
