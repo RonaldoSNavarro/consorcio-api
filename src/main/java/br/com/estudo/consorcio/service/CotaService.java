@@ -8,6 +8,7 @@ import br.com.estudo.consorcio.domain.model.*;
 import br.com.estudo.consorcio.domain.mapper.CotaMapper;
 import br.com.estudo.consorcio.domain.repository.ClienteRepository;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
+import br.com.estudo.consorcio.domain.repository.CotaSpecification;
 import br.com.estudo.consorcio.domain.repository.GrupoRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
 import br.com.estudo.consorcio.domain.repository.HistoricoVersaoCotaRepository;
@@ -21,6 +22,7 @@ import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -77,6 +79,22 @@ public class CotaService {
             return (Usuario) authentication.getPrincipal();
         }
         return null;
+    }
+
+    @Transactional(readOnly = true)
+    public CotaResponseDTO buscarPorId(Long id) {
+        Cota cota = cotaRepository.findById(id)
+                .orElseThrow(() -> new RegraDeNegocioException("Cota não encontrada."));
+        return mapper.toResponse(cota);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<CotaResponseDTO> buscar(Long grupoId, Integer numeroCota, Integer versao, String cpfCnpj, Pageable pageable) {
+        Specification<Cota> spec = Specification.where(CotaSpecification.porGrupoId(grupoId))
+                .and(CotaSpecification.porNumeroCota(numeroCota))
+                .and(CotaSpecification.porVersao(versao))
+                .and(CotaSpecification.porCpfCnpj(cpfCnpj));
+        return cotaRepository.findAll(spec, pageable).map(mapper::toResponse);
     }
 
     @Transactional
@@ -149,7 +167,7 @@ public class CotaService {
         // Regra BACEN: Consorciado não pode ter mais de 10% das cotas ativas do grupo
         if (grupo.getPrazoMeses() != null && grupo.getPrazoMeses() > 0) {
             long cotasAtivasDoCliente = cotaRepository.findByGrupoId(grupo.getId(), Pageable.unpaged()).stream()
-                    .filter(c -> c.getCliente().getId().equals(cliente.getId()) && c.getStatus() == StatusCota.ATIVA)
+                    .filter(c -> c.getCliente() != null && c.getCliente().getId().equals(cliente.getId()) && c.getStatus() == StatusCota.ATIVA)
                     .count();
             
             // Verifica o limite de 10% (arredondado para baixo ou limite fixo)

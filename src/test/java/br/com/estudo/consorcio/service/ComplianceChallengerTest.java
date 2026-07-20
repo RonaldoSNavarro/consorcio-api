@@ -83,6 +83,7 @@ public class ComplianceChallengerTest {
         lanceRepository = mock(LanceRepository.class);
 
         cotaMapper = Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.CotaMapper.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(cotaMapper, "parcelaRepository", parcelaRepository);
         contemplacaoMapper = Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.ContemplacaoMapper.class);
 
         // MatchComplianceService
@@ -109,7 +110,8 @@ public class ComplianceChallengerTest {
         propostaAdesaoService = new PropostaAdesaoService(
                 propostaRepository, contratoRepository, clienteRepository,
                 produtoRepository, tipoVendaRepository, alertaComplianceRepository,
-                grupoRepository, cotaRepository
+                grupoRepository, cotaRepository, assembleiaRepository, parcelaRepository,
+                java.time.Clock.systemDefaultZone()
         );
     }
 

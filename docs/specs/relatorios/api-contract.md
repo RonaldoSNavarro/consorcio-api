@@ -1,34 +1,34 @@
-# Contract API — Relatórios e PLD/FT (Capability: relatorios)
+﻿# Contract API â€” RelatÃ³rios e PLD/FT (Capability: relatorios)
 
-Status: LOCKED
-Versão: v1.1
-Aprovações: CTO [✅] (retroativo com ajustes regulatórios)
+*   **Status**: IMPLEMENTED v1.0
+VersÃ£o: v1.1
+AprovaÃ§Ãµes: CTO [âœ…] (retroativo com ajustes regulatÃ³rios)
 
-**Atenção**: Este contrato foi atualizado na versão 1.1 para refletir as correções regulatórias apontadas pelos Especialistas de Domínio (monitoramento efetivo de lances pagos e métricas de inadimplência).
+**AtenÃ§Ã£o**: Este contrato foi atualizado na versÃ£o 1.1 para refletir as correÃ§Ãµes regulatÃ³rias apontadas pelos Especialistas de DomÃ­nio (monitoramento efetivo de lances pagos e mÃ©tricas de inadimplÃªncia).
 
-## Visão Geral
+## VisÃ£o Geral
 
-Endpoints para a geração de relatórios de Balancete COSIF, Estatísticas do Grupo e alertas para monitoramento de lavagem de dinheiro (PLD/FT).
+Endpoints para a geraÃ§Ã£o de relatÃ³rios de Balancete COSIF, EstatÃ­sticas do Grupo e alertas para monitoramento de lavagem de dinheiro (PLD/FT).
 
 **Base URL:** `/api/relatorios`
 
-**Segurança Global:**
-- Header obrigatório: `Authorization: Bearer <JWT>`
-- O endpoint PLD/FT e Balancete 4110 são restritos a usuários com os papéis `ROLE_ADMIN` ou `ROLE_AUDITOR`. O papel `ROLE_CONSORCIADO` recebe `403 Forbidden`.
+**SeguranÃ§a Global:**
+- Header obrigatÃ³rio: `Authorization: Bearer <JWT>`
+- O endpoint PLD/FT e Balancete 4110 sÃ£o restritos a usuÃ¡rios com os papÃ©is `ROLE_ADMIN` ou `ROLE_AUDITOR`. O papel `ROLE_CONSORCIADO` recebe `403 Forbidden`.
 
 ---
 
 ## Endpoints
 
 ### 1. Alerta PLD/FT (Monitoramento)
-Lista lances registrados acima de R$ 50.000,00 para um período específico, com foco em Prevenção à Lavagem de Dinheiro / Financiamento ao Terrorismo (PLD/FT).
+Lista lances registrados acima de R$ 50.000,00 para um perÃ­odo especÃ­fico, com foco em PrevenÃ§Ã£o Ã  Lavagem de Dinheiro / Financiamento ao Terrorismo (PLD/FT).
 
-- **Método:** `GET`
+- **MÃ©todo:** `GET`
 - **Path:** `/pld-ft`
-- **Permissões:** `ROLE_ADMIN`, `ROLE_AUDITOR`
+- **PermissÃµes:** `ROLE_ADMIN`, `ROLE_AUDITOR`
 
 **Query Parameters:**
-| Parâmetro | Tipo | Obrigatório | Formato | Descrição |
+| ParÃ¢metro | Tipo | ObrigatÃ³rio | Formato | DescriÃ§Ã£o |
 |:---|:---|:---:|:---|:---|
 | `dataInicio` | `string` | Sim | `ISO-8601 (YYYY-MM-DDThh:mm:ss)` | Data/hora inicial da busca. |
 | `dataFim` | `string` | Sim | `ISO-8601 (YYYY-MM-DDThh:mm:ss)` | Data/hora final da busca. |
@@ -39,7 +39,7 @@ Lista lances registrados acima de R$ 50.000,00 para um período específico, com
   {
     "lanceId": 1054,
     "cotaId": 98,
-    "nomeConsorciado": "João da Silva",
+    "nomeConsorciado": "JoÃ£o da Silva",
     "cpfCnpj": "123.456.789-00",
     "valorOferta": 55000.00,
     "tipoLance": "LIVRE",
@@ -52,22 +52,22 @@ Lista lances registrados acima de R$ 50.000,00 para um período específico, com
 
 ---
 
-### 2. Balancete Contábil (Doc 4110)
+### 2. Balancete ContÃ¡bil (Doc 4110)
 Gera o balancete de um grupo consolidando as contas COSIF e avaliando a quadratura de saldos.
 
-- **Método:** `GET`
+- **MÃ©todo:** `GET`
 - **Path:** `/balancete/{grupoId}`
-- **Permissões:** `ROLE_ADMIN`, `ROLE_AUDITOR`
+- **PermissÃµes:** `ROLE_ADMIN`, `ROLE_AUDITOR`
 
 **Path Variables:**
-| Variável | Tipo | Descrição |
+| VariÃ¡vel | Tipo | DescriÃ§Ã£o |
 |:---|:---|:---|
-| `grupoId` | `integer` | ID do grupo do consórcio. |
+| `grupoId` | `integer` | ID do grupo do consÃ³rcio. |
 
 **Query Parameters:**
-| Parâmetro | Tipo | Obrigatório | Formato | Descrição |
+| ParÃ¢metro | Tipo | ObrigatÃ³rio | Formato | DescriÃ§Ã£o |
 |:---|:---|:---:|:---|:---|
-| `dataReferencia` | `string` | Não | `YYYY-MM-DD` | Data base para os saldos. Se não informado, assume data atual. |
+| `dataReferencia` | `string` | NÃ£o | `YYYY-MM-DD` | Data base para os saldos. Se nÃ£o informado, assume data atual. |
 
 **Resposta Sucesso (200 OK):**
 ```json
@@ -88,22 +88,22 @@ Gera o balancete de um grupo consolidando as contas COSIF e avaliando a quadratu
 
 ---
 
-### 3. Estatísticas do Grupo (Doc 2080)
-Consolida adesões, exclusões, lances e contemplações em um determinado período para análise gerencial.
+### 3. EstatÃ­sticas do Grupo (Doc 2080)
+Consolida adesÃµes, exclusÃµes, lances e contemplaÃ§Ãµes em um determinado perÃ­odo para anÃ¡lise gerencial.
 
-- **Método:** `GET`
+- **MÃ©todo:** `GET`
 - **Path:** `/estatisticas/{grupoId}`
 
 **Path Variables:**
-| Variável | Tipo | Descrição |
+| VariÃ¡vel | Tipo | DescriÃ§Ã£o |
 |:---|:---|:---|
-| `grupoId` | `integer` | ID do grupo do consórcio. |
+| `grupoId` | `integer` | ID do grupo do consÃ³rcio. |
 
 **Query Parameters:**
-| Parâmetro | Tipo | Obrigatório | Formato | Descrição |
+| ParÃ¢metro | Tipo | ObrigatÃ³rio | Formato | DescriÃ§Ã£o |
 |:---|:---|:---:|:---|:---|
-| `dataInicio` | `string` | Sim | `YYYY-MM-DD` | Data de início do período. |
-| `dataFim` | `string` | Sim | `YYYY-MM-DD` | Data de fim do período. |
+| `dataInicio` | `string` | Sim | `YYYY-MM-DD` | Data de inÃ­cio do perÃ­odo. |
+| `dataFim` | `string` | Sim | `YYYY-MM-DD` | Data de fim do perÃ­odo. |
 
 **Resposta Sucesso (200 OK):**
 ```json
@@ -129,8 +129,8 @@ Consolida adesões, exclusões, lances e contemplações em um determinado perí
 
 O backend utiliza um `@ControllerAdvice` global e padroniza os erros seguindo a RFC 7807 (Problem Details).
 
-- `400 Bad Request`: Faltam query parameters obrigatórios (ex: `dataInicio` ou `dataFim`) ou a formatação das datas está incorreta.
-- `401 Unauthorized`: Token JWT ausente, expirado ou inválido.
-- `403 Forbidden`: O usuário autenticado (ex: Consorciado) não tem a permissão `ROLE_ADMIN` ou `ROLE_AUDITOR` necessária.
-- `404 Not Found`: `grupoId` não foi localizado no sistema.
+- `400 Bad Request`: Faltam query parameters obrigatÃ³rios (ex: `dataInicio` ou `dataFim`) ou a formataÃ§Ã£o das datas estÃ¡ incorreta.
+- `401 Unauthorized`: Token JWT ausente, expirado ou invÃ¡lido.
+- `403 Forbidden`: O usuÃ¡rio autenticado (ex: Consorciado) nÃ£o tem a permissÃ£o `ROLE_ADMIN` ou `ROLE_AUDITOR` necessÃ¡ria.
+- `404 Not Found`: `grupoId` nÃ£o foi localizado no sistema.
 - `500 Internal Server Error`: Falha interna durante o processamento.

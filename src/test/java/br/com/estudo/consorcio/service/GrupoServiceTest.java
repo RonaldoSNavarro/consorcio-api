@@ -53,7 +53,13 @@ class GrupoServiceTest {
     private MovimentoFinanceiroService movimentoService;
 
     @Mock
+    private br.com.estudo.consorcio.domain.repository.AssembleiaRepository assembleiaRepository;
+
+    @Mock
     private HistoricoConsorciadoService historicoService;
+
+    @org.mockito.Spy
+    private java.time.Clock clock = java.time.Clock.systemDefaultZone();
 
     @org.mockito.Spy
     private br.com.estudo.consorcio.domain.mapper.GrupoMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.GrupoMapper.class);
@@ -175,7 +181,9 @@ class GrupoServiceTest {
 
         Grupo grupo = new Grupo();
         grupo.setId(grupoId);
-        grupo.setValorCredito(antigoValorCredito);
+        br.com.estudo.consorcio.domain.model.BemReferencia bem = new br.com.estudo.consorcio.domain.model.BemReferencia();
+        bem.setValorAtual(antigoValorCredito);
+        grupo.setBensPermitidos(List.of(bem));
         grupo.setStatus(StatusGrupo.EM_ANDAMENTO);
 
         Parcela p1 = new Parcela();

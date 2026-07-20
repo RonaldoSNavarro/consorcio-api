@@ -24,6 +24,13 @@ import br.com.estudo.consorcio.domain.enums.TipoCategoriaBacen;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import br.com.estudo.consorcio.domain.model.StatusAlertaCompliance;
 import br.com.estudo.consorcio.domain.repository.AlertaComplianceRepository;
+import br.com.estudo.consorcio.domain.repository.AssembleiaRepository;
+import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
+import br.com.estudo.consorcio.domain.model.Assembleia;
+import br.com.estudo.consorcio.domain.model.Parcela;
+import br.com.estudo.consorcio.domain.model.StatusParcela;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -46,6 +53,9 @@ public class PropostaAdesaoService {
     // Injeção dos repositórios de Cota/Grupo
     private final GrupoRepository grupoRepository;
     private final CotaRepository cotaRepository;
+    private final AssembleiaRepository assembleiaRepository;
+    private final ParcelaRepository parcelaRepository;
+    private final java.time.Clock clock;
 
     @Transactional
     public PropostaAdesao criarProposta(PropostaRequestDTO request) {
@@ -77,8 +87,8 @@ public class PropostaAdesaoService {
                 .tipoVenda(tipoVenda)
                 .valorCreditoSolicitado(request.getValorCreditoSolicitado())
                 .status(StatusProposta.EM_ANALISE)
-                .dataProposta(LocalDateTime.now())
-                .dataAtualizacao(LocalDateTime.now())
+                .dataProposta(LocalDateTime.now(clock))
+                .dataAtualizacao(LocalDateTime.now(clock))
                 .build();
 
         return propostaRepository.save(proposta);
@@ -102,7 +112,7 @@ public class PropostaAdesaoService {
         }
 
         proposta.setStatus(StatusProposta.APROVADA);
-        proposta.setDataAtualizacao(LocalDateTime.now());
+        proposta.setDataAtualizacao(LocalDateTime.now(clock));
         propostaRepository.save(proposta);
 
         ContratoAdesao contrato = ContratoAdesao.builder()
@@ -141,7 +151,7 @@ public class PropostaAdesaoService {
         // Aqui simularíamos o retorno do webhook do banco ou integração com Financeiro
         
         contrato.setStatus(StatusContrato.EFETIVADO);
-        contrato.setDataAssinatura(LocalDateTime.now());
+        contrato.setDataAssinatura(LocalDateTime.now(clock));
         contrato = contratoRepository.save(contrato);
         
         br.com.estudo.consorcio.domain.enums.CategoriaBem catEnum = mapCategoriaBacen(contrato.getProposta().getProduto().getBemReferencia().getCategoriaBem().getTipoBacen());
@@ -175,6 +185,54 @@ public class PropostaAdesaoService {
         }
         
         cotaRepository.save(cota);
+
+        // --- GERAÇÃO DE PARCELAS ---
+        List<Assembleia> assembleias = assembleiaRepository.findByGrupoIdOrderByDataAssembleiaAsc(grupo.getId());
+        java.util.List<Parcela> parcelas = new java.util.ArrayList<>();
+        int numero = 1;
+        
+        BigDecimal prazoTotal = BigDecimal.valueOf(proposta.getProduto().getPrazoMeses());
+        BigDecimal valorParcela = proposta.getValorCreditoSolicitado().divide(prazoTotal, 2, java.math.RoundingMode.HALF_UP);
+        BigDecimal taxaAdm = valorParcela.multiply(grupo.getTaxaAdministracao()).divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+        BigDecimal fundoComum = valorParcela.subtract(taxaAdm);
+
+        // 1ª Parcela: Adesão (já vencendo hoje)
+        Parcela adesao = new Parcela();
+        adesao.setCota(cota);
+        adesao.setNumeroParcela(numero++);
+        adesao.setDataVencimento(LocalDate.now(clock));
+        adesao.setValorParcela(valorParcela);
+        adesao.setValorFundoComum(fundoComum);
+        adesao.setValorTaxaAdministracao(taxaAdm);
+        adesao.setValorFundoReserva(BigDecimal.ZERO);
+        adesao.setValorSeguro(BigDecimal.ZERO);
+        // Se já está efetivando o contrato, a adesão foi paga
+        adesao.setStatus(StatusParcela.PAGA);
+        adesao.setDataPagamento(LocalDate.now(clock));
+        adesao.setValorPago(valorParcela);
+        parcelas.add(adesao);
+
+        // Demais parcelas vinculadas às assembleias futuras
+        for (Assembleia assembleia : assembleias) {
+            if (numero > proposta.getProduto().getPrazoMeses()) break;
+            if (assembleia.getDataAssembleia().isBefore(LocalDate.now(clock))) continue;
+
+            Parcela p = new Parcela();
+            p.setCota(cota);
+            p.setNumeroParcela(numero++);
+            p.setDataVencimento(assembleia.getDataAssembleia().minusDays(grupo.getDiasAntecedenciaVencimento()));
+            p.setValorParcela(valorParcela);
+            p.setValorFundoComum(fundoComum);
+            p.setValorTaxaAdministracao(taxaAdm);
+            p.setValorFundoReserva(BigDecimal.ZERO);
+            p.setValorSeguro(BigDecimal.ZERO);
+            p.setStatus(StatusParcela.PENDENTE);
+            parcelas.add(p);
+        }
+
+        if (!parcelas.isEmpty()) {
+            parcelaRepository.saveAll(parcelas);
+        }
         
         return contrato;
     }

@@ -51,7 +51,7 @@ public class RelatorioControllerIntegrationTest {
     private RelatorioService relatorioService;
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(authorities = "VIEW_RELATORIOS")
     @DisplayName("Deve permitir acesso ao balancete para ADMIN")
     void devePermitirAdminAcessarBalancete() throws Exception {
         BalanceteResponseDTO mockResponse = new BalanceteResponseDTO(1L, "G-001", LocalDate.now(), List.of());
@@ -64,7 +64,7 @@ public class RelatorioControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(roles = "AUDITOR")
+    @WithMockUser(authorities = "VIEW_RELATORIOS")
     @DisplayName("Deve permitir acesso ao balancete para AUDITOR")
     void devePermitirAuditorAcessarBalancete() throws Exception {
         BalanceteResponseDTO mockResponse = new BalanceteResponseDTO(1L, "G-001", LocalDate.now(), List.of());
@@ -93,7 +93,7 @@ public class RelatorioControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(authorities = "VIEW_RELATORIOS")
     @DisplayName("Deve permitir ADMIN acessar estatísticas e PLD/FT")
     void devePermitirAdminAcessarEstatisticasEPldFt() throws Exception {
         EstatisticasGrupoResponseDTO mockEst = new EstatisticasGrupoResponseDTO(

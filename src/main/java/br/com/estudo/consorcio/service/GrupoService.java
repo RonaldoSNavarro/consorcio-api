@@ -30,11 +30,14 @@ public class GrupoService {
     private final CotaRepository cotaRepository;
     private final HistoricoConsorciadoService historicoService;
     private final ContabilidadeService contabilidadeService;
+    private final AssembleiaRepository assembleiaRepository;
+    private final java.time.Clock clock;
 
     public GrupoService(GrupoRepository repository, ParcelaRepository parcelaRepository,
                         ContemplacaoRepository contemplacaoRepository, GrupoMapper mapper,
                         MovimentoFinanceiroService movimentoService, CotaRepository cotaRepository,
-                        HistoricoConsorciadoService historicoService, ContabilidadeService contabilidadeService) {
+                        HistoricoConsorciadoService historicoService, ContabilidadeService contabilidadeService,
+                        AssembleiaRepository assembleiaRepository, java.time.Clock clock) {
         this.repository = repository;
         this.parcelaRepository = parcelaRepository;
         this.contemplacaoRepository = contemplacaoRepository;
@@ -43,6 +46,8 @@ public class GrupoService {
         this.cotaRepository = cotaRepository;
         this.historicoService = historicoService;
         this.contabilidadeService = contabilidadeService;
+        this.assembleiaRepository = assembleiaRepository;
+        this.clock = clock;
     }
 
     private Usuario getUsuarioAutenticado() {
@@ -64,7 +69,33 @@ public class GrupoService {
         // 2. Persistência
         Grupo grupoSalvo = repository.save(grupo);
 
-        // 3. Retorno mapeado para DTO de saída usando o mapper
+        // 3. Criar Cotas vazias
+        for (int i = 1; i <= grupoSalvo.getQuantidadeCotas(); i++) {
+            Cota cota = new Cota();
+            cota.setGrupo(grupoSalvo);
+            cota.setNumeroCota(i);
+            cota.setStatus(StatusCota.DISPONIVEL);
+            cotaRepository.save(cota);
+        }
+
+        // 4. Criar Assembleias baseadas no prazoMaximoMeses e diaBaseAssembleias
+        LocalDate currentDate = LocalDate.now(clock);
+        for (int i = 1; i <= grupoSalvo.getPrazoMaximoMeses(); i++) {
+            LocalDate baseDate = currentDate.plusMonths(i);
+            int year = baseDate.getYear();
+            int month = baseDate.getMonthValue();
+            int day = Math.min(grupoSalvo.getDiaBaseAssembleias(), baseDate.lengthOfMonth());
+            LocalDate dataAssembleia = LocalDate.of(year, month, day);
+
+            Assembleia assembleia = new Assembleia();
+            assembleia.setGrupo(grupoSalvo);
+            assembleia.setDataAssembleia(dataAssembleia);
+            assembleia.setTipo(TipoAssembleia.ORDINARIA);
+            assembleia.setStatus(StatusAssembleia.AGENDADA);
+            assembleiaRepository.save(assembleia);
+        }
+
+        // 5. Retorno mapeado para DTO de saída usando o mapper
         return mapper.toResponse(grupoSalvo);
     }
 
@@ -126,8 +157,10 @@ public class GrupoService {
         // Calcula o fator de reajuste (ex: 110.000 / 100.000 = 1.10)
         BigDecimal fatorReajuste = novoValorCredito.divide(antigoValorCredito, 6, RoundingMode.HALF_UP);
 
-        // Atualiza o valor do crédito do grupo
-        grupo.setValorCredito(novoValorCredito);
+        // Atualiza o valor do crédito do bem referência principal
+        if (grupo.getBensPermitidos() != null && !grupo.getBensPermitidos().isEmpty()) {
+            grupo.getBensPermitidos().get(0).setValorAtual(novoValorCredito);
+        }
         Grupo grupoSalvo = repository.save(grupo);
 
         // Busca e atualiza todas as parcelas PENDENTES ou ATRASADAS das cotas do grupo
@@ -220,7 +253,7 @@ public class GrupoService {
             throw new RegraDeNegocioException("Não é possível encerrar um grupo que ainda está em formação.");
         }
 
-        LocalDate dataEncerramento = LocalDate.now();
+        LocalDate dataEncerramento = LocalDate.now(clock);
         BigDecimal valorTotalPDD = BigDecimal.ZERO;
         long totalParcelasBaixadas = 0;
 

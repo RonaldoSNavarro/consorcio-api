@@ -1,51 +1,51 @@
-# Compliance e Listas Restritivas (PLD/FT)
+﻿# Compliance e Listas Restritivas (PLD/FT)
 
-Status: PATCHED
-Versão: v1.2
-Aprovações: Pendentes
-Última alteração: Adição de logs de execução, feedback detalhado na sincronização manual e processamento em batch (Wave 3).
+*   **Status**: IMPLEMENTED v1.0
+VersÃ£o: v1.2
+AprovaÃ§Ãµes: Pendentes
+Ãšltima alteraÃ§Ã£o: AdiÃ§Ã£o de logs de execuÃ§Ã£o, feedback detalhado na sincronizaÃ§Ã£o manual e processamento em batch (Wave 3).
 
-## 1. Visão Geral (O que é?)
-Esta capability introduz o motor ativo de Compliance (Prevenção à Lavagem de Dinheiro e Financiamento ao Terrorismo - PLD/FT). O sistema substituirá a carga manual de arquivos CSV/XML (modelo Newcon) por uma **integração automatizada via APIs externas** (Portal da Transparência, OFAC e ONU). O motor fará o cruzamento contínuo dos CPFs/Nomes dos consorciados ativos contra essas listas, garantindo conformidade com a Circular BCB 3.978/2020.
+## 1. VisÃ£o Geral (O que Ã©?)
+Esta capability introduz o motor ativo de Compliance (PrevenÃ§Ã£o Ã  Lavagem de Dinheiro e Financiamento ao Terrorismo - PLD/FT). O sistema substituirÃ¡ a carga manual de arquivos CSV/XML (modelo Newcon) por uma **integraÃ§Ã£o automatizada via APIs externas** (Portal da TransparÃªncia, OFAC e ONU). O motor farÃ¡ o cruzamento contÃ­nuo dos CPFs/Nomes dos consorciados ativos contra essas listas, garantindo conformidade com a Circular BCB 3.978/2020.
 
-Adicionalmente, o sistema permite uploads manuais das listas PEP (CSV), ONU (XML) e Municípios de Fronteira/Cidades Gêmeas do IBGE (XLS), além de possibilitar ao administrador e compliance configurar dinamicamente o horário e frequência de execução do Job automático.
+Adicionalmente, o sistema permite uploads manuais das listas PEP (CSV), ONU (XML) e MunicÃ­pios de Fronteira/Cidades GÃªmeas do IBGE (XLS), alÃ©m de possibilitar ao administrador e compliance configurar dinamicamente o horÃ¡rio e frequÃªncia de execuÃ§Ã£o do Job automÃ¡tico.
 
 ## 2. Requisitos Funcionais
 
 1. **REQ-COMP-001**: O sistema deve consultar diariamente (via job agendado) APIs governamentais abertas para alimentar/atualizar a base de Listas Restritivas.
-   - **Lista PEP (Pessoas Expostas Politicamente)**: Portal da Transparência API.
+   - **Lista PEP (Pessoas Expostas Politicamente)**: Portal da TransparÃªncia API.
    - **Lista SDN/Terroristas (OFAC/Tesouro Americano)**: Extrator OFAC API.
    - **Lista CSNU (ONU)**: Extrator CSNU API.
-2. **REQ-COMP-002**: O sistema deve expor um endpoint `/api/compliance/sincronizar` para disparo manual sob demanda dessa sincronização.
+2. **REQ-COMP-002**: O sistema deve expor um endpoint `/api/compliance/sincronizar` para disparo manual sob demanda dessa sincronizaÃ§Ã£o.
 3. **REQ-COMP-003**: O sistema deve cruzar (matching) o `cpfCnpj` e o `nome` dos clientes cadastrados contra as listas atualizadas.
-4. **REQ-COMP-004**: Havendo correspondência (`match >= 90%` para nomes ou `match exato` para CPF), o sistema deve gerar uma entidade de `AlertaCompliance` atrelada ao cliente, com status `PENDENTE_ANALISE`.
-5. **REQ-COMP-005**: O sistema deve fornecer endpoint `/api/compliance/alertas` acessível estritamente para roles `ROLE_COMPLIANCE` e `ROLE_ADMIN` para visualização e deliberação (Falso Positivo, Suspeita Confirmada) dos alertas.
-6. **REQ-COMP-006**: O sistema deve permitir ao administrador e analista de compliance fazer o upload de três arquivos de referência:
-   - **PEP (CSV)**: Delimitado por ponto e vírgula `;`, com CPFs mascarados (`***.531.324-**`) e nomes.
-   - **ONU (XML)**: Lista consolidada de indivíduos e entidades do Conselho de Segurança da ONU.
-   - **IBGE (XLS)**: Planilha de Municípios da Faixa de Fronteira e Cidades Gêmeas.
-7. **REQ-COMP-007**: O sistema deve integrar-se diretamente com a API do OFAC Sanctions List Service (`https://sanctionslistservice.ofac.treas.gov/api/download/SDN.XML` ou `CONSOLIDATED.XML`) para ingestão da base americana de sanções.
-8. **REQ-COMP-008**: O sistema deve permitir configurar o agendamento (cron expression) de sincronização e matching via tela, armazenando a frequência e horário e atualizando o trigger do agendamento sem reiniciar a aplicação.
-9. **REQ-COMP-009**: O sistema deve manter um histórico de execuções das sincronizações (seja manual ou por agendamento automático) e prover um endpoint `/api/compliance/execucoes` para visualização dos últimos logs.
-10. **REQ-COMP-010**: O endpoint de sincronização manual `/api/compliance/sincronizar` deve retornar informações em tempo real sobre a disponibilidade das APIs externas (como a OFAC) e a contagem de registros processados.
-11. **REQ-COMP-011**: O processamento de arquivos em massa (como a Lista PEP) deve utilizar processamento em lote (batching) e mitigação de N+1 queries para evitar sobrecarga no banco de dados e garantir escalabilidade.
-12. **REQ-COMP-012**: A busca e matching textual de nomes deve ser delegada ao banco de dados PostgreSQL utilizando a extensão `pg_trgm`, índices de expressão `GIN` e o operador de similaridade (`%`) para assegurar alta performance.
+4. **REQ-COMP-004**: Havendo correspondÃªncia (`match >= 90%` para nomes ou `match exato` para CPF), o sistema deve gerar uma entidade de `AlertaCompliance` atrelada ao cliente, com status `PENDENTE_ANALISE`.
+5. **REQ-COMP-005**: O sistema deve fornecer endpoint `/api/compliance/alertas` acessÃ­vel estritamente para roles `ROLE_COMPLIANCE` e `ROLE_ADMIN` para visualizaÃ§Ã£o e deliberaÃ§Ã£o (Falso Positivo, Suspeita Confirmada) dos alertas.
+6. **REQ-COMP-006**: O sistema deve permitir ao administrador e analista de compliance fazer o upload de trÃªs arquivos de referÃªncia:
+   - **PEP (CSV)**: Delimitado por ponto e vÃ­rgula `;`, com CPFs mascarados (`***.531.324-**`) e nomes.
+   - **ONU (XML)**: Lista consolidada de indivÃ­duos e entidades do Conselho de SeguranÃ§a da ONU.
+   - **IBGE (XLS)**: Planilha de MunicÃ­pios da Faixa de Fronteira e Cidades GÃªmeas.
+7. **REQ-COMP-007**: O sistema deve integrar-se diretamente com a API do OFAC Sanctions List Service (`https://sanctionslistservice.ofac.treas.gov/api/download/SDN.XML` ou `CONSOLIDATED.XML`) para ingestÃ£o da base americana de sanÃ§Ãµes.
+8. **REQ-COMP-008**: O sistema deve permitir configurar o agendamento (cron expression) de sincronizaÃ§Ã£o e matching via tela, armazenando a frequÃªncia e horÃ¡rio e atualizando o trigger do agendamento sem reiniciar a aplicaÃ§Ã£o.
+9. **REQ-COMP-009**: O sistema deve manter um histÃ³rico de execuÃ§Ãµes das sincronizaÃ§Ãµes (seja manual ou por agendamento automÃ¡tico) e prover um endpoint `/api/compliance/execucoes` para visualizaÃ§Ã£o dos Ãºltimos logs.
+10. **REQ-COMP-010**: O endpoint de sincronizaÃ§Ã£o manual `/api/compliance/sincronizar` deve retornar informaÃ§Ãµes em tempo real sobre a disponibilidade das APIs externas (como a OFAC) e a contagem de registros processados.
+11. **REQ-COMP-011**: O processamento de arquivos em massa (como a Lista PEP) deve utilizar processamento em lote (batching) e mitigaÃ§Ã£o de N+1 queries para evitar sobrecarga no banco de dados e garantir escalabilidade.
+12. **REQ-COMP-012**: A busca e matching textual de nomes deve ser delegada ao banco de dados PostgreSQL utilizando a extensÃ£o `pg_trgm`, Ã­ndices de expressÃ£o `GIN` e o operador de similaridade (`%`) para assegurar alta performance.
 
-## 3. Regras de Negócio (Inegociáveis)
+## 3. Regras de NegÃ³cio (InegociÃ¡veis)
 
-- **RN-COMP-001 (Match Sensível)**: A comparação de nomes deve utilizar algoritmos avançados para tratar variações de grafia em nomes estrangeiros oriundos da ONU/OFAC, processados exclusivamente no nível do banco de dados para garantir performance em grandes volumes.
-- **RN-COMP-002 (Bloqueio Cautelar)**: Clientes com alerta de Terrorismo (ONU/OFAC) ativo e confirmado pelo compliance devem ter o pagamento de lances, sorteios e restituições **bloqueados** via `CotaStatus.BLOQUEADA_COMPLIANCE`. 
-- **RN-COMP-003 (Sigilo)**: Usuários comuns (`ROLE_ATENDIMENTO`) não podem visualizar alertas de compliance na ficha do cliente para evitar *tipping-off* (aviso ao suspeito).
-- **RN-COMP-004 (Matching PEP Mascarado)**: Como a lista de PEP contém CPFs mascarados no formato `***.531.324-**` (somente os 6 dígitos centrais visíveis), a validação por documento contra a lista PEP deve extrair os 6 dígitos centrais do CPF do cliente (caracteres de índice 3 a 8 do CPF numérico limpo) e compará-los com os 6 dígitos expostos da lista. Havendo correspondência de CPF E similaridade do nome (`pg_trgm` >= limite de similaridade do SGBD), o alerta é gerado.
-- **RN-COMP-005 (Fronteira e Cidades Gêmeas)**: Clientes que residam em municípios da faixa de fronteira ou cidades gêmeas (cruzando `localidade` e `uf` do cliente contra a lista IBGE normalizada) devem ter sua classificação de risco marcada ou gerar alertas específicos de atenção `IBGE`.
-- **RN-COMP-006 (OFAC Resilience)**: Caso a API do OFAC esteja inacessível ou falhe na requisição de download do XML, o sistema deve registrar o erro no log e prosseguir com a execução das demais listas locais.
+- **RN-COMP-001 (Match SensÃ­vel)**: A comparaÃ§Ã£o de nomes deve utilizar algoritmos avanÃ§ados para tratar variaÃ§Ãµes de grafia em nomes estrangeiros oriundos da ONU/OFAC, processados exclusivamente no nÃ­vel do banco de dados para garantir performance em grandes volumes.
+- **RN-COMP-002 (Bloqueio Cautelar)**: Clientes com alerta de Terrorismo (ONU/OFAC) ativo e confirmado pelo compliance devem ter o pagamento de lances, sorteios e restituiÃ§Ãµes **bloqueados** via `CotaStatus.BLOQUEADA_COMPLIANCE`. 
+- **RN-COMP-003 (Sigilo)**: UsuÃ¡rios comuns (`ROLE_ATENDIMENTO`) nÃ£o podem visualizar alertas de compliance na ficha do cliente para evitar *tipping-off* (aviso ao suspeito).
+- **RN-COMP-004 (Matching PEP Mascarado)**: Como a lista de PEP contÃ©m CPFs mascarados no formato `***.531.324-**` (somente os 6 dÃ­gitos centrais visÃ­veis), a validaÃ§Ã£o por documento contra a lista PEP deve extrair os 6 dÃ­gitos centrais do CPF do cliente (caracteres de Ã­ndice 3 a 8 do CPF numÃ©rico limpo) e comparÃ¡-los com os 6 dÃ­gitos expostos da lista. Havendo correspondÃªncia de CPF E similaridade do nome (`pg_trgm` >= limite de similaridade do SGBD), o alerta Ã© gerado.
+- **RN-COMP-005 (Fronteira e Cidades GÃªmeas)**: Clientes que residam em municÃ­pios da faixa de fronteira ou cidades gÃªmeas (cruzando `localidade` e `uf` do cliente contra a lista IBGE normalizada) devem ter sua classificaÃ§Ã£o de risco marcada ou gerar alertas especÃ­ficos de atenÃ§Ã£o `IBGE`.
+- **RN-COMP-006 (OFAC Resilience)**: Caso a API do OFAC esteja inacessÃ­vel ou falhe na requisiÃ§Ã£o de download do XML, o sistema deve registrar o erro no log e prosseguir com a execuÃ§Ã£o das demais listas locais.
 
-## 4. Critérios de Aceite (QA)
+## 4. CritÃ©rios de Aceite (QA)
 
-- [ ] A sincronização das listas via endpoint preenche a tabela `ListaRestritiva` com milhares de registros.
-- [ ] Um cliente recém-cadastrado cujo CPF coincida com a lista PEP gera automaticamente um `AlertaCompliance`.
-- [ ] Usuários sem a role `COMPLIANCE` ou `ADMIN` recebem HTTP 403 Forbidden ao tentar acessar ou configurar os alertas/agendamento.
-- [ ] O upload do arquivo PEP de 16MB é processado sem estourar o limite de tamanho do Spring Boot.
-- [ ] O upload do arquivo IBGE (XLS) indexa os municípios de fronteira, e clientes localizados em Alta Floresta D'Oeste (RO) geram alertas sob a origem `IBGE`.
+- [ ] A sincronizaÃ§Ã£o das listas via endpoint preenche a tabela `ListaRestritiva` com milhares de registros.
+- [ ] Um cliente recÃ©m-cadastrado cujo CPF coincida com a lista PEP gera automaticamente um `AlertaCompliance`.
+- [ ] UsuÃ¡rios sem a role `COMPLIANCE` ou `ADMIN` recebem HTTP 403 Forbidden ao tentar acessar ou configurar os alertas/agendamento.
+- [ ] O upload do arquivo PEP de 16MB Ã© processado sem estourar o limite de tamanho do Spring Boot.
+- [ ] O upload do arquivo IBGE (XLS) indexa os municÃ­pios de fronteira, e clientes localizados em Alta Floresta D'Oeste (RO) geram alertas sob a origem `IBGE`.
 - [ ] Alterar o agendamento cron para rodar a cada minuto (ex: `0 */1 * * * *`) ativa imediatamente o job sem precisar reiniciar o servidor.
 

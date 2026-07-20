@@ -24,7 +24,7 @@ public class Cota {
 
     // Relacionamento: Muitas Cotas podem pertencer a Um Cliente
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cliente_id", nullable = false)
+    @JoinColumn(name = "cliente_id")
     private Cliente cliente;
 
     // Relacionamento: Muitas Cotas podem pertencer a Um Grupo
@@ -36,6 +36,12 @@ public class Cota {
     @JoinColumn(name = "contrato_adesao_id", unique = true)
     private ContratoAdesao contratoAdesao;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "bem_referencia_id")
+    private BemReferencia bemReferencia;
+
+    @Column(name = "prazo_meses")
+    private Integer prazoMeses;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

@@ -69,7 +69,8 @@ class ClienteControllerTest {
     // ========================================================================
 
     @Test
-    @DisplayName("Deve devolver 201 Created e o JSON do cliente ao salvar com sucesso")
+    @WithMockUser(authorities = {"MANAGE_CLIENTES"})
+    @DisplayName("Deve devolver 201 Created quando os dados do cliente forem válidos e o CPF estiver liberado")
     void deveRetornar201AoSalvarCliente() throws Exception {
         // Arrange
         ClienteRequestDTO request = new ClienteRequestDTO(
@@ -121,6 +122,7 @@ class ClienteControllerTest {
     }
 
     @Test
+    @WithMockUser(authorities = {"MANAGE_CLIENTES"})
     @DisplayName("Deve devolver 400 Bad Request se o DTO enviado for inválido (Validação do Bean)")
     void deveRetornar400ParaDadosInvalidos() throws Exception {
         // Arrange
@@ -150,6 +152,7 @@ class ClienteControllerTest {
     // ========================================================================
 
     @Test
+    @WithMockUser(authorities = {"VIEW_CLIENTES"})
     @DisplayName("Deve devolver 200 OK e a lista de clientes")
     void deveRetornar200AoListarClientes() throws Exception {
         // Arrange
@@ -224,6 +227,7 @@ class ClienteControllerTest {
     }
 
     @Test
+    @WithMockUser(authorities = {"VIEW_CLIENTES"})
     @DisplayName("Deve devolver 200 OK com dados mascarados se a requisição estiver marcada como suspeita")
     void deveAplicarMascaraEmSessaoSuspeita() throws Exception {
         // Arrange

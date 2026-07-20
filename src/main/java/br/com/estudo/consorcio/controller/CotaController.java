@@ -45,6 +45,18 @@ public class CotaController {
         return ResponseEntity.ok(service.listarTodas(pageable));
     }
 
+    @Operation(summary = "Buscar cotas com filtros", description = "Pesquisa cotas por grupo, número, versão e/ou CPF/CNPJ do cliente.")
+    @PreAuthorize("hasAuthority('VIEW_COTAS')")
+    @GetMapping("/buscar")
+    public ResponseEntity<Page<CotaResponseDTO>> buscar(
+            @RequestParam(required = false) Long grupoId,
+            @RequestParam(required = false) Integer numeroCota,
+            @RequestParam(required = false) Integer versao,
+            @RequestParam(required = false) String cpfCnpj,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(service.buscar(grupoId, numeroCota, versao, cpfCnpj, pageable));
+    }
+
     @Operation(summary = "Listar por cliente", description = "Lista cotas por cliente")
     @PreAuthorize("hasAuthority('VIEW_COTAS')")
     @GetMapping("/cliente/{clienteId}")
@@ -57,6 +69,13 @@ public class CotaController {
     @GetMapping("/grupo/{grupoId}")
     public ResponseEntity<Page<CotaResponseDTO>> listarPorGrupo(@PathVariable Long grupoId, @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(service.listarPorGrupo(grupoId, pageable));
+    }
+
+    @Operation(summary = "Buscar cota por ID", description = "Retorna os dados de uma cota específica pelo seu identificador.")
+    @PreAuthorize("hasAuthority('VIEW_COTAS')")
+    @GetMapping("/{id}")
+    public ResponseEntity<CotaResponseDTO> buscarPorId(@PathVariable Long id) {
+        return ResponseEntity.ok(service.buscarPorId(id));
     }
 
     @Operation(summary = "Cancelar cota", description = "Cancela uma cota ativa ou inadimplente, excluindo suas parcelas pendentes.")

@@ -27,6 +27,7 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 * **Mapeamento Declarativo com MapStruct:** Camada de conversão compilada de alta performance entre entidades e DTOs, garantindo separação rígida e eliminando boilerplate.
 * **Bloqueio Otimista (Optimistic Locking):** Prevenção de concorrência e race conditions (condições de corrida) por meio do mapeamento de atributos `@Version` nas tabelas críticas (`cotas`, `grupos` e `parcelas`), impedindo sobrescrita de dados financeiros por requisições concorrentes.
 * **Paginação Robusta de Recursos:** Migração de listagens gerais para o padrão `Pageable` do Spring Data nos endpoints de Clientes, Grupos e Cotas, protegendo a memória Heap contra gargalos de volume massivo.
+* **Busca Avançada via Specifications:** Implementação do padrão `Specification` do Spring Data JPA na entidade Cota, provendo uma API de busca flexível e paginada por múltiplos critérios (Grupo, Número, Versão, CPF/CNPJ).
 
 ## 🧪 Qualidade de Software e Testes
 

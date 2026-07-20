@@ -1,0 +1,865 @@
+﻿diff --git a/src/main/java/br/com/estudo/consorcio/controller/CotaController.java b/src/main/java/br/com/estudo/consorcio/controller/CotaController.java
+index c70ddc8..21a61c5 100644
+--- a/src/main/java/br/com/estudo/consorcio/controller/CotaController.java
++++ b/src/main/java/br/com/estudo/consorcio/controller/CotaController.java
+@@ -45,6 +45,18 @@ public class CotaController {
+         return ResponseEntity.ok(service.listarTodas(pageable));
+     }
+ 
++    @Operation(summary = "Buscar cotas com filtros", description = "Pesquisa cotas por grupo, n├║mero, vers├úo e/ou CPF/CNPJ do cliente.")
++    @PreAuthorize("hasAuthority('VIEW_COTAS')")
++    @GetMapping("/buscar")
++    public ResponseEntity<Page<CotaResponseDTO>> buscar(
++            @RequestParam(required = false) Long grupoId,
++            @RequestParam(required = false) Integer numeroCota,
++            @RequestParam(required = false) Integer versao,
++            @RequestParam(required = false) String cpfCnpj,
++            @PageableDefault(size = 20) Pageable pageable) {
++        return ResponseEntity.ok(service.buscar(grupoId, numeroCota, versao, cpfCnpj, pageable));
++    }
++
+     @Operation(summary = "Listar por cliente", description = "Lista cotas por cliente")
+     @PreAuthorize("hasAuthority('VIEW_COTAS')")
+     @GetMapping("/cliente/{clienteId}")
+@@ -59,6 +71,13 @@ public class CotaController {
+         return ResponseEntity.ok(service.listarPorGrupo(grupoId, pageable));
+     }
+ 
++    @Operation(summary = "Buscar cota por ID", description = "Retorna os dados de uma cota espec├¡fica pelo seu identificador.")
++    @PreAuthorize("hasAuthority('VIEW_COTAS')")
++    @GetMapping("/{id}")
++    public ResponseEntity<CotaResponseDTO> buscarPorId(@PathVariable Long id) {
++        return ResponseEntity.ok(service.buscarPorId(id));
++    }
++
+     @Operation(summary = "Cancelar cota", description = "Cancela uma cota ativa ou inadimplente, excluindo suas parcelas pendentes.")
+     @PreAuthorize("hasAuthority('MANAGE_COTAS')")
+     @PostMapping("/{id}/cancelar")
+diff --git a/src/main/java/br/com/estudo/consorcio/domain/dto/CotaResponseDTO.java b/src/main/java/br/com/estudo/consorcio/domain/dto/CotaResponseDTO.java
+index cdf865d..4e5cc48 100644
+--- a/src/main/java/br/com/estudo/consorcio/domain/dto/CotaResponseDTO.java
++++ b/src/main/java/br/com/estudo/consorcio/domain/dto/CotaResponseDTO.java
+@@ -1,12 +1,23 @@
+ package br.com.estudo.consorcio.domain.dto;
+ 
+ import br.com.estudo.consorcio.domain.model.StatusCota;
++import java.math.BigDecimal;
++import br.com.estudo.consorcio.domain.enums.CategoriaBem;
+ 
+ public record CotaResponseDTO(
+         Long id,
+         Integer numeroCota,
+         Long clienteId,
+         Long grupoId,
++        String codigoGrupo,
++        String nomeConsorciado,
++        BigDecimal percentualPago,
++        BigDecimal percentualAPagar,
++        Long bemReferenciaId,
++        String nomeBemReferencia,
++        BigDecimal valorBemReferencia,
++        CategoriaBem categoriaBem,
++        Integer prazoMeses,
+         StatusCota status,
+         Integer versao
+ ) {}
+\ No newline at end of file
+diff --git a/src/main/java/br/com/estudo/consorcio/domain/mapper/CotaMapper.java b/src/main/java/br/com/estudo/consorcio/domain/mapper/CotaMapper.java
+index 4acfb79..2575f17 100644
+--- a/src/main/java/br/com/estudo/consorcio/domain/mapper/CotaMapper.java
++++ b/src/main/java/br/com/estudo/consorcio/domain/mapper/CotaMapper.java
+@@ -20,5 +20,13 @@ public interface CotaMapper {
+     // Mapeia Cota para CotaResponseDTO, extraindo apenas os IDs de Cliente e Grupo
+     @Mapping(source = "cliente.id", target = "clienteId")
+     @Mapping(source = "grupo.id", target = "grupoId")
++    @Mapping(source = "grupo.codigo", target = "codigoGrupo")
++    @Mapping(source = "cliente.nome", target = "nomeConsorciado")
++    @Mapping(source = "bemReferencia.id", target = "bemReferenciaId")
++    @Mapping(source = "bemReferencia.descricao", target = "nomeBemReferencia")
++    @Mapping(source = "bemReferencia.valorAtual", target = "valorBemReferencia")
++    @Mapping(source = "grupo.categoriaBem", target = "categoriaBem")
++    @Mapping(target = "percentualPago", constant = "0.0")
++    @Mapping(target = "percentualAPagar", constant = "100.0")
+     CotaResponseDTO toResponse(Cota entity);
+ }
+diff --git a/src/main/java/br/com/estudo/consorcio/domain/model/Cota.java b/src/main/java/br/com/estudo/consorcio/domain/model/Cota.java
+index db6e81d..85ca5b5 100644
+--- a/src/main/java/br/com/estudo/consorcio/domain/model/Cota.java
++++ b/src/main/java/br/com/estudo/consorcio/domain/model/Cota.java
+@@ -24,7 +24,7 @@ public class Cota {
+ 
+     // Relacionamento: Muitas Cotas podem pertencer a Um Cliente
+     @ManyToOne(fetch = FetchType.LAZY)
+-    @JoinColumn(name = "cliente_id", nullable = false)
++    @JoinColumn(name = "cliente_id")
+     private Cliente cliente;
+ 
+     // Relacionamento: Muitas Cotas podem pertencer a Um Grupo
+@@ -36,6 +36,12 @@ public class Cota {
+     @JoinColumn(name = "contrato_adesao_id", unique = true)
+     private ContratoAdesao contratoAdesao;
+ 
++    @ManyToOne(fetch = FetchType.LAZY)
++    @JoinColumn(name = "bem_referencia_id")
++    private BemReferencia bemReferencia;
++
++    @Column(name = "prazo_meses")
++    private Integer prazoMeses;
+ 
+     @Enumerated(EnumType.STRING)
+     @Column(nullable = false)
+diff --git a/src/main/java/br/com/estudo/consorcio/domain/model/Grupo.java b/src/main/java/br/com/estudo/consorcio/domain/model/Grupo.java
+index 111e546..8ee38f3 100644
+--- a/src/main/java/br/com/estudo/consorcio/domain/model/Grupo.java
++++ b/src/main/java/br/com/estudo/consorcio/domain/model/Grupo.java
+@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+ import jakarta.persistence.*;
+ import java.math.BigDecimal;
+ import java.time.LocalDate;
++import java.util.List;
+ import br.com.estudo.consorcio.domain.enums.CategoriaBem;
+ import br.com.estudo.consorcio.domain.enums.DestinacaoMultaRescisoria;
+ 
+@@ -19,11 +20,30 @@ public class Grupo {
+     @Column(nullable = false, unique = true)
+     private String codigo;
+ 
+-    @Column(nullable = false)
+-    private BigDecimal valorCredito;
++    @Column(name = "quantidade_cotas", nullable = false)
++    private Integer quantidadeCotas = 120;
+ 
+-    @Column(nullable = false)
+-    private Integer prazoMeses;
++    @Column(name = "dia_base_assembleias", nullable = false)
++    private Integer diaBaseAssembleias = 15;
++
++    @Column(name = "dias_antecedencia_vencimento", nullable = false)
++    private Integer diasAntecedenciaVencimento = 5;
++
++    @Column(name = "prazo_maximo_meses", nullable = false)
++    private Integer prazoMaximoMeses = 120;
++
++    @ElementCollection
++    @CollectionTable(name = "grupo_prazos_permitidos", joinColumns = @JoinColumn(name = "grupo_id"))
++    @Column(name = "prazo_meses")
++    private List<Integer> prazosPermitidos;
++
++    @ManyToMany
++    @JoinTable(
++        name = "grupo_bens_permitidos",
++        joinColumns = @JoinColumn(name = "grupo_id"),
++        inverseJoinColumns = @JoinColumn(name = "bem_referencia_id")
++    )
++    private List<BemReferencia> bensPermitidos;
+ 
+     @Column(nullable = false)
+     private BigDecimal taxaAdministracao;
+@@ -84,11 +104,46 @@ public class Grupo {
+     public String getCodigo() { return codigo; }
+     public void setCodigo(String codigo) { this.codigo = codigo; }
+ 
+-    public BigDecimal getValorCredito() { return valorCredito; }
+-    public void setValorCredito(BigDecimal valorCredito) { this.valorCredito = valorCredito; }
++    public Integer getQuantidadeCotas() { return quantidadeCotas; }
++    public void setQuantidadeCotas(Integer quantidadeCotas) { this.quantidadeCotas = quantidadeCotas; }
++
++    public Integer getDiaBaseAssembleias() { return diaBaseAssembleias; }
++    public void setDiaBaseAssembleias(Integer diaBaseAssembleias) { this.diaBaseAssembleias = diaBaseAssembleias; }
++
++    public Integer getDiasAntecedenciaVencimento() { return diasAntecedenciaVencimento; }
++    public void setDiasAntecedenciaVencimento(Integer diasAntecedenciaVencimento) { this.diasAntecedenciaVencimento = diasAntecedenciaVencimento; }
++
++    public Integer getPrazoMaximoMeses() { return prazoMaximoMeses; }
++    public void setPrazoMaximoMeses(Integer prazoMaximoMeses) { this.prazoMaximoMeses = prazoMaximoMeses; }
++
++    @Transient
++    public BigDecimal getValorCredito() {
++        if (bensPermitidos != null && !bensPermitidos.isEmpty() && bensPermitidos.get(0).getValorAtual() != null) {
++            return bensPermitidos.get(0).getValorAtual();
++        }
++        return BigDecimal.valueOf(100000); // fallback
++    }
++
++    @Transient
++    public void setValorCredito(BigDecimal valorCredito) {
++        // ignore
++    }
++
++    @Transient
++    public Integer getPrazoMeses() {
++        return prazoMaximoMeses;
++    }
++
++    @Transient
++    public void setPrazoMeses(Integer prazoMeses) {
++        this.prazoMaximoMeses = prazoMeses;
++    }
++
++    public List<Integer> getPrazosPermitidos() { return prazosPermitidos; }
++    public void setPrazosPermitidos(List<Integer> prazosPermitidos) { this.prazosPermitidos = prazosPermitidos; }
+ 
+-    public Integer getPrazoMeses() { return prazoMeses; }
+-    public void setPrazoMeses(Integer prazoMeses) { this.prazoMeses = prazoMeses; }
++    public List<BemReferencia> getBensPermitidos() { return bensPermitidos; }
++    public void setBensPermitidos(List<BemReferencia> bensPermitidos) { this.bensPermitidos = bensPermitidos; }
+ 
+     public BigDecimal getTaxaAdministracao() { return taxaAdministracao; }
+     public void setTaxaAdministracao(BigDecimal taxaAdministracao) { this.taxaAdministracao = taxaAdministracao; }
+diff --git a/src/main/java/br/com/estudo/consorcio/domain/model/StatusCota.java b/src/main/java/br/com/estudo/consorcio/domain/model/StatusCota.java
+index f9f2547..9d004bc 100644
+--- a/src/main/java/br/com/estudo/consorcio/domain/model/StatusCota.java
++++ b/src/main/java/br/com/estudo/consorcio/domain/model/StatusCota.java
+@@ -1,6 +1,7 @@
+ package br.com.estudo.consorcio.domain.model;
+ 
+ public enum StatusCota {
++    DISPONIVEL,
+     AGUARDANDO_PAGAMENTO,
+     ATIVA,
+     CANCELADA,
+diff --git a/src/main/java/br/com/estudo/consorcio/domain/repository/CotaRepository.java b/src/main/java/br/com/estudo/consorcio/domain/repository/CotaRepository.java
+index 51c4091..dd0884c 100644
+--- a/src/main/java/br/com/estudo/consorcio/domain/repository/CotaRepository.java
++++ b/src/main/java/br/com/estudo/consorcio/domain/repository/CotaRepository.java
+@@ -3,6 +3,7 @@ package br.com.estudo.consorcio.domain.repository;
+ import br.com.estudo.consorcio.domain.model.Cota;
+ import br.com.estudo.consorcio.domain.model.StatusCota;
+ import org.springframework.data.jpa.repository.JpaRepository;
++import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+ import org.springframework.stereotype.Repository;
+ 
+ import org.springframework.data.domain.Page;
+@@ -12,7 +13,7 @@ import java.util.List;
+ import java.util.Optional;
+ 
+ @Repository
+-public interface CotaRepository extends JpaRepository<Cota, Long> {
++public interface CotaRepository extends JpaRepository<Cota, Long>, JpaSpecificationExecutor<Cota> {
+ 
+     Page<Cota> findByClienteId(Long clienteId, Pageable pageable);
+ 
+@@ -22,6 +23,8 @@ public interface CotaRepository extends JpaRepository<Cota, Long> {
+ 
+     Page<Cota> findByGrupoId(Long grupoId, Pageable pageable);
+     
++    Optional<Cota> findFirstByGrupoIdAndStatusOrderByNumeroCotaAsc(Long grupoId, StatusCota status);
++
+     // For internal processing that still needs List
+     List<Cota> findByGrupoId(Long grupoId);
+ 
+diff --git a/src/main/java/br/com/estudo/consorcio/domain/repository/ParcelaRepository.java b/src/main/java/br/com/estudo/consorcio/domain/repository/ParcelaRepository.java
+index 3b9a05c..43de8a2 100644
+--- a/src/main/java/br/com/estudo/consorcio/domain/repository/ParcelaRepository.java
++++ b/src/main/java/br/com/estudo/consorcio/domain/repository/ParcelaRepository.java
+@@ -16,6 +16,9 @@ public interface ParcelaRepository extends JpaRepository<Parcela, Long> {
+     // Lista parcelas pelo id da cota
+     List<Parcela> findByCotaId(Long cotaId);
+ 
++    // Conta parcelas pelo id da cota
++    long countByCotaId(Long cotaId);
++
+     // Busca a ├║ltima parcela gerada da cota
+     java.util.Optional<Parcela> findTopByCotaIdOrderByNumeroParcelaDesc(Long cotaId);
+ 
+diff --git a/src/main/java/br/com/estudo/consorcio/domain/service/PropostaAdesaoService.java b/src/main/java/br/com/estudo/consorcio/domain/service/PropostaAdesaoService.java
+index 8f53d32..39b3bc3 100644
+--- a/src/main/java/br/com/estudo/consorcio/domain/service/PropostaAdesaoService.java
++++ b/src/main/java/br/com/estudo/consorcio/domain/service/PropostaAdesaoService.java
+@@ -24,6 +24,13 @@ import br.com.estudo.consorcio.domain.enums.TipoCategoriaBacen;
+ import br.com.estudo.consorcio.exception.RegraDeNegocioException;
+ import br.com.estudo.consorcio.domain.model.StatusAlertaCompliance;
+ import br.com.estudo.consorcio.domain.repository.AlertaComplianceRepository;
++import br.com.estudo.consorcio.domain.repository.AssembleiaRepository;
++import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
++import br.com.estudo.consorcio.domain.model.Assembleia;
++import br.com.estudo.consorcio.domain.model.Parcela;
++import br.com.estudo.consorcio.domain.model.StatusParcela;
++import java.math.BigDecimal;
++import java.time.LocalDate;
+ import jakarta.transaction.Transactional;
+ import lombok.RequiredArgsConstructor;
+ import org.springframework.stereotype.Service;
+@@ -46,6 +53,8 @@ public class PropostaAdesaoService {
+     // Inje├º├úo dos reposit├│rios de Cota/Grupo
+     private final GrupoRepository grupoRepository;
+     private final CotaRepository cotaRepository;
++    private final AssembleiaRepository assembleiaRepository;
++    private final ParcelaRepository parcelaRepository;
+ 
+     @Transactional
+     public PropostaAdesao criarProposta(PropostaRequestDTO request) {
+@@ -175,6 +184,54 @@ public class PropostaAdesaoService {
+         }
+         
+         cotaRepository.save(cota);
++
++        // --- GERA├ç├âO DE PARCELAS ---
++        List<Assembleia> assembleias = assembleiaRepository.findByGrupoIdOrderByDataAssembleiaAsc(grupo.getId());
++        java.util.List<Parcela> parcelas = new java.util.ArrayList<>();
++        int numero = 1;
++        
++        BigDecimal prazoTotal = BigDecimal.valueOf(proposta.getProduto().getPrazoMeses());
++        BigDecimal valorParcela = proposta.getValorCreditoSolicitado().divide(prazoTotal, 2, java.math.RoundingMode.HALF_UP);
++        BigDecimal taxaAdm = valorParcela.multiply(grupo.getTaxaAdministracao()).divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
++        BigDecimal fundoComum = valorParcela.subtract(taxaAdm);
++
++        // 1┬¬ Parcela: Ades├úo (j├í vencendo hoje)
++        Parcela adesao = new Parcela();
++        adesao.setCota(cota);
++        adesao.setNumeroParcela(numero++);
++        adesao.setDataVencimento(LocalDate.now());
++        adesao.setValorParcela(valorParcela);
++        adesao.setValorFundoComum(fundoComum);
++        adesao.setValorTaxaAdministracao(taxaAdm);
++        adesao.setValorFundoReserva(BigDecimal.ZERO);
++        adesao.setValorSeguro(BigDecimal.ZERO);
++        // Se j├í est├í efetivando o contrato, a ades├úo foi paga
++        adesao.setStatus(StatusParcela.PAGA);
++        adesao.setDataPagamento(LocalDate.now());
++        adesao.setValorPago(valorParcela);
++        parcelas.add(adesao);
++
++        // Demais parcelas vinculadas ├ás assembleias futuras
++        for (Assembleia assembleia : assembleias) {
++            if (numero > proposta.getProduto().getPrazoMeses()) break;
++            if (assembleia.getDataAssembleia().isBefore(LocalDate.now())) continue;
++
++            Parcela p = new Parcela();
++            p.setCota(cota);
++            p.setNumeroParcela(numero++);
++            p.setDataVencimento(assembleia.getDataAssembleia().minusDays(grupo.getDiasAntecedenciaVencimento()));
++            p.setValorParcela(valorParcela);
++            p.setValorFundoComum(fundoComum);
++            p.setValorTaxaAdministracao(taxaAdm);
++            p.setValorFundoReserva(BigDecimal.ZERO);
++            p.setValorSeguro(BigDecimal.ZERO);
++            p.setStatus(StatusParcela.PENDENTE);
++            parcelas.add(p);
++        }
++
++        if (!parcelas.isEmpty()) {
++            parcelaRepository.saveAll(parcelas);
++        }
+         
+         return contrato;
+     }
+diff --git a/src/main/java/br/com/estudo/consorcio/service/CotaService.java b/src/main/java/br/com/estudo/consorcio/service/CotaService.java
+index 00854ca..d37ba16 100644
+--- a/src/main/java/br/com/estudo/consorcio/service/CotaService.java
++++ b/src/main/java/br/com/estudo/consorcio/service/CotaService.java
+@@ -8,6 +8,7 @@ import br.com.estudo.consorcio.domain.model.*;
+ import br.com.estudo.consorcio.domain.mapper.CotaMapper;
+ import br.com.estudo.consorcio.domain.repository.ClienteRepository;
+ import br.com.estudo.consorcio.domain.repository.CotaRepository;
++import br.com.estudo.consorcio.domain.repository.CotaSpecification;
+ import br.com.estudo.consorcio.domain.repository.GrupoRepository;
+ import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
+ import br.com.estudo.consorcio.domain.repository.HistoricoVersaoCotaRepository;
+@@ -21,6 +22,7 @@ import br.com.estudo.consorcio.exception.RegraDeNegocioException;
+ import org.springframework.security.core.context.SecurityContextHolder;
+ import org.springframework.security.access.AccessDeniedException;
+ import org.springframework.stereotype.Service;
++import org.springframework.data.jpa.domain.Specification;
+ import org.springframework.transaction.annotation.Transactional;
+ 
+ import java.math.BigDecimal;
+@@ -79,6 +81,22 @@ public class CotaService {
+         return null;
+     }
+ 
++    @Transactional(readOnly = true)
++    public CotaResponseDTO buscarPorId(Long id) {
++        Cota cota = cotaRepository.findById(id)
++                .orElseThrow(() -> new RegraDeNegocioException("Cota n├úo encontrada."));
++        return mapper.toResponse(cota);
++    }
++
++    @Transactional(readOnly = true)
++    public Page<CotaResponseDTO> buscar(Long grupoId, Integer numeroCota, Integer versao, String cpfCnpj, Pageable pageable) {
++        Specification<Cota> spec = Specification.where(CotaSpecification.porGrupoId(grupoId))
++                .and(CotaSpecification.porNumeroCota(numeroCota))
++                .and(CotaSpecification.porVersao(versao))
++                .and(CotaSpecification.porCpfCnpj(cpfCnpj));
++        return cotaRepository.findAll(spec, pageable).map(mapper::toResponse);
++    }
++
+     @Transactional
+     public void registrarTransicaoVersao(Cota cota, StatusCota statusNovo, String motivo) {
+         StatusCota statusAnterior = cota.getStatus();
+@@ -149,7 +167,7 @@ public class CotaService {
+         // Regra BACEN: Consorciado n├úo pode ter mais de 10% das cotas ativas do grupo
+         if (grupo.getPrazoMeses() != null && grupo.getPrazoMeses() > 0) {
+             long cotasAtivasDoCliente = cotaRepository.findByGrupoId(grupo.getId(), Pageable.unpaged()).stream()
+-                    .filter(c -> c.getCliente().getId().equals(cliente.getId()) && c.getStatus() == StatusCota.ATIVA)
++                    .filter(c -> c.getCliente() != null && c.getCliente().getId().equals(cliente.getId()) && c.getStatus() == StatusCota.ATIVA)
+                     .count();
+             
+             // Verifica o limite de 10% (arredondado para baixo ou limite fixo)
+diff --git a/src/main/java/br/com/estudo/consorcio/service/GrupoService.java b/src/main/java/br/com/estudo/consorcio/service/GrupoService.java
+index 704b031..f75d474 100644
+--- a/src/main/java/br/com/estudo/consorcio/service/GrupoService.java
++++ b/src/main/java/br/com/estudo/consorcio/service/GrupoService.java
+@@ -30,11 +30,13 @@ public class GrupoService {
+     private final CotaRepository cotaRepository;
+     private final HistoricoConsorciadoService historicoService;
+     private final ContabilidadeService contabilidadeService;
++    private final AssembleiaRepository assembleiaRepository;
+ 
+     public GrupoService(GrupoRepository repository, ParcelaRepository parcelaRepository,
+                         ContemplacaoRepository contemplacaoRepository, GrupoMapper mapper,
+                         MovimentoFinanceiroService movimentoService, CotaRepository cotaRepository,
+-                        HistoricoConsorciadoService historicoService, ContabilidadeService contabilidadeService) {
++                        HistoricoConsorciadoService historicoService, ContabilidadeService contabilidadeService,
++                        AssembleiaRepository assembleiaRepository) {
+         this.repository = repository;
+         this.parcelaRepository = parcelaRepository;
+         this.contemplacaoRepository = contemplacaoRepository;
+@@ -43,6 +45,7 @@ public class GrupoService {
+         this.cotaRepository = cotaRepository;
+         this.historicoService = historicoService;
+         this.contabilidadeService = contabilidadeService;
++        this.assembleiaRepository = assembleiaRepository;
+     }
+ 
+     private Usuario getUsuarioAutenticado() {
+@@ -64,7 +67,33 @@ public class GrupoService {
+         // 2. Persist├¬ncia
+         Grupo grupoSalvo = repository.save(grupo);
+ 
+-        // 3. Retorno mapeado para DTO de sa├¡da usando o mapper
++        // 3. Criar Cotas vazias
++        for (int i = 1; i <= grupoSalvo.getQuantidadeCotas(); i++) {
++            Cota cota = new Cota();
++            cota.setGrupo(grupoSalvo);
++            cota.setNumeroCota(i);
++            cota.setStatus(StatusCota.DISPONIVEL);
++            cotaRepository.save(cota);
++        }
++
++        // 4. Criar Assembleias baseadas no prazoMaximoMeses e diaBaseAssembleias
++        LocalDate currentDate = LocalDate.now();
++        for (int i = 1; i <= grupoSalvo.getPrazoMaximoMeses(); i++) {
++            LocalDate baseDate = currentDate.plusMonths(i);
++            int year = baseDate.getYear();
++            int month = baseDate.getMonthValue();
++            int day = Math.min(grupoSalvo.getDiaBaseAssembleias(), baseDate.lengthOfMonth());
++            LocalDate dataAssembleia = LocalDate.of(year, month, day);
++
++            Assembleia assembleia = new Assembleia();
++            assembleia.setGrupo(grupoSalvo);
++            assembleia.setDataAssembleia(dataAssembleia);
++            assembleia.setTipo(TipoAssembleia.ORDINARIA);
++            assembleia.setStatus(StatusAssembleia.AGENDADA);
++            assembleiaRepository.save(assembleia);
++        }
++
++        // 5. Retorno mapeado para DTO de sa├¡da usando o mapper
+         return mapper.toResponse(grupoSalvo);
+     }
+ 
+@@ -126,8 +155,10 @@ public class GrupoService {
+         // Calcula o fator de reajuste (ex: 110.000 / 100.000 = 1.10)
+         BigDecimal fatorReajuste = novoValorCredito.divide(antigoValorCredito, 6, RoundingMode.HALF_UP);
+ 
+-        // Atualiza o valor do cr├®dito do grupo
+-        grupo.setValorCredito(novoValorCredito);
++        // Atualiza o valor do cr├®dito do bem refer├¬ncia principal
++        if (grupo.getBensPermitidos() != null && !grupo.getBensPermitidos().isEmpty()) {
++            grupo.getBensPermitidos().get(0).setValorAtual(novoValorCredito);
++        }
+         Grupo grupoSalvo = repository.save(grupo);
+ 
+         // Busca e atualiza todas as parcelas PENDENTES ou ATRASADAS das cotas do grupo
+diff --git a/src/main/java/br/com/estudo/consorcio/service/VendasService.java b/src/main/java/br/com/estudo/consorcio/service/VendasService.java
+index 92ab7df..b424897 100644
+--- a/src/main/java/br/com/estudo/consorcio/service/VendasService.java
++++ b/src/main/java/br/com/estudo/consorcio/service/VendasService.java
+@@ -19,7 +19,14 @@ import br.com.estudo.consorcio.domain.repository.ContratoAdesaoRepository;
+ import br.com.estudo.consorcio.domain.repository.GrupoRepository;
+ import br.com.estudo.consorcio.domain.repository.PropostaAdesaoRepository;
+ import br.com.estudo.consorcio.domain.repository.CotaRepository;
++import br.com.estudo.consorcio.domain.repository.AssembleiaRepository;
++import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
++import br.com.estudo.consorcio.domain.model.Assembleia;
++import br.com.estudo.consorcio.domain.model.StatusParcela;
++import br.com.estudo.consorcio.exception.RegraDeNegocioException;
+ import lombok.RequiredArgsConstructor;
++import java.util.List;
++import java.util.ArrayList;
+ import org.springframework.stereotype.Service;
+ import org.springframework.transaction.annotation.Transactional;
+ 
+@@ -37,6 +44,8 @@ public class VendasService {
+     private final CotaRepository cotaRepository;
+     private final ComissaoVendaService comissaoService;
+     private final ContabilidadeService contabilidadeService;
++    private final AssembleiaRepository assembleiaRepository;
++    private final ParcelaRepository parcelaRepository;
+ 
+     @Transactional
+     public PropostaAdesao criarProposta(Cliente cliente, ProdutoConsorcio produto, TipoVenda tipoVenda, Corretor corretor, BigDecimal valorCredito) {
+@@ -78,27 +87,61 @@ public class VendasService {
+ 
+         br.com.estudo.consorcio.domain.enums.CategoriaBem catEnum = mapCategoriaBacen(proposta.getProduto().getBemReferencia().getCategoriaBem().getTipoBacen());
+         
+-        // Aloca├º├úo Inteligente
+         Grupo grupo = grupoRepository.encontrarMelhorGrupoDisponivel(catEnum)
+-                .orElseGet(() -> {
+-                    Grupo novo = new Grupo();
+-                    novo.setCodigo("GRP-" + UUID.randomUUID().toString().substring(0, 5).toUpperCase());
+-                    novo.setCategoriaBem(catEnum);
+-                    novo.setValorCredito(proposta.getValorCreditoSolicitado());
+-                    novo.setPrazoMeses(proposta.getProduto().getPrazoMeses());
+-                    novo.setTaxaAdministracao(proposta.getProduto().getTaxaAdministracaoPerc());
+-                    novo.setStatus(StatusGrupo.EM_FORMACAO);
+-                    return grupoRepository.save(novo);
+-                });
+-
+-        Cota cota = new Cota();
++                .orElseThrow(() -> new RegraDeNegocioException("Nenhum grupo com cotas dispon├¡veis encontrado."));
++
++        Cota cota = cotaRepository.findFirstByGrupoIdAndStatusOrderByNumeroCotaAsc(grupo.getId(), StatusCota.DISPONIVEL)
++                .orElseThrow(() -> new RegraDeNegocioException("N├úo h├í cotas dispon├¡veis neste grupo."));
++
+         cota.setCliente(proposta.getCliente());
+-        cota.setGrupo(grupo);
+         cota.setContratoAdesao(contrato);
++        cota.setBemReferencia(proposta.getProduto().getBemReferencia());
++        cota.setPrazoMeses(proposta.getProduto().getPrazoMeses());
+         cota.setStatus(StatusCota.AGUARDANDO_PAGAMENTO);
+         
+         cotaRepository.save(cota);
+ 
++        List<Assembleia> assembleias = assembleiaRepository.findByGrupoIdOrderByDataAssembleiaAsc(grupo.getId());
++        List<Parcela> parcelas = new ArrayList<>();
++        int numero = 1;
++        BigDecimal valorParcela = proposta.getValorCreditoSolicitado().divide(BigDecimal.valueOf(proposta.getProduto().getPrazoMeses()), 2, java.math.RoundingMode.HALF_UP);
++        // Simplificado, ideal seria calcular taxa adm e seguro separados
++        BigDecimal taxaAdm = valorParcela.multiply(grupo.getTaxaAdministracao()).setScale(2, java.math.RoundingMode.HALF_UP);
++        BigDecimal fundoComum = valorParcela.subtract(taxaAdm);
++
++        // -- NOVA L├ôGICA DE PARCELA 1 AQUI --
++        Parcela adesao = new Parcela();
++        adesao.setCota(cota);
++        adesao.setNumeroParcela(numero++);
++        adesao.setDataVencimento(java.time.LocalDate.now());
++        adesao.setValorParcela(valorParcela);
++        adesao.setValorFundoComum(fundoComum);
++        adesao.setValorTaxaAdministracao(taxaAdm);
++        adesao.setValorFundoReserva(BigDecimal.ZERO);
++        adesao.setValorSeguro(BigDecimal.ZERO);
++        adesao.setStatus(StatusParcela.PENDENTE);
++        parcelas.add(adesao);
++
++        for (Assembleia assembleia : assembleias) {
++            if (numero > proposta.getProduto().getPrazoMeses()) break;
++            if (assembleia.getDataAssembleia().isBefore(java.time.LocalDate.now())) continue;
++
++            Parcela p = new Parcela();
++            p.setCota(cota);
++            p.setNumeroParcela(numero++);
++            p.setDataVencimento(assembleia.getDataAssembleia().minusDays(grupo.getDiasAntecedenciaVencimento()));
++            p.setValorParcela(valorParcela);
++            p.setValorFundoComum(fundoComum);
++            p.setValorTaxaAdministracao(taxaAdm);
++            p.setValorFundoReserva(BigDecimal.ZERO);
++            p.setValorSeguro(BigDecimal.ZERO);
++            p.setStatus(StatusParcela.PENDENTE);
++            parcelas.add(p);
++        }
++        if (!parcelas.isEmpty()) {
++            parcelaRepository.saveAll(parcelas);
++        }
++
+         return contrato;
+     }
+ 
+diff --git a/src/test/java/br/com/estudo/consorcio/controller/ClienteControllerTest.java b/src/test/java/br/com/estudo/consorcio/controller/ClienteControllerTest.java
+index 7f8f88c..8d9b7fb 100644
+--- a/src/test/java/br/com/estudo/consorcio/controller/ClienteControllerTest.java
++++ b/src/test/java/br/com/estudo/consorcio/controller/ClienteControllerTest.java
+@@ -69,7 +69,8 @@ class ClienteControllerTest {
+     // ========================================================================
+ 
+     @Test
+-    @DisplayName("Deve devolver 201 Created e o JSON do cliente ao salvar com sucesso")
++    @WithMockUser(authorities = {"MANAGE_CLIENTES"})
++    @DisplayName("Deve devolver 201 Created quando os dados do cliente forem v├ílidos e o CPF estiver liberado")
+     void deveRetornar201AoSalvarCliente() throws Exception {
+         // Arrange
+         ClienteRequestDTO request = new ClienteRequestDTO(
+@@ -121,6 +122,7 @@ class ClienteControllerTest {
+     }
+ 
+     @Test
++    @WithMockUser(authorities = {"MANAGE_CLIENTES"})
+     @DisplayName("Deve devolver 400 Bad Request se o DTO enviado for inv├ílido (Valida├º├úo do Bean)")
+     void deveRetornar400ParaDadosInvalidos() throws Exception {
+         // Arrange
+@@ -150,6 +152,7 @@ class ClienteControllerTest {
+     // ========================================================================
+ 
+     @Test
++    @WithMockUser(authorities = {"VIEW_CLIENTES"})
+     @DisplayName("Deve devolver 200 OK e a lista de clientes")
+     void deveRetornar200AoListarClientes() throws Exception {
+         // Arrange
+@@ -224,6 +227,7 @@ class ClienteControllerTest {
+     }
+ 
+     @Test
++    @WithMockUser(authorities = {"VIEW_CLIENTES"})
+     @DisplayName("Deve devolver 200 OK com dados mascarados se a requisi├º├úo estiver marcada como suspeita")
+     void deveAplicarMascaraEmSessaoSuspeita() throws Exception {
+         // Arrange
+diff --git a/src/test/java/br/com/estudo/consorcio/controller/LanceControllerTest.java b/src/test/java/br/com/estudo/consorcio/controller/LanceControllerTest.java
+index 6131ecc..19b924e 100644
+--- a/src/test/java/br/com/estudo/consorcio/controller/LanceControllerTest.java
++++ b/src/test/java/br/com/estudo/consorcio/controller/LanceControllerTest.java
+@@ -16,6 +16,7 @@ import org.springframework.http.MediaType;
+ import org.springframework.test.context.bean.override.mockito.MockitoBean;
+ import org.springframework.test.web.servlet.MockMvc;
+ import org.springframework.context.annotation.Import;
++import org.springframework.security.test.context.support.WithMockUser;
+ 
+ import java.math.BigDecimal;
+ import java.time.LocalDateTime;
+@@ -62,6 +63,7 @@ class LanceControllerTest {
+     private br.com.estudo.consorcio.service.HistoricoConsorciadoService historicoService;
+ 
+     @Test
++    @WithMockUser(authorities = {"MANAGE_COTAS"})
+     @DisplayName("Deve devolver 201 Created e o JSON do lance ao cadastrar com sucesso")
+     void deveRetornar201AoCadastrarLance() throws Exception {
+         // Arrange
+diff --git a/src/test/java/br/com/estudo/consorcio/integration/RelatorioControllerIntegrationTest.java b/src/test/java/br/com/estudo/consorcio/integration/RelatorioControllerIntegrationTest.java
+index c16ae8e..3cb526b 100644
+--- a/src/test/java/br/com/estudo/consorcio/integration/RelatorioControllerIntegrationTest.java
++++ b/src/test/java/br/com/estudo/consorcio/integration/RelatorioControllerIntegrationTest.java
+@@ -51,7 +51,7 @@ public class RelatorioControllerIntegrationTest {
+     private RelatorioService relatorioService;
+ 
+     @Test
+-    @WithMockUser(roles = "ADMIN")
++    @WithMockUser(authorities = "VIEW_RELATORIOS")
+     @DisplayName("Deve permitir acesso ao balancete para ADMIN")
+     void devePermitirAdminAcessarBalancete() throws Exception {
+         BalanceteResponseDTO mockResponse = new BalanceteResponseDTO(1L, "G-001", LocalDate.now(), List.of());
+@@ -64,7 +64,7 @@ public class RelatorioControllerIntegrationTest {
+     }
+ 
+     @Test
+-    @WithMockUser(roles = "AUDITOR")
++    @WithMockUser(authorities = "VIEW_RELATORIOS")
+     @DisplayName("Deve permitir acesso ao balancete para AUDITOR")
+     void devePermitirAuditorAcessarBalancete() throws Exception {
+         BalanceteResponseDTO mockResponse = new BalanceteResponseDTO(1L, "G-001", LocalDate.now(), List.of());
+@@ -93,7 +93,7 @@ public class RelatorioControllerIntegrationTest {
+     }
+ 
+     @Test
+-    @WithMockUser(roles = "ADMIN")
++    @WithMockUser(authorities = "VIEW_RELATORIOS")
+     @DisplayName("Deve permitir ADMIN acessar estat├¡sticas e PLD/FT")
+     void devePermitirAdminAcessarEstatisticasEPldFt() throws Exception {
+         EstatisticasGrupoResponseDTO mockEst = new EstatisticasGrupoResponseDTO(
+diff --git a/src/test/java/br/com/estudo/consorcio/service/ComplianceChallengerTest.java b/src/test/java/br/com/estudo/consorcio/service/ComplianceChallengerTest.java
+index 7bdc6a5..5638511 100644
+--- a/src/test/java/br/com/estudo/consorcio/service/ComplianceChallengerTest.java
++++ b/src/test/java/br/com/estudo/consorcio/service/ComplianceChallengerTest.java
+@@ -109,7 +109,7 @@ public class ComplianceChallengerTest {
+         propostaAdesaoService = new PropostaAdesaoService(
+                 propostaRepository, contratoRepository, clienteRepository,
+                 produtoRepository, tipoVendaRepository, alertaComplianceRepository,
+-                grupoRepository, cotaRepository
++                grupoRepository, cotaRepository, assembleiaRepository, parcelaRepository
+         );
+     }
+ 
+diff --git a/src/test/java/br/com/estudo/consorcio/service/ContemplacaoServiceTest.java b/src/test/java/br/com/estudo/consorcio/service/ContemplacaoServiceTest.java
+index 45a2460..c1f79d6 100644
+--- a/src/test/java/br/com/estudo/consorcio/service/ContemplacaoServiceTest.java
++++ b/src/test/java/br/com/estudo/consorcio/service/ContemplacaoServiceTest.java
+@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
+ import java.math.BigDecimal;
+ import java.time.LocalDate;
+ import java.util.Optional;
++import java.util.List;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ import static org.mockito.ArgumentMatchers.any;
+@@ -78,7 +79,9 @@ class ContemplacaoServiceTest {
+         // 1. Criamos um grupo com cr├®dito de 100 mil
+         Grupo grupo = new Grupo();
+         grupo.setId(10L);
+-        grupo.setValorCredito(new BigDecimal("100000.00"));
++        BemReferencia bem = new BemReferencia();
++        bem.setValorAtual(new BigDecimal("100000.00"));
++        grupo.setBensPermitidos(List.of(bem));
+         grupo.setPercentualLanceEmbutidoMaximo(new BigDecimal("0.30"));
+ 
+         // 2. Vinculamos a assembleia ao grupo
+@@ -132,7 +135,9 @@ class ContemplacaoServiceTest {
+         // 1. Grupo com cr├®dito de 50.000
+         Grupo grupo = new Grupo();
+         grupo.setId(idGrupo);
+-        grupo.setValorCredito(new BigDecimal("50000.00"));
++        BemReferencia bem = new BemReferencia();
++        bem.setValorAtual(new BigDecimal("50000.00"));
++        grupo.setBensPermitidos(List.of(bem));
+ 
+         Assembleia assembleia = new Assembleia();
+         assembleia.setId(idAssembleia);
+@@ -183,7 +188,9 @@ class ContemplacaoServiceTest {
+ 
+         Grupo grupo = new Grupo();
+         grupo.setId(idGrupo);
+-        grupo.setValorCredito(new BigDecimal("50000.00"));
++        BemReferencia bem = new BemReferencia();
++        bem.setValorAtual(new BigDecimal("50000.00"));
++        grupo.setBensPermitidos(List.of(bem));
+ 
+         Assembleia assembleia = new Assembleia();
+         assembleia.setId(idAssembleia);
+@@ -236,7 +243,9 @@ class ContemplacaoServiceTest {
+ 
+         Grupo grupo = new Grupo();
+         grupo.setId(idGrupo);
+-        grupo.setValorCredito(new BigDecimal("50000.00"));
++        BemReferencia bem = new BemReferencia();
++        bem.setValorAtual(new BigDecimal("50000.00"));
++        grupo.setBensPermitidos(List.of(bem));
+ 
+         Assembleia assembleia = new Assembleia();
+         assembleia.setId(idAssembleia);
+@@ -276,7 +285,9 @@ class ContemplacaoServiceTest {
+ 
+         Grupo grupo = new Grupo();
+         grupo.setId(10L);
+-        grupo.setValorCredito(new BigDecimal("100000.00"));
++        BemReferencia bem = new BemReferencia();
++        bem.setValorAtual(new BigDecimal("100000.00"));
++        grupo.setBensPermitidos(List.of(bem));
+         grupo.setPercentualLanceEmbutidoMaximo(new BigDecimal("0.30"));
+ 
+         Assembleia assembleia = new Assembleia();
+@@ -318,7 +329,9 @@ class ContemplacaoServiceTest {
+ 
+         Grupo grupo = new Grupo();
+         grupo.setId(10L);
+-        grupo.setValorCredito(new BigDecimal("100000.00"));
++        BemReferencia bem = new BemReferencia();
++        bem.setValorAtual(new BigDecimal("100000.00"));
++        grupo.setBensPermitidos(List.of(bem));
+ 
+         Cota cota = new Cota();
+         cota.setId(idCota);
+@@ -342,7 +355,7 @@ class ContemplacaoServiceTest {
+ 
+         when(lanceRepository.findById(idLance)).thenReturn(Optional.of(lance));
+         when(contemplacaoRepository.findTopByCotaIdOrderByDataContemplacaoDesc(idCota)).thenReturn(Optional.of(contemplacao));
+-        when(cotaMapper.toResponse(any(Cota.class))).thenReturn(new CotaResponseDTO(idCota, 44, 3L, 10L, StatusCota.AGUARDANDO_ANALISE, 0));
++        when(cotaMapper.toResponse(any(Cota.class))).thenReturn(new CotaResponseDTO(idCota, 44, 3L, 10L, "001", "Cliente Teste", java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, 1L, "Bem", java.math.BigDecimal.ZERO, br.com.estudo.consorcio.domain.enums.CategoriaBem.VEICULO_AUTOMOTOR, 60, StatusCota.AGUARDANDO_ANALISE, 0));
+ 
+         // --- ACT ---
+         CotaResponseDTO response = service.confirmarPagamentoLance(idLance);
+@@ -366,7 +379,9 @@ class ContemplacaoServiceTest {
+ 
+         Grupo grupo = new Grupo();
+         grupo.setId(10L);
+-        grupo.setValorCredito(new BigDecimal("100000.00"));
++        BemReferencia bem = new BemReferencia();
++        bem.setValorAtual(new BigDecimal("100000.00"));
++        grupo.setBensPermitidos(List.of(bem));
+ 
+         Assembleia assembleia = new Assembleia();
+         assembleia.setId(idAssembleia);
+diff --git a/src/test/java/br/com/estudo/consorcio/service/CotaServiceTest.java b/src/test/java/br/com/estudo/consorcio/service/CotaServiceTest.java
+index fe4844c..4c173f7 100644
+--- a/src/test/java/br/com/estudo/consorcio/service/CotaServiceTest.java
++++ b/src/test/java/br/com/estudo/consorcio/service/CotaServiceTest.java
+@@ -57,6 +57,12 @@ class CotaServiceTest {
+     @Mock
+     private br.com.estudo.consorcio.domain.repository.AlertaComplianceRepository alertaComplianceRepository;
+ 
++    @Mock
++    private br.com.estudo.consorcio.service.ComissaoVendaService comissaoService;
++
++    @Mock
++    private br.com.estudo.consorcio.service.CorretorService corretorService;
++
+     @org.mockito.Spy
+     private br.com.estudo.consorcio.domain.mapper.CotaMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.CotaMapper.class);
+ 
+@@ -92,6 +98,8 @@ class CotaServiceTest {
+         when(clienteRepository.findById(1L)).thenReturn(Optional.of(cliente));
+         when(grupoRepository.findById(2L)).thenReturn(Optional.of(grupo));
+ 
++        when(cotaRepository.findByGrupoId(any(), any())).thenReturn(Page.empty());
++
+         // Simula o reposit├│rio devolvendo a cota salva
+         when(cotaRepository.save(any(Cota.class))).thenAnswer(i -> i.getArguments()[0]);
+ 
+diff --git a/src/test/java/br/com/estudo/consorcio/service/GrupoServiceTest.java b/src/test/java/br/com/estudo/consorcio/service/GrupoServiceTest.java
+index e090dce..40e0f44 100644
+--- a/src/test/java/br/com/estudo/consorcio/service/GrupoServiceTest.java
++++ b/src/test/java/br/com/estudo/consorcio/service/GrupoServiceTest.java
+@@ -52,6 +52,9 @@ class GrupoServiceTest {
+     @Mock
+     private MovimentoFinanceiroService movimentoService;
+ 
++    @Mock
++    private br.com.estudo.consorcio.domain.repository.AssembleiaRepository assembleiaRepository;
++
+     @Mock
+     private HistoricoConsorciadoService historicoService;
+ 
+@@ -175,7 +178,9 @@ class GrupoServiceTest {
+ 
+         Grupo grupo = new Grupo();
+         grupo.setId(grupoId);
+-        grupo.setValorCredito(antigoValorCredito);
++        br.com.estudo.consorcio.domain.model.BemReferencia bem = new br.com.estudo.consorcio.domain.model.BemReferencia();
++        bem.setValorAtual(antigoValorCredito);
++        grupo.setBensPermitidos(List.of(bem));
+         grupo.setStatus(StatusGrupo.EM_ANDAMENTO);
+ 
+         Parcela p1 = new Parcela();
+diff --git a/src/test/java/br/com/estudo/consorcio/service/VendasServiceTest.java b/src/test/java/br/com/estudo/consorcio/service/VendasServiceTest.java
+index a0b59d0..0d2f2c2 100644
+--- a/src/test/java/br/com/estudo/consorcio/service/VendasServiceTest.java
++++ b/src/test/java/br/com/estudo/consorcio/service/VendasServiceTest.java
+@@ -48,6 +48,12 @@ class VendasServiceTest {
+     @Mock
+     private CotaRepository cotaRepository;
+ 
++    @Mock
++    private br.com.estudo.consorcio.domain.repository.AssembleiaRepository assembleiaRepository;
++
++    @Mock
++    private br.com.estudo.consorcio.domain.repository.ParcelaRepository parcelaRepository;
++
+     @Mock
+     private ComissaoVendaService comissaoService;
+ 
+@@ -109,10 +115,19 @@ class VendasServiceTest {
+         Grupo grupoExistente = new Grupo();
+         grupoExistente.setId(1L);
+         grupoExistente.setStatus(StatusGrupo.EM_ANDAMENTO);
++        grupoExistente.setTaxaAdministracao(new java.math.BigDecimal("0.10"));
+         when(grupoRepository.encontrarMelhorGrupoDisponivel(any())).thenReturn(Optional.of(grupoExistente));
+         
++        Cota cotaDisponivel = new Cota();
++        cotaDisponivel.setId(10L);
++        cotaDisponivel.setStatus(StatusCota.DISPONIVEL);
++        cotaDisponivel.setGrupo(grupoExistente);
++        when(cotaRepository.findFirstByGrupoIdAndStatusOrderByNumeroCotaAsc(grupoExistente.getId(), StatusCota.DISPONIVEL)).thenReturn(Optional.of(cotaDisponivel));
++        
+         when(cotaRepository.save(any(Cota.class))).thenAnswer(i -> i.getArgument(0));
+ 
++        when(assembleiaRepository.findByGrupoIdOrderByDataAssembleiaAsc(grupoExistente.getId())).thenReturn(java.util.Collections.emptyList());
++
+         ContratoAdesao contrato = vendasService.aprovarProposta(1L);
+ 
+         assertEquals(StatusContrato.PENDENTE_PAGAMENTO, contrato.getStatus());
