@@ -37,3 +37,17 @@ Retorna o Contrato de AdesÃ£o criado (Status PENDENTE_PAGAMENTO) e a respectiva 
 
 ### POST /api/vendas/contratos/{id}/efetivar
 Simula o pagamento da 1Âª parcela. Aloca o cliente no Grupo mais adequado e cria a `Cota`, efetivando o ContratoAdesao.
+### GET /api/vendas/propostas/pendentes-risco
+Retorna as propostas que ficaram retidas na análise de risco de PLD/FT (status PENDENTE_ANALISE_RISCO).
+Utilizado pelo dashboard de compliance.
+
+### POST /api/vendas/propostas/{id}/analise-risco
+Submete a decisão da análise de risco de uma proposta retida.
+Body (AnaliseRiscoRequestDTO):
+`json
+{
+  "aprovada": false,
+  "justificativa": "Cliente consta na lista de PEP sem comprovação de renda compatível."
+}
+`
+Role: ANALISTA_COMPLIANCE, ADMIN.

@@ -12,6 +12,8 @@ public interface AlertaComplianceRepository extends JpaRepository<AlertaComplian
     List<AlertaCompliance> findByStatus(StatusAlertaCompliance status);
     boolean existsByClienteIdAndListaRestritivaId(Long clienteId, Long listaId);
     boolean existsByClienteIdAndStatusIn(Long clienteId, List<StatusAlertaCompliance> statuses);
+    List<AlertaCompliance> findByClienteIdAndStatusIn(Long clienteId, List<StatusAlertaCompliance> statuses);
+    List<AlertaCompliance> findByClienteIdInAndStatusIn(List<Long> clienteIds, List<StatusAlertaCompliance> statuses);
 
     interface MatchResultProjection {
         Long getClienteId();

@@ -66,10 +66,28 @@ public class VendasController {
         return ResponseEntity.ok(mapper.toContratoResponse(contrato));
     }
 
+    @PreAuthorize("hasAuthority('MANAGE_COMPLIANCE')")
+    @PostMapping("/propostas/{id}/analise-risco")
+    public ResponseEntity<ContratoResponseDTO> analisarRisco(
+            @PathVariable Long id, 
+            @org.springframework.web.bind.annotation.RequestBody br.com.estudo.consorcio.domain.dto.AnaliseRiscoRequestDTO request) {
+        ContratoAdesao contrato = propostaService.analisarPropostaRisco(id, request);
+        if (contrato == null) {
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.ok(mapper.toContratoResponse(contrato));
+    }
+
     @PreAuthorize("hasAuthority('MANAGE_VENDAS')")
     @PostMapping("/contratos/{id}/efetivar")
     public ResponseEntity<ContratoResponseDTO> efetivarContrato(@PathVariable Long id) {
         ContratoAdesao contrato = propostaService.efetivarContrato(id);
         return ResponseEntity.ok(mapper.toContratoResponse(contrato));
+    }
+
+    @PreAuthorize("hasAuthority('MANAGE_COMPLIANCE')")
+    @GetMapping("/propostas/pendentes-risco")
+    public ResponseEntity<List<br.com.estudo.consorcio.domain.dto.PropostaComplianceResponseDTO>> listarPropostasPendentesDeRisco() {
+        return ResponseEntity.ok(propostaService.listarPropostasPendentesDeRisco());
     }
 }

@@ -1,9 +1,14 @@
 package br.com.estudo.consorcio.domain.service;
 
 import br.com.estudo.consorcio.domain.dto.PropostaRequestDTO;
+import br.com.estudo.consorcio.domain.dto.PropostaComplianceResponseDTO;
+import br.com.estudo.consorcio.domain.dto.AlertaResumoDTO;
+import br.com.estudo.consorcio.domain.dto.ClienteResponseDTO;
+import br.com.estudo.consorcio.domain.dto.ProdutoConsorcioResponseDTO;
 import br.com.estudo.consorcio.domain.enums.StatusContrato;
 import br.com.estudo.consorcio.domain.enums.StatusProposta;
 import br.com.estudo.consorcio.domain.model.Cliente;
+import br.com.estudo.consorcio.domain.model.AlertaCompliance;
 import br.com.estudo.consorcio.domain.model.ContratoAdesao;
 import br.com.estudo.consorcio.domain.model.ProdutoConsorcio;
 import br.com.estudo.consorcio.domain.model.PropostaAdesao;
@@ -23,6 +28,7 @@ import br.com.estudo.consorcio.domain.model.StatusCota;
 import br.com.estudo.consorcio.domain.enums.TipoCategoriaBacen;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import br.com.estudo.consorcio.domain.model.StatusAlertaCompliance;
+import br.com.estudo.consorcio.domain.model.NivelRisco;
 import br.com.estudo.consorcio.domain.repository.AlertaComplianceRepository;
 import br.com.estudo.consorcio.domain.repository.AssembleiaRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
@@ -111,6 +117,17 @@ public class PropostaAdesaoService {
             throw new RegraDeNegocioException("Venda bloqueada por PLD/FT: Cliente possui alertas restritivos.");
         }
 
+        if (proposta.getCliente().getNivelRisco() == NivelRisco.ALTO) {
+            proposta.setStatus(StatusProposta.PENDENTE_ANALISE_RISCO);
+            proposta.setDataAtualizacao(LocalDateTime.now(clock));
+            propostaRepository.save(proposta);
+            throw new RegraDeNegocioException("Proposta encaminhada para análise manual de risco (Compliance).");
+        }
+
+        return efetivarAprovacaoInterna(proposta);
+    }
+
+    private ContratoAdesao efetivarAprovacaoInterna(PropostaAdesao proposta) {
         proposta.setStatus(StatusProposta.APROVADA);
         proposta.setDataAtualizacao(LocalDateTime.now(clock));
         propostaRepository.save(proposta);
@@ -128,6 +145,26 @@ public class PropostaAdesaoService {
         System.out.println("[INFO] Fatura gerada para o contrato: " + contrato.getNumeroContrato());
         
         return contrato;
+    }
+
+    @Transactional
+    public ContratoAdesao analisarPropostaRisco(Long propostaId, br.com.estudo.consorcio.domain.dto.AnaliseRiscoRequestDTO request) {
+        PropostaAdesao proposta = propostaRepository.findById(propostaId)
+                .orElseThrow(() -> new RegraDeNegocioException("Proposta não encontrada"));
+
+        if (proposta.getStatus() != StatusProposta.PENDENTE_ANALISE_RISCO) {
+            throw new RegraDeNegocioException("Apenas propostas em PENDENTE_ANALISE_RISCO podem ser analisadas no compliance.");
+        }
+
+        if (!request.isAprovada()) {
+            proposta.setStatus(StatusProposta.REPROVADA_POR_RISCO);
+            proposta.setJustificativaReprovacao(request.getJustificativa());
+            proposta.setDataAtualizacao(LocalDateTime.now(clock));
+            propostaRepository.save(proposta);
+            return null; // Retorna null indicando que não houve contrato gerado
+        }
+
+        return efetivarAprovacaoInterna(proposta);
     }
 
     @Transactional
@@ -242,5 +279,75 @@ public class PropostaAdesaoService {
         if (tipoBacen == TipoCategoriaBacen.BEM_MOVEL_I) return br.com.estudo.consorcio.domain.enums.CategoriaBem.VEICULO_AUTOMOTOR;
         if (tipoBacen == TipoCategoriaBacen.BEM_MOVEL_II) return br.com.estudo.consorcio.domain.enums.CategoriaBem.OUTROS_BENS_MOVEIS;
         return br.com.estudo.consorcio.domain.enums.CategoriaBem.SERVICO;
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<PropostaComplianceResponseDTO> listarPropostasPendentesDeRisco() {
+        List<PropostaAdesao> propostas = propostaRepository.findByStatus(StatusProposta.PENDENTE_ANALISE_RISCO);
+        
+        if (propostas.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        
+        List<Long> clienteIds = propostas.stream().map(p -> p.getCliente().getId()).toList();
+        List<AlertaCompliance> todosAlertas = alertaComplianceRepository.findByClienteIdInAndStatusIn(
+                clienteIds, 
+                List.of(StatusAlertaCompliance.PENDENTE_ANALISE, StatusAlertaCompliance.CONFIRMADO)
+        );
+        
+        java.util.Map<Long, List<AlertaCompliance>> alertasPorCliente = todosAlertas.stream()
+                .collect(java.util.stream.Collectors.groupingBy(a -> a.getCliente().getId()));
+
+        return propostas.stream()
+                .map(proposta -> {
+                    List<AlertaCompliance> alertas = alertasPorCliente.getOrDefault(proposta.getCliente().getId(), java.util.Collections.emptyList());
+                    
+                    List<AlertaResumoDTO> alertasDto = alertas.stream()
+                            .map(alerta -> new AlertaResumoDTO(
+                                    alerta.getListaRestritiva().getOrigem().name(),
+                                    alerta.getListaRestritiva().getNome(),
+                                    alerta.getDataDeteccao()
+                            ))
+                            .toList();
+                            
+                    Cliente cliente = proposta.getCliente();
+                    ClienteResponseDTO clienteDto = new ClienteResponseDTO(
+                            cliente.getId(),
+                            cliente.getNome(),
+                            cliente.getCpfCnpj(),
+                            cliente.getEmail(),
+                            cliente.getTelefone(),
+                            cliente.getCep(),
+                            cliente.getLogradouro(),
+                            cliente.getNumero(),
+                            cliente.getComplemento(),
+                            cliente.getBairro(),
+                            cliente.getLocalidade(),
+                            cliente.getUf(),
+                            cliente.getPatrimonio(),
+                            cliente.getRendaMensal(),
+                            cliente.getNivelRisco(),
+                            cliente.getDataCadastro(),
+                            cliente.getStatus()
+                    );
+                    
+                    ProdutoConsorcio produto = proposta.getProduto();
+                    ProdutoConsorcioResponseDTO produtoDto = new ProdutoConsorcioResponseDTO(
+                            produto.getId(),
+                            produto.getNome(),
+                            produto.getPrazoMeses(),
+                            produto.getTaxaAdministracaoPerc()
+                    );
+                    
+                    return new PropostaComplianceResponseDTO(
+                            proposta.getId(),
+                            proposta.getNumeroProposta(),
+                            proposta.getValorCreditoSolicitado(),
+                            clienteDto,
+                            produtoDto,
+                            alertasDto
+                    );
+                })
+                .toList();
     }
 }

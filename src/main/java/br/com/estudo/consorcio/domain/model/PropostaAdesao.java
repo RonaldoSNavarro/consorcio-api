@@ -1,6 +1,7 @@
 package br.com.estudo.consorcio.domain.model;
 
 import br.com.estudo.consorcio.domain.enums.StatusProposta;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -53,6 +54,9 @@ public class PropostaAdesao {
 
     @Enumerated(EnumType.STRING)
     private StatusProposta status;
+
+    @Column(name = "justificativa_reprovacao", columnDefinition = "TEXT")
+    private String justificativaReprovacao;
 
     private LocalDateTime dataProposta;
 
