@@ -93,7 +93,8 @@ public class CotaService {
         Specification<Cota> spec = Specification.where(CotaSpecification.porGrupoId(grupoId))
                 .and(CotaSpecification.porNumeroCota(numeroCota))
                 .and(CotaSpecification.porVersao(versao))
-                .and(CotaSpecification.porCpfCnpj(cpfCnpj));
+                .and(CotaSpecification.porCpfCnpj(cpfCnpj))
+                .and(CotaSpecification.porStatusDiferenteDe(StatusCota.DISPONIVEL));
         return cotaRepository.findAll(spec, pageable).map(mapper::toResponse);
     }
 
@@ -377,7 +378,7 @@ public class CotaService {
 
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('VIEW_COTAS', 'VIEW_COMPLIANCE')")
     public Page<CotaResponseDTO> listarTodas(Pageable pageable) {
-        return cotaRepository.findAll(pageable)
+        return cotaRepository.findByStatusNot(StatusCota.DISPONIVEL, pageable)
                 .map(mapper::toResponse);
     }
 

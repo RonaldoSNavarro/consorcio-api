@@ -27,11 +27,11 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 * **Mapeamento Declarativo com MapStruct:** Camada de conversão compilada de alta performance entre entidades e DTOs, garantindo separação rígida e eliminando boilerplate.
 * **Bloqueio Otimista (Optimistic Locking):** Prevenção de concorrência e race conditions (condições de corrida) por meio do mapeamento de atributos `@Version` nas tabelas críticas (`cotas`, `grupos` e `parcelas`), impedindo sobrescrita de dados financeiros por requisições concorrentes.
 * **Paginação Robusta de Recursos:** Migração de listagens gerais para o padrão `Pageable` do Spring Data nos endpoints de Clientes, Grupos e Cotas, protegendo a memória Heap contra gargalos de volume massivo.
-* **Busca Avançada via Specifications:** Implementação do padrão `Specification` do Spring Data JPA na entidade Cota, provendo uma API de busca flexível e paginada por múltiplos critérios (Grupo, Número, Versão, CPF/CNPJ).
+* **Busca Avançada via Specifications:** Implementação do padrão `Specification` do Spring Data JPA na entidade Cota, provendo uma API de busca flexível e paginada por múltiplos critérios (Grupo, Número, Versão, CPF/CNPJ) com filtragem automática de cotas comercializadas (excluindo o status `DISPONIVEL`).
 
 ## 🧪 Qualidade de Software e Testes
 
-O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura conta com **ampla suíte de testes unitários e de integração 100% verdes**:
+O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura conta com **ampla suíte de 154 testes unitários e de integração 100% verdes**:
 
 * **Testes Unitários (100% Service & Validator Coverage):** Toda a camada de `Service` possui cobertura total, incluindo os novos serviços de sincronização de listas restritivas (`ComplianceServiceTest`). Criamos suítes de teste de baixo nível como `CpfCnpjValidatorTest` e `ViaCepServiceTest` (usando mocks avançados da API fluente do `RestClient` do Spring).
 * **Módulos de Auditoria e Livro Razão:** Testados exaustivamente em `MovimentoFinanceiroServiceTest` e `HistoricoConsorciadoServiceTest` para validar consistência de saldos contábeis e a fórmula regulatória da categoria.

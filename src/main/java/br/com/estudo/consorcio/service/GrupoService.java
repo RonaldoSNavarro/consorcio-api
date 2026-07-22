@@ -91,7 +91,7 @@ public class GrupoService {
             assembleia.setGrupo(grupoSalvo);
             assembleia.setDataAssembleia(dataAssembleia);
             assembleia.setTipo(TipoAssembleia.ORDINARIA);
-            assembleia.setStatus(StatusAssembleia.AGENDADA);
+            assembleia.setStatus(i == 1 ? StatusAssembleia.CAPTANDO : StatusAssembleia.AGENDADA);
             assembleiaRepository.save(assembleia);
         }
 

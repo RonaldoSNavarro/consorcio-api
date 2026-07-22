@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -180,7 +181,6 @@ public class ComplianceSincronizacaoService {
 
     @Transactional
     public int processarPepCsv(InputStream inputStream) throws Exception {
-        // Carrega todos os nomes PEP existentes em memória para evitar N+1 queries
         java.util.Set<String> existentes = listaRestritivaRepository
                 .findAll().stream()
                 .filter(l -> l.getOrigem() == OrigemListaRestritiva.PEP)
@@ -190,20 +190,38 @@ public class ComplianceSincronizacaoService {
         int count = 0;
         java.util.List<ListaRestritiva> batch = new java.util.ArrayList<>();
 
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(inputStream, StandardCharsets.ISO_8859_1))) {
+        byte[] bytes = inputStream.readAllBytes();
+        String content = new String(bytes, StandardCharsets.UTF_8);
+        if (content.contains("ï¿½") || content.contains("\uFFFD")) {
+            content = new String(bytes, StandardCharsets.ISO_8859_1);
+        }
+
+        try (BufferedReader reader = new BufferedReader(new StringReader(content))) {
             String line;
             boolean isHeader = true;
+            String delimiter = ";";
+
             while ((line = reader.readLine()) != null) {
+                if (line.trim().isEmpty()) continue;
+
                 if (isHeader) {
                     isHeader = false;
+                    if (!line.contains(";") && line.contains(",")) {
+                        delimiter = ",";
+                    } else if (line.contains("\t")) {
+                        delimiter = "\t";
+                    }
                     continue;
                 }
-                String[] parts = line.split(";");
+
+                String[] parts = line.split(delimiter);
                 if (parts.length >= 2) {
-                    String cpf = parts[0].trim();
-                    String nome = parts[1].trim().toUpperCase();
-                    if (!nome.isEmpty() && !existentes.contains(nome)) {
+                    String cpf = parts[0].replaceAll("^\"|\"$", "").trim();
+                    String nome = parts[1].replaceAll("^\"|\"$", "").trim().toUpperCase();
+
+                    if (nome.length() < 2) continue;
+
+                    if (!existentes.contains(nome)) {
                         ListaRestritiva novo = new ListaRestritiva();
                         novo.setNome(nome);
                         novo.setDocumentoOrigem(cpf);
@@ -230,7 +248,15 @@ public class ComplianceSincronizacaoService {
 
     @Transactional
     public int processarOnuXml(InputStream inputStream) throws Exception {
+        java.util.Set<String> existentes = listaRestritivaRepository
+                .findAll().stream()
+                .filter(l -> l.getOrigem() == OrigemListaRestritiva.ONU)
+                .map(ListaRestritiva::getNome)
+                .collect(java.util.stream.Collectors.toSet());
+
         int count = 0;
+        java.util.List<ListaRestritiva> batch = new java.util.ArrayList<>();
+
         XMLInputFactory xmlInputFactory = XMLInputFactory.newInstance();
         xmlInputFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
         xmlInputFactory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
@@ -252,7 +278,7 @@ public class ComplianceSincronizacaoService {
 
             switch (event) {
                 case XMLStreamConstants.START_ELEMENT:
-                    currentElement = reader.getLocalName();
+                    currentElement = reader.getLocalName().toUpperCase();
                     if ("INDIVIDUAL".equals(currentElement)) {
                         inIndividual = true;
                         firstName = ""; secondName = ""; thirdName = ""; fourthName = ""; docNum = "";
@@ -276,12 +302,12 @@ public class ComplianceSincronizacaoService {
                         else if ("FOURTH_NAME".equals(currentElement)) fourthName += text;
                         else if (inDocument && "NUMBER".equals(currentElement)) docNum += text;
                     } else if (inEntity) {
-                        if ("FIRST_NAME".equals(currentElement)) firstName += text;
+                        if ("FIRST_NAME".equals(currentElement) || "NAME_ORIGINAL_SCRIPT".equals(currentElement)) firstName += text;
                     }
                     break;
 
                 case XMLStreamConstants.END_ELEMENT:
-                    String endElement = reader.getLocalName();
+                    String endElement = reader.getLocalName().toUpperCase();
                     if ("INDIVIDUAL".equals(endElement)) {
                         StringBuilder fullNameBuilder = new StringBuilder();
                         if (!firstName.isEmpty()) fullNameBuilder.append(firstName).append(" ");
@@ -290,16 +316,37 @@ public class ComplianceSincronizacaoService {
                         if (!fourthName.isEmpty()) fullNameBuilder.append(fourthName);
 
                         String fullName = fullNameBuilder.toString().trim().replaceAll("\\s+", " ").toUpperCase();
-                        if (!fullName.isEmpty()) {
-                            inserirOuAtualizarRegistro(fullName, docNum.isEmpty() ? null : docNum, OrigemListaRestritiva.ONU);
+                        if (!fullName.isEmpty() && !existentes.contains(fullName)) {
+                            ListaRestritiva novo = new ListaRestritiva();
+                            novo.setNome(fullName);
+                            novo.setDocumentoOrigem(docNum.isEmpty() ? null : docNum);
+                            novo.setOrigem(OrigemListaRestritiva.ONU);
+                            novo.setDataInclusao(LocalDateTime.now());
+                            batch.add(novo);
+                            existentes.add(fullName);
                             count++;
+
+                            if (batch.size() >= 500) {
+                                listaRestritivaRepository.saveAll(batch);
+                                batch.clear();
+                            }
                         }
                         inIndividual = false;
                     } else if ("ENTITY".equals(endElement)) {
                         String fullName = firstName.trim().replaceAll("\\s+", " ").toUpperCase();
-                        if (!fullName.isEmpty()) {
-                            inserirOuAtualizarRegistro(fullName, null, OrigemListaRestritiva.ONU);
+                        if (!fullName.isEmpty() && !existentes.contains(fullName)) {
+                            ListaRestritiva novo = new ListaRestritiva();
+                            novo.setNome(fullName);
+                            novo.setOrigem(OrigemListaRestritiva.ONU);
+                            novo.setDataInclusao(LocalDateTime.now());
+                            batch.add(novo);
+                            existentes.add(fullName);
                             count++;
+
+                            if (batch.size() >= 500) {
+                                listaRestritivaRepository.saveAll(batch);
+                                batch.clear();
+                            }
                         }
                         inEntity = false;
                     } else if ("INDIVIDUAL_DOCUMENT".equals(endElement)) {
@@ -309,7 +356,11 @@ public class ComplianceSincronizacaoService {
                     break;
             }
         }
+        if (!batch.isEmpty()) {
+            listaRestritivaRepository.saveAll(batch);
+        }
         reader.close();
+        log.info("Lista ONU processada: {} novos registros inseridos.", count);
         return count;
     }
 

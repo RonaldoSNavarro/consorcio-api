@@ -6,6 +6,7 @@ import br.com.estudo.consorcio.domain.model.*;
 import br.com.estudo.consorcio.domain.repository.AssembleiaRepository;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.LanceRepository;
+import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
 import br.com.estudo.consorcio.domain.util.PedraChaveCalculator;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import lombok.extern.slf4j.Slf4j;
@@ -34,17 +35,20 @@ public class MotorApuracaoService {
     private final AssembleiaRepository assembleiaRepository;
     private final LanceRepository lanceRepository;
     private final CotaRepository cotaRepository;
+    private final ParcelaRepository parcelaRepository;
     private final ContabilidadeService contabilidadeService;
     private final ContemplacaoService contemplacaoService;
 
     public MotorApuracaoService(AssembleiaRepository assembleiaRepository,
                                 LanceRepository lanceRepository,
                                 CotaRepository cotaRepository,
+                                ParcelaRepository parcelaRepository,
                                 ContabilidadeService contabilidadeService,
                                 ContemplacaoService contemplacaoService) {
         this.assembleiaRepository = assembleiaRepository;
         this.lanceRepository = lanceRepository;
         this.cotaRepository = cotaRepository;
+        this.parcelaRepository = parcelaRepository;
         this.contabilidadeService = contabilidadeService;
         this.contemplacaoService = contemplacaoService;
     }
@@ -96,6 +100,18 @@ public class MotorApuracaoService {
         // Fim da Apuração
         assembleia.setStatus(StatusAssembleia.FECHADA);
         assembleiaRepository.save(assembleia);
+
+        // Abertura automática da próxima assembleia agendada para CAPTANDO
+        List<Assembleia> assembleiasDoGrupo = assembleiaRepository.findByGrupoIdOrderByDataAssembleiaAsc(grupo.getId());
+        assembleiasDoGrupo.stream()
+                .filter(a -> a.getStatus() == StatusAssembleia.AGENDADA)
+                .findFirst()
+                .ifPresent(proxima -> {
+                    proxima.setStatus(StatusAssembleia.CAPTANDO);
+                    assembleiaRepository.save(proxima);
+                    log.info("Captação de lances aberta automaticamente para a próxima assembleia (ID: {}).", proxima.getId());
+                });
+
         log.info("Assembleia {} apurada e fechada com sucesso.", assembleiaId);
     }
 
@@ -159,13 +175,36 @@ public class MotorApuracaoService {
         Cota cotaSorteada = buscarCotaApta(numeroCotaAlvo, cotasExcluidas, grupo.getDirecaoFallbackSorteio(), assembleia);
 
         if (cotaSorteada != null) {
-            // Valor da restituição deve ser calculado, aqui usamos ZERO como DTO simplificado, contabilidade resolve
+            // Calcula o valor real da restituição (percentual pago do Fundo Comum x Valor do Bem menos 10% multa)
+            List<Parcela> parcelasPagas = parcelaRepository.findByCotaId(cotaSorteada.getId()).stream()
+                    .filter(p -> p.getStatus() == StatusParcela.PAGA)
+                    .toList();
+
+            BigDecimal percentualAmortizado = parcelasPagas.stream()
+                    .map(p -> p.getPercentualFundoComum() != null ? p.getPercentualFundoComum() : BigDecimal.ZERO)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            BigDecimal valorBem = grupo.getValorCredito();
+            BigDecimal totalFundoComumPago = (valorBem != null && valorBem.compareTo(BigDecimal.ZERO) > 0)
+                    ? percentualAmortizado.multiply(valorBem).setScale(2, java.math.RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
+
+            BigDecimal multaRescisoria = totalFundoComumPago.multiply(new BigDecimal("0.10")).setScale(2, java.math.RoundingMode.HALF_UP);
+            BigDecimal valorRestituicao = totalFundoComumPago.subtract(multaRescisoria).setScale(2, java.math.RoundingMode.HALF_UP);
+
             contemplacaoService.registrar(new ContemplacaoRequestDTO(
-                    cotaSorteada.getId(), assembleia.getId(), TipoContemplacao.SORTEIO, BigDecimal.ZERO, false));
+                    cotaSorteada.getId(), assembleia.getId(), TipoContemplacao.SORTEIO, valorRestituicao, false));
             cotasJaContempladas.add(cotaSorteada.getId());
-            log.info("Sorteio Excluídos: cota {} (versão {}) contemplada para restituição na assembleia {}.", 
-                     cotaSorteada.getNumeroCota(), cotaSorteada.getVersao(), assembleia.getId());
-            // No mundo real, deduziriamos o valor exato da restituição do saldo disponível
+            log.info("Sorteio Excluídos: cota {} (versão {}) contemplada para restituição (R$ {}) na assembleia {}.", 
+                     cotaSorteada.getNumeroCota(), cotaSorteada.getVersao(), valorRestituicao, assembleia.getId());
+
+            // Dedução real do saldo do fundo comum para manter a liquidez do caixa livre da assembleia
+            if (valorRestituicao.compareTo(BigDecimal.ZERO) > 0) {
+                saldoDisponivel = saldoDisponivel.subtract(valorRestituicao);
+                if (saldoDisponivel.compareTo(BigDecimal.ZERO) < 0) {
+                    saldoDisponivel = BigDecimal.ZERO;
+                }
+            }
         }
         return saldoDisponivel;
     }

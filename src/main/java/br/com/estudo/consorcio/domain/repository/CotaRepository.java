@@ -15,6 +15,8 @@ import java.util.Optional;
 @Repository
 public interface CotaRepository extends JpaRepository<Cota, Long>, JpaSpecificationExecutor<Cota> {
 
+    Page<Cota> findByStatusNot(StatusCota status, Pageable pageable);
+
     Page<Cota> findByClienteId(Long clienteId, Pageable pageable);
 
     Optional<Cota> findByNumeroCotaAndGrupo_Codigo(Integer numeroCota, String codigoGrupo);

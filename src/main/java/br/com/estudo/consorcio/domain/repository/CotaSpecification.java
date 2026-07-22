@@ -27,4 +27,8 @@ public class CotaSpecification {
             return cb.equal(clienteJoin.get("cpfCnpj"), cpfCnpj.replaceAll("[^0-9]", ""));
         };
     }
+
+    public static Specification<Cota> porStatusDiferenteDe(br.com.estudo.consorcio.domain.model.StatusCota status) {
+        return (root, query, cb) -> status == null ? null : cb.notEqual(root.get("status"), status);
+    }
 }

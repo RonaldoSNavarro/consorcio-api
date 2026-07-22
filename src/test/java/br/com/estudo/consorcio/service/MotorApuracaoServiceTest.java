@@ -39,6 +39,9 @@ class MotorApuracaoServiceTest {
     private br.com.estudo.consorcio.domain.repository.CotaRepository cotaRepository;
 
     @Mock
+    private br.com.estudo.consorcio.domain.repository.ParcelaRepository parcelaRepository;
+
+    @Mock
     private ContemplacaoService contemplacaoService;
 
     @InjectMocks

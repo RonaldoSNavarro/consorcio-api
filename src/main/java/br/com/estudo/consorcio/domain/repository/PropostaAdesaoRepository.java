@@ -11,5 +11,6 @@ import java.util.Optional;
 @Repository
 public interface PropostaAdesaoRepository extends JpaRepository<PropostaAdesao, Long> {
     Optional<PropostaAdesao> findByNumeroProposta(String numeroProposta);
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"cliente", "produto"})
     List<PropostaAdesao> findByStatus(StatusProposta status);
 }

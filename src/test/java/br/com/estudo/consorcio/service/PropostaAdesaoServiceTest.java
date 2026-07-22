@@ -40,6 +40,18 @@ public class PropostaAdesaoServiceTest {
     private AlertaComplianceRepository alertaComplianceRepository;
 
     @Mock
+    private br.com.estudo.consorcio.domain.repository.GrupoRepository grupoRepository;
+
+    @Mock
+    private br.com.estudo.consorcio.domain.repository.CotaRepository cotaRepository;
+
+    @Mock
+    private br.com.estudo.consorcio.domain.repository.AssembleiaRepository assembleiaRepository;
+
+    @Mock
+    private br.com.estudo.consorcio.domain.repository.ParcelaRepository parcelaRepository;
+
+    @Mock
     private Clock clock;
 
     @InjectMocks
@@ -84,7 +96,27 @@ public class PropostaAdesaoServiceTest {
     void analisarPropostaRisco_Aprovada_DeveGerarContrato() {
         proposta.setStatus(StatusProposta.PENDENTE_ANALISE_RISCO);
 
+        br.com.estudo.consorcio.domain.model.CategoriaBem cat = new br.com.estudo.consorcio.domain.model.CategoriaBem();
+        cat.setTipoBacen(br.com.estudo.consorcio.domain.enums.TipoCategoriaBacen.BEM_IMOVEL);
+
+        br.com.estudo.consorcio.domain.model.BemReferencia bem = new br.com.estudo.consorcio.domain.model.BemReferencia();
+        bem.setCategoriaBem(cat);
+
+        br.com.estudo.consorcio.domain.model.ProdutoConsorcio produto = new br.com.estudo.consorcio.domain.model.ProdutoConsorcio();
+        produto.setPrazoMeses(36);
+        produto.setBemReferencia(bem);
+        produto.setTaxaAdministracaoPerc(new java.math.BigDecimal("10.00"));
+        proposta.setProduto(produto);
+        proposta.setValorCreditoSolicitado(new java.math.BigDecimal("100000.00"));
+
+        br.com.estudo.consorcio.domain.model.Grupo grupoMock = new br.com.estudo.consorcio.domain.model.Grupo();
+        grupoMock.setId(1L);
+        grupoMock.setStatus(br.com.estudo.consorcio.domain.model.StatusGrupo.EM_ANDAMENTO);
+        grupoMock.setTaxaAdministracao(new java.math.BigDecimal("10.00"));
+        grupoMock.setDiasAntecedenciaVencimento(5);
+
         when(propostaRepository.findById(10L)).thenReturn(Optional.of(proposta));
+        when(grupoRepository.encontrarMelhorGrupoDisponivel(any())).thenReturn(Optional.of(grupoMock));
         when(contratoRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         ContratoAdesao contrato = propostaService.analisarPropostaRisco(10L, new br.com.estudo.consorcio.domain.dto.AnaliseRiscoRequestDTO(true, "Tudo ok"));
@@ -92,7 +124,7 @@ public class PropostaAdesaoServiceTest {
         assertNotNull(contrato);
         assertEquals(StatusProposta.APROVADA, proposta.getStatus());
         verify(propostaRepository).save(proposta);
-        verify(contratoRepository).save(any(ContratoAdesao.class));
+        verify(contratoRepository, times(2)).save(any(ContratoAdesao.class));
     }
 
     @Test

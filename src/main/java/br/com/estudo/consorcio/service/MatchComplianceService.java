@@ -58,6 +58,12 @@ public class MatchComplianceService {
         salvarAlertas(ofacOnuMatches, "Similaridade de nome identificada na lista de sanções internacionais.");
     }
 
+    public void cruzarClienteEGerarAlertas(Cliente cliente) {
+        if (cliente != null) {
+            cruzarBaseDeClientes();
+        }
+    }
+
     private void salvarAlertas(List<AlertaComplianceRepository.MatchResultProjection> matches, String justificativaBase) {
         if (matches == null || matches.isEmpty()) return;
 

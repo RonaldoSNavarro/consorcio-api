@@ -104,7 +104,7 @@ public class ComplianceServiceTest {
         int count = sincronizacaoService.processarOnuXml(is);
 
         assertEquals(2, count);
-        verify(listaRestritivaRepository, times(2)).save(any(ListaRestritiva.class));
+        verify(listaRestritivaRepository, atLeastOnce()).saveAll(anyList());
     }
 
     @Test

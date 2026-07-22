@@ -37,7 +37,7 @@ import br.com.estudo.consorcio.domain.model.Parcela;
 import br.com.estudo.consorcio.domain.model.StatusParcela;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -100,7 +100,7 @@ public class PropostaAdesaoService {
         return propostaRepository.save(proposta);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = RegraDeNegocioException.class)
     public ContratoAdesao aprovarProposta(Long propostaId) {
         PropostaAdesao proposta = propostaRepository.findById(propostaId)
                 .orElseThrow(() -> new RegraDeNegocioException("Proposta não encontrada"));
@@ -113,16 +113,13 @@ public class PropostaAdesaoService {
                 proposta.getCliente().getId(),
                 List.of(StatusAlertaCompliance.PENDENTE_ANALISE, StatusAlertaCompliance.CONFIRMADO)
         );
-        if (hasRestrictedAlerts) {
-            throw new RegraDeNegocioException("Venda bloqueada por PLD/FT: Cliente possui alertas restritivos.");
-        }
-
-        if (proposta.getCliente().getNivelRisco() == NivelRisco.ALTO) {
+        if (hasRestrictedAlerts || proposta.getCliente().getNivelRisco() == NivelRisco.ALTO) {
             proposta.setStatus(StatusProposta.PENDENTE_ANALISE_RISCO);
             proposta.setDataAtualizacao(LocalDateTime.now(clock));
             propostaRepository.save(proposta);
             throw new RegraDeNegocioException("Proposta encaminhada para análise manual de risco (Compliance).");
         }
+
 
         return efetivarAprovacaoInterna(proposta);
     }
@@ -161,28 +158,34 @@ public class PropostaAdesaoService {
             proposta.setJustificativaReprovacao(request.getJustificativa());
             proposta.setDataAtualizacao(LocalDateTime.now(clock));
             propostaRepository.save(proposta);
-            return null; // Retorna null indicando que não houve contrato gerado
+            return null;
         }
 
-        return efetivarAprovacaoInterna(proposta);
+        ContratoAdesao contrato = efetivarAprovacaoInterna(proposta);
+        return efetivarContrato(contrato);
     }
 
     @Transactional
     public ContratoAdesao efetivarContrato(Long contratoId) {
         ContratoAdesao contrato = contratoRepository.findById(contratoId)
                 .orElseThrow(() -> new RegraDeNegocioException("Contrato não encontrado"));
+        return efetivarContrato(contrato);
+    }
+
+    @Transactional
+    public ContratoAdesao efetivarContrato(ContratoAdesao contrato) {
+        if (contrato == null) {
+            throw new RegraDeNegocioException("Contrato não encontrado");
+        }
 
         if (contrato.getStatus() != StatusContrato.PENDENTE_PAGAMENTO) {
             throw new RegraDeNegocioException("Contrato deve estar PENDENTE_PAGAMENTO para ser efetivado.");
         }
 
-        boolean hasRestrictedAlerts = alertaComplianceRepository.existsByClienteIdAndStatusIn(
-                contrato.getProposta().getCliente().getId(),
-                List.of(StatusAlertaCompliance.PENDENTE_ANALISE, StatusAlertaCompliance.CONFIRMADO)
-        );
-        if (hasRestrictedAlerts) {
-            throw new RegraDeNegocioException("Venda bloqueada por PLD/FT: Cliente possui alertas restritivos.");
+        if (contrato.getProposta() == null || contrato.getProposta().getStatus() != StatusProposta.APROVADA) {
+            throw new RegraDeNegocioException("Contrato só pode ser efetivado para propostas no status APROVADA.");
         }
+
 
         // RN-VND-003: Contrato só gera cota após pagamento
         // Aqui simularíamos o retorno do webhook do banco ou integração com Financeiro

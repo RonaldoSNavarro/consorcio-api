@@ -87,6 +87,9 @@ public class LanceService {
         // Validação de limite para Lance Embutido
         if (dto.tipo() == TipoLance.EMBUTIDO) {
             BigDecimal limitePercentual = assembleia.getGrupo().getPercentualLanceEmbutidoMaximo();
+            if (limitePercentual == null) {
+                limitePercentual = new BigDecimal("0.30"); // 30% padrão BACEN se não especificado no grupo
+            }
             BigDecimal limiteEmbutido = assembleia.getGrupo().getValorCredito().multiply(limitePercentual).setScale(2, RoundingMode.HALF_UP);
             
             if (valorOferta.compareTo(limiteEmbutido) > 0) {

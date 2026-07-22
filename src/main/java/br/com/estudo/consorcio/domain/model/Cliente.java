@@ -71,6 +71,9 @@ public class Cliente {
     @Column(name = "nivel_risco", nullable = false, length = 10)
     private NivelRisco nivelRisco = NivelRisco.MEDIO;
 
+    @Column(name = "pep")
+    private Boolean pep = false;
+
     @Column(name = "data_cadastro", updatable = false)
     private LocalDate dataCadastro;
 

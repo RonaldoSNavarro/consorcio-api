@@ -22,6 +22,7 @@ public record ClienteResponseDTO(
         BigDecimal patrimonio,
         BigDecimal rendaMensal,
         NivelRisco nivelRisco,
+        Boolean pep,
         LocalDate dataCadastro,
         StatusCliente statusCliente
 ) {
@@ -30,22 +31,6 @@ public record ClienteResponseDTO(
                               String bairro, String localidade, String uf, BigDecimal patrimonio,
                               BigDecimal rendaMensal, NivelRisco nivelRisco, LocalDate dataCadastro,
                               StatusCliente statusCliente) {
-        this.id = id;
-        this.nome = nome;
-        this.cpfCnpj = cpfCnpj;
-        this.email = email;
-        this.telefone = telefone;
-        this.cep = cep;
-        this.logradouro = logradouro;
-        this.numero = numero;
-        this.complemento = complemento;
-        this.bairro = bairro;
-        this.localidade = localidade;
-        this.uf = uf;
-        this.patrimonio = patrimonio;
-        this.rendaMensal = rendaMensal;
-        this.nivelRisco = nivelRisco;
-        this.dataCadastro = dataCadastro;
-        this.statusCliente = statusCliente;
+        this(id, nome, cpfCnpj, email, telefone, cep, logradouro, numero, complemento, bairro, localidade, uf, patrimonio, rendaMensal, nivelRisco, false, dataCadastro, statusCliente);
     }
 }

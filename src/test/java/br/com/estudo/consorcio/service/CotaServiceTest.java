@@ -167,7 +167,7 @@ class CotaServiceTest {
         Cota cota1 = new Cota(); cota1.setId(100L); cota1.setNumeroCota(10); cota1.setCliente(cliente); cota1.setGrupo(grupo); cota1.setStatus(StatusCota.ATIVA);
         Cota cota2 = new Cota(); cota2.setId(101L); cota2.setNumeroCota(20); cota2.setCliente(cliente); cota2.setGrupo(grupo); cota2.setStatus(StatusCota.ATIVA);
 
-        when(cotaRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cota1, cota2)));
+        when(cotaRepository.findByStatusNot(eq(StatusCota.DISPONIVEL), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cota1, cota2)));
 
         // --- ACT ---
         Page<CotaResponseDTO> resultado = service.listarTodas(PageRequest.of(0, 10));
@@ -179,7 +179,7 @@ class CotaServiceTest {
         assertEquals(10, resultado.getContent().get(0).numeroCota());
         assertEquals(1L, resultado.getContent().get(0).clienteId());
 
-        verify(cotaRepository, times(1)).findAll(any(Pageable.class));
+        verify(cotaRepository, times(1)).findByStatusNot(eq(StatusCota.DISPONIVEL), any(Pageable.class));
     }
 
     @Test
@@ -229,7 +229,7 @@ class CotaServiceTest {
     @DisplayName("Deve retornar uma lista vazia caso não encontre cotas")
     void deveRetornarListaVaziaQuandoNaoHouverCotas() {
         // --- ARRANGE ---
-        when(cotaRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+        when(cotaRepository.findByStatusNot(eq(StatusCota.DISPONIVEL), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
 
         // --- ACT ---
         Page<CotaResponseDTO> resultado = service.listarTodas(PageRequest.of(0, 10));
