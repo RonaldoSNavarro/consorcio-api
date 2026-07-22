@@ -24,6 +24,11 @@ import br.com.estudo.consorcio.domain.repository.TipoVendaRepository;
 import br.com.estudo.consorcio.domain.repository.ProdutoConsorcioRepository;
 import java.util.List;
 
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import br.com.estudo.consorcio.domain.dto.TipoVendaRequestDTO;
+import br.com.estudo.consorcio.exception.RegraDeNegocioException;
+
 @RestController
 @RequestMapping("/api/vendas")
 @RequiredArgsConstructor
@@ -34,16 +39,55 @@ public class VendasController {
     private final TipoVendaRepository tipoVendaRepository;
     private final ProdutoConsorcioRepository produtoRepository;
 
-    @PreAuthorize("hasAuthority('MANAGE_VENDAS')")
+    @PreAuthorize("hasAnyAuthority('MANAGE_VENDAS', 'MANAGE_GRUPOS')")
     @GetMapping("/tipos")
     public ResponseEntity<List<TipoVenda>> listarTiposVenda() {
         return ResponseEntity.ok(tipoVendaRepository.findAll());
     }
 
-    @PreAuthorize("hasAuthority('MANAGE_VENDAS')")
+    @PreAuthorize("hasAnyAuthority('MANAGE_VENDAS', 'MANAGE_GRUPOS')")
     @GetMapping("/tipos/todos")
     public ResponseEntity<List<TipoVenda>> listarTiposTodos() {
         return ResponseEntity.ok(tipoVendaRepository.findAll());
+    }
+
+    @PreAuthorize("hasAnyAuthority('MANAGE_VENDAS', 'MANAGE_GRUPOS')")
+    @PostMapping("/tipos")
+    public ResponseEntity<TipoVenda> criarTipoVenda(@RequestBody @Valid TipoVendaRequestDTO dto) {
+        TipoVenda tipo = new TipoVenda();
+        tipo.setNome(dto.nome());
+        tipo.setDescricao(dto.descricao());
+        tipo.setCanal(dto.canal());
+        tipo.setPercentualComissao(dto.percentualComissao());
+        tipo.setExigeSeguro(dto.exigeSeguro() != null ? dto.exigeSeguro() : false);
+        tipo.setPermiteReajuste(dto.permiteReajuste() != null ? dto.permiteReajuste() : true);
+        tipo.setAtivo(dto.ativo() != null ? dto.ativo() : true);
+        return ResponseEntity.status(HttpStatus.CREATED).body(tipoVendaRepository.save(tipo));
+    }
+
+    @PreAuthorize("hasAnyAuthority('MANAGE_VENDAS', 'MANAGE_GRUPOS')")
+    @PutMapping("/tipos/{id}")
+    public ResponseEntity<TipoVenda> atualizarTipoVenda(@PathVariable Long id, @RequestBody @Valid TipoVendaRequestDTO dto) {
+        TipoVenda tipo = tipoVendaRepository.findById(id)
+                .orElseThrow(() -> new RegraDeNegocioException("Tipo de venda não encontrado."));
+        tipo.setNome(dto.nome());
+        tipo.setDescricao(dto.descricao());
+        tipo.setCanal(dto.canal());
+        tipo.setPercentualComissao(dto.percentualComissao());
+        if (dto.exigeSeguro() != null) tipo.setExigeSeguro(dto.exigeSeguro());
+        if (dto.permiteReajuste() != null) tipo.setPermiteReajuste(dto.permiteReajuste());
+        if (dto.ativo() != null) tipo.setAtivo(dto.ativo());
+        return ResponseEntity.ok(tipoVendaRepository.save(tipo));
+    }
+
+    @PreAuthorize("hasAnyAuthority('MANAGE_VENDAS', 'MANAGE_GRUPOS')")
+    @DeleteMapping("/tipos/{id}")
+    public ResponseEntity<Void> inativarTipoVenda(@PathVariable Long id) {
+        TipoVenda tipo = tipoVendaRepository.findById(id)
+                .orElseThrow(() -> new RegraDeNegocioException("Tipo de venda não encontrado."));
+        tipo.setAtivo(false);
+        tipoVendaRepository.save(tipo);
+        return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasAuthority('MANAGE_VENDAS')")
