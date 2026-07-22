@@ -73,7 +73,7 @@ public class GrupoService {
         for (int i = 1; i <= grupoSalvo.getQuantidadeCotas(); i++) {
             Cota cota = new Cota();
             cota.setGrupo(grupoSalvo);
-            cota.setNumeroCota(i);
+            cota.setCodigoCota(i);
             cota.setStatus(StatusCota.DISPONIVEL);
             cotaRepository.save(cota);
         }
@@ -219,7 +219,7 @@ public class GrupoService {
 
         return new GrupoFinanceiroResponseDTO(
                 grupoId,
-                grupo.getCodigo(),
+                grupo.getCodigoGrupo(),
                 totalFundoComum,
                 totalTaxaAdmin,
                 totalFundoReserva,
@@ -270,7 +270,7 @@ public class GrupoService {
                     ContabilidadeService.CONTA_DESPESA_PDD,
                     ContabilidadeService.CONTA_PDD,
                     valorDevido, dataEncerramento,
-                    "Provisão PDD — Parcela " + parcela.getNumeroParcela() + " da Cota " + parcela.getCota().getNumeroCota()
+                    "Provisão PDD — Parcela " + parcela.getNumeroParcela() + " da Cota " + parcela.getCota().getCodigoCota()
             );
 
             // 2. Baixa do crédito: Débito em (-) PDD → Crédito em Valores a Receber
@@ -302,7 +302,7 @@ public class GrupoService {
 
         return new GrupoEncerrarResponseDTO(
                 grupoId,
-                grupo.getCodigo(),
+                grupo.getCodigoGrupo(),
                 totalParcelasBaixadas,
                 valorTotalPDD,
                 valorTransferidoRNP,

@@ -182,8 +182,7 @@ public class ComplianceSincronizacaoService {
     @Transactional
     public int processarPepCsv(InputStream inputStream) throws Exception {
         java.util.Set<String> existentes = listaRestritivaRepository
-                .findAll().stream()
-                .filter(l -> l.getOrigem() == OrigemListaRestritiva.PEP)
+                .findByOrigem(OrigemListaRestritiva.PEP).stream()
                 .map(ListaRestritiva::getNome)
                 .collect(java.util.stream.Collectors.toSet());
 

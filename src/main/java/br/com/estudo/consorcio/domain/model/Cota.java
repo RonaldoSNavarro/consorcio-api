@@ -19,8 +19,8 @@ public class Cota {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "numero_cota", nullable = false)
-    private Integer numeroCota;
+    @Column(name = "codigo_cota", nullable = false)
+    private Integer codigoCota;
 
     // Relacionamento: Muitas Cotas podem pertencer a Um Cliente
     @ManyToOne(fetch = FetchType.LAZY)
@@ -53,11 +53,12 @@ public class Cota {
     @Column(nullable = false)
     private Boolean reembolsada = false;
 
-    @Column(nullable = false)
-    private Integer versao = 0;
+    @Column(name = "versao_historico", nullable = false)
+    private Integer versaoHistorico = 0;
 
     @Version
-    private Long version;
+    @Column(name = "versao")
+    private Long versao;
 
     @PrePersist
     protected void onCreate() {
@@ -70,8 +71,8 @@ public class Cota {
         if (this.reembolsada == null) {
             this.reembolsada = false;
         }
-        if (this.versao == null) {
-            this.versao = 0;
+        if (this.versaoHistorico == null) {
+            this.versaoHistorico = 0;
         }
     }
 }

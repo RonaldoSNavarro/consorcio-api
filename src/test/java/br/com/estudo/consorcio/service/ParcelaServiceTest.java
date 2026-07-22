@@ -214,7 +214,7 @@ class ParcelaServiceTest {
         Long cotaId = 1L;
         Cota cota = new Cota();
         cota.setId(cotaId);
-        cota.setNumeroCota(100);
+        cota.setCodigoCota(100);
 
         Parcela p1 = new Parcela();
         p1.setStatus(StatusParcela.PENDENTE);
@@ -233,7 +233,7 @@ class ParcelaServiceTest {
         // --- ASSERT ---
         assertNotNull(response);
         assertEquals(cotaId, response.cotaId());
-        assertEquals(100, response.numeroCota());
+        assertEquals(100, response.codigoCota());
         assertFalse(response.possuiInadimplencia());
         assertEquals(0, response.quantidadeParcelasAtrasadas());
         assertEquals(BigDecimal.ZERO, response.multaAcumulada());
@@ -248,7 +248,7 @@ class ParcelaServiceTest {
         Long cotaId = 1L;
         Cota cota = new Cota();
         cota.setId(cotaId);
-        cota.setNumeroCota(100);
+        cota.setCodigoCota(100);
 
         // Parcela atrasada há 10 dias
         // Valor total original: FC 1000 + TaxaAdmin 150 + FundoReserva 50 = 1200.00

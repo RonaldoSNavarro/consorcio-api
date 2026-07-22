@@ -328,7 +328,7 @@ public class ParcelaService {
         if (atrasadas.isEmpty()) {
             return new CotaInadimplenciaResponseDTO(
                     cotaId,
-                    cota.getNumeroCota(),
+                    cota.getCodigoCota(),
                     false,
                     0,
                     BigDecimal.ZERO,
@@ -366,7 +366,7 @@ public class ParcelaService {
 
         return new CotaInadimplenciaResponseDTO(
                 cotaId,
-                cota.getNumeroCota(),
+                cota.getCodigoCota(),
                 true,
                 atrasadas.size(),
                 valorOriginalTotal,

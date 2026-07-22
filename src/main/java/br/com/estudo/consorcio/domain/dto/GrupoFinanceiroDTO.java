@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 
 public record GrupoFinanceiroDTO(
         Long grupoId,
-        String codigo,
+        String codigoGrupo,
         BigDecimal totalFundoComum,
         BigDecimal totalTaxaAdm,
         BigDecimal totalFundoReserva

@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 
 public record CotaReembolsoResponseDTO(
         Long cotaId,
-        Integer numeroCota,
+        Integer codigoCota,
         BigDecimal totalFundoComumPago,
         BigDecimal multaRescisoria,
         BigDecimal valorReembolsado,

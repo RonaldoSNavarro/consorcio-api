@@ -7,7 +7,7 @@ import br.com.estudo.consorcio.domain.enums.CategoriaBem;
 
 public record GrupoResponseDTO(
         Long id,
-        String codigo,
+        String codigoGrupo,
         BigDecimal valorCredito,
         Integer prazoMeses,
         BigDecimal taxaAdministracao,

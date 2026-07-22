@@ -5,7 +5,7 @@ import java.util.List;
 
 public record CotaInadimplenciaResponseDTO(
         Long cotaId,
-        Integer numeroCota,
+        Integer codigoCota,
         Boolean possuiInadimplencia,
         Integer quantidadeParcelasAtrasadas,
         BigDecimal valorOriginalAtrasado,

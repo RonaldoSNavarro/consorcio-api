@@ -113,7 +113,7 @@ class CotaServiceTest {
 
         // --- ASSERT ---
         assertNotNull(response);
-        assertEquals(15, response.numeroCota());
+        assertEquals(15, response.codigoCota());
         assertEquals(StatusCota.ATIVA, response.status(), "A cota deve nascer obrigatoriamente ATIVA");
         verify(cotaRepository, times(1)).save(any(Cota.class));
     }
@@ -164,8 +164,8 @@ class CotaServiceTest {
         Cliente cliente = new Cliente(); cliente.setId(1L);
         Grupo grupo = new Grupo(); grupo.setId(2L);
 
-        Cota cota1 = new Cota(); cota1.setId(100L); cota1.setNumeroCota(10); cota1.setCliente(cliente); cota1.setGrupo(grupo); cota1.setStatus(StatusCota.ATIVA);
-        Cota cota2 = new Cota(); cota2.setId(101L); cota2.setNumeroCota(20); cota2.setCliente(cliente); cota2.setGrupo(grupo); cota2.setStatus(StatusCota.ATIVA);
+        Cota cota1 = new Cota(); cota1.setId(100L); cota1.setCodigoCota(10); cota1.setCliente(cliente); cota1.setGrupo(grupo); cota1.setStatus(StatusCota.ATIVA);
+        Cota cota2 = new Cota(); cota2.setId(101L); cota2.setCodigoCota(20); cota2.setCliente(cliente); cota2.setGrupo(grupo); cota2.setStatus(StatusCota.ATIVA);
 
         when(cotaRepository.findByStatusNot(eq(StatusCota.DISPONIVEL), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cota1, cota2)));
 
@@ -176,7 +176,7 @@ class CotaServiceTest {
         assertNotNull(resultado);
         assertEquals(2, resultado.getContent().size());
         assertEquals(100L, resultado.getContent().get(0).id());
-        assertEquals(10, resultado.getContent().get(0).numeroCota());
+        assertEquals(10, resultado.getContent().get(0).codigoCota());
         assertEquals(1L, resultado.getContent().get(0).clienteId());
 
         verify(cotaRepository, times(1)).findByStatusNot(eq(StatusCota.DISPONIVEL), any(Pageable.class));
@@ -307,7 +307,7 @@ class CotaServiceTest {
         Long cotaId = 1L;
         Cota cota = new Cota();
         cota.setId(cotaId);
-        cota.setNumeroCota(44);
+        cota.setCodigoCota(44);
         cota.setStatus(StatusCota.CANCELADA);
         cota.setReembolsada(false);
 
@@ -341,7 +341,7 @@ class CotaServiceTest {
         // --- ASSERT ---
         assertNotNull(response);
         assertEquals(cotaId, response.cotaId());
-        assertEquals(44, response.numeroCota());
+        assertEquals(44, response.codigoCota());
         assertEquals(new BigDecimal("2000.00"), response.totalFundoComumPago());
         // Multa rescisória de 10% de 2000.00 = 200.00
         assertEquals(new BigDecimal("200.00"), response.multaRescisoria());
@@ -390,7 +390,7 @@ class CotaServiceTest {
         Long cotaId = 1L;
         Cota cota = new Cota();
         cota.setId(cotaId);
-        cota.setNumeroCota(44);
+        cota.setCodigoCota(44);
         cota.setStatus(StatusCota.CANCELADA);
         cota.setReembolsada(false);
 
@@ -437,7 +437,7 @@ class CotaServiceTest {
 
         // Assert
         assertNotNull(response);
-        assertEquals(new BigDecimal("3600.00"), response.totalFundoComumPago()); // Valor bruto calculado
+        assertEquals(new BigDecimal("3600.00"), response.totalFundoComumPago()); // Valor bruto calculated
         assertEquals(new BigDecimal("360.00"), response.multaRescisoria()); // 10%
         assertEquals(new BigDecimal("3240.00"), response.valorReembolsado()); // Líquido fixado
         assertTrue(response.reembolsada());
@@ -454,7 +454,7 @@ class CotaServiceTest {
         Cota cota = new Cota();
         cota.setId(cotaId);
         cota.setStatus(StatusCota.ATIVA);
-        cota.setVersao(0);
+        cota.setVersaoHistorico(0);
 
         Cliente cedente = new Cliente();
         cedente.setId(10L);
@@ -496,7 +496,7 @@ class CotaServiceTest {
         Cota cota = new Cota();
         cota.setId(cotaId);
         cota.setStatus(StatusCota.EXCLUIDA);
-        cota.setVersao(0);
+        cota.setVersaoHistorico(0);
         cota.setReembolsada(false);
 
         Cliente cliente = new Cliente();

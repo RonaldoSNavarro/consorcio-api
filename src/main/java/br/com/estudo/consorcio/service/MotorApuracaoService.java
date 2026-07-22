@@ -89,7 +89,7 @@ public class MotorApuracaoService {
         // FASE 2: Sorteio Excluídos (Restituição)
         // ═══════════════════════════════════════════════
         if (realizarSorteio && cotaAtivaSorteada != null) {
-            saldoFundoComumLivre = realizarSorteioExcluidos(assembleia, grupo, saldoFundoComumLivre, cotasJaContempladas, cotaAtivaSorteada.getNumeroCota());
+            saldoFundoComumLivre = realizarSorteioExcluidos(assembleia, grupo, saldoFundoComumLivre, cotasJaContempladas, cotaAtivaSorteada.getCodigoCota());
         }
 
         // ═══════════════════════════════════════════════
@@ -146,7 +146,7 @@ public class MotorApuracaoService {
             contemplacaoService.registrar(new ContemplacaoRequestDTO(
                     cotaSorteada.getId(), assembleia.getId(), TipoContemplacao.SORTEIO, BigDecimal.ZERO, false));
             cotasJaContempladas.add(cotaSorteada.getId());
-            log.info("Sorteio Ativos: cota {} contemplada na assembleia {}.", cotaSorteada.getNumeroCota(), assembleia.getId());
+            log.info("Sorteio Ativos: cota {} contemplada na assembleia {}.", cotaSorteada.getCodigoCota(), assembleia.getId());
             return cotaSorteada;
         }
         return null;
@@ -165,7 +165,7 @@ public class MotorApuracaoService {
         List<Cota> cotasExcluidas = cotaRepository.findByGrupoId(grupo.getId()).stream()
                 .filter(c -> c.getStatus() == StatusCota.CANCELADA || c.getStatus() == StatusCota.EXCLUIDA)
                 .filter(c -> !cotasJaContempladas.contains(c.getId()))
-                .filter(c -> c.getVersao() != null && c.getVersao() > 0)
+                .filter(c -> c.getVersaoHistorico() != null && c.getVersaoHistorico() > 0)
                 .toList();
 
         if (cotasExcluidas.isEmpty()) return saldoDisponivel;
@@ -196,7 +196,7 @@ public class MotorApuracaoService {
                     cotaSorteada.getId(), assembleia.getId(), TipoContemplacao.SORTEIO, valorRestituicao, false));
             cotasJaContempladas.add(cotaSorteada.getId());
             log.info("Sorteio Excluídos: cota {} (versão {}) contemplada para restituição (R$ {}) na assembleia {}.", 
-                     cotaSorteada.getNumeroCota(), cotaSorteada.getVersao(), valorRestituicao, assembleia.getId());
+                     cotaSorteada.getCodigoCota(), cotaSorteada.getVersaoHistorico(), valorRestituicao, assembleia.getId());
 
             // Dedução real do saldo do fundo comum para manter a liquidez do caixa livre da assembleia
             if (valorRestituicao.compareTo(BigDecimal.ZERO) > 0) {
@@ -276,7 +276,7 @@ public class MotorApuracaoService {
     }
 
     private Cota buscarCotaApta(int pedraChave, List<Cota> cotas, DirecaoFallbackSorteio direcao, Assembleia assembleia) {
-        Set<Integer> numerosAptos = cotas.stream().map(Cota::getNumeroCota).collect(Collectors.toSet());
+        Set<Integer> numerosAptos = cotas.stream().map(Cota::getCodigoCota).collect(Collectors.toSet());
         if (numerosAptos.isEmpty()) return null;
 
         int min = numerosAptos.stream().mapToInt(Integer::intValue).min().orElse(1);
@@ -304,7 +304,7 @@ public class MotorApuracaoService {
                 } else {
                     assembleia.setFallbacksAplicados(assembleia.getFallbacksAplicados() + fallbacks);
                 }
-                return cotas.stream().filter(c -> c.getNumeroCota() == num).findFirst().orElse(null);
+                return cotas.stream().filter(c -> c.getCodigoCota() == num).findFirst().orElse(null);
             }
             fallbacks++;
         }
@@ -330,15 +330,15 @@ public class MotorApuracaoService {
             // Em caso de empate, usar proximidade à pedra-chave simulada (usando divisão 1000 para lances)
             int pedra = PedraChaveCalculator.calcular(AlgoritmoPedraChave.DIVISAO_1000, numeroPremio, 1000); 
             return (l1, l2) -> {
-                int d1 = Math.abs(l1.getCota().getNumeroCota() - pedra);
-                int d2 = Math.abs(l2.getCota().getNumeroCota() - pedra);
+                int d1 = Math.abs(l1.getCota().getCodigoCota() - pedra);
+                int d2 = Math.abs(l2.getCota().getCodigoCota() - pedra);
                 if (d1 != d2) return Integer.compare(d1, d2);
-                return Integer.compare(l1.getCota().getNumeroCota(), l2.getCota().getNumeroCota());
+                return Integer.compare(l1.getCota().getCodigoCota(), l2.getCota().getCodigoCota());
             };
         } else if (grupo.getCriterioDesempateLance() == CriterioDesempateLance.ORDEM_OFERTA) {
             return (l1, l2) -> l1.getDataOferta().compareTo(l2.getDataOferta());
         } else {
-            return (l1, l2) -> Integer.compare(l1.getCota().getNumeroCota(), l2.getCota().getNumeroCota());
+            return (l1, l2) -> Integer.compare(l1.getCota().getCodigoCota(), l2.getCota().getCodigoCota());
         }
     }
 }

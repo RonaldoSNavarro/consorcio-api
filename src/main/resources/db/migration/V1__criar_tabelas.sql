@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS clientes (
 
 CREATE TABLE IF NOT EXISTS grupos (
     id                  BIGSERIAL PRIMARY KEY,
-    codigo              VARCHAR(255) NOT NULL UNIQUE,
+    codigo_grupo        VARCHAR(255) NOT NULL UNIQUE,
     valor_credito       NUMERIC(38,2) NOT NULL,
     prazo_meses         INTEGER NOT NULL,
     taxa_administracao  NUMERIC(38,2) NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS grupos (
 
 CREATE TABLE IF NOT EXISTS cotas (
     id          BIGSERIAL PRIMARY KEY,
-    numero_cota INTEGER NOT NULL,
+    codigo_cota INTEGER NOT NULL,
     cliente_id  BIGINT NOT NULL REFERENCES clientes(id),
     grupo_id    BIGINT NOT NULL REFERENCES grupos(id),
     status      VARCHAR(50) NOT NULL

@@ -19,13 +19,18 @@ public interface CotaRepository extends JpaRepository<Cota, Long>, JpaSpecificat
 
     Page<Cota> findByClienteId(Long clienteId, Pageable pageable);
 
-    Optional<Cota> findByNumeroCotaAndGrupo_Codigo(Integer numeroCota, String codigoGrupo);
+    Optional<Cota> findByCodigoCotaAndGrupo_CodigoGrupo(Integer codigoCota, String codigoGrupo);
     
+    @Deprecated
+    default Optional<Cota> findByNumeroCotaAndGrupo_Codigo(Integer numeroCota, String codigoGrupo) {
+        return findByCodigoCotaAndGrupo_CodigoGrupo(numeroCota, codigoGrupo);
+    }
+
     Optional<Cota> findByContratoAdesaoId(Long contratoAdesaoId);
 
     Page<Cota> findByGrupoId(Long grupoId, Pageable pageable);
     
-    Optional<Cota> findFirstByGrupoIdAndStatusOrderByNumeroCotaAsc(Long grupoId, StatusCota status);
+    Optional<Cota> findFirstByGrupoIdAndStatusOrderByCodigoCotaAsc(Long grupoId, StatusCota status);
 
     // For internal processing that still needs List
     List<Cota> findByGrupoId(Long grupoId);

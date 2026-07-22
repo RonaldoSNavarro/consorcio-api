@@ -202,7 +202,7 @@ public class PropostaAdesaoService {
         Grupo grupo = grupoRepository.encontrarMelhorGrupoDisponivel(catEnum)
                 .orElseGet(() -> {
                     Grupo novo = new Grupo();
-                    novo.setCodigo("GRP-" + UUID.randomUUID().toString().substring(0, 5).toUpperCase());
+                    novo.setCodigoGrupo("GRP-" + UUID.randomUUID().toString().substring(0, 5).toUpperCase());
                     novo.setCategoriaBem(catEnum);
                     novo.setValorCredito(proposta.getValorCreditoSolicitado());
                     novo.setPrazoMeses(proposta.getProduto().getPrazoMeses());
@@ -213,7 +213,7 @@ public class PropostaAdesaoService {
 
         Cota cota = new Cota();
         long cotasNoGrupo = cotaRepository.countByGrupoId(grupo.getId());
-        cota.setNumeroCota((int) cotasNoGrupo + 1);
+        cota.setCodigoCota((int) cotasNoGrupo + 1);
         cota.setCliente(contrato.getProposta().getCliente());
         cota.setGrupo(grupo);
         cota.setContratoAdesao(contrato);

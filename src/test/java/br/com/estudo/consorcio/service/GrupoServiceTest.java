@@ -86,7 +86,7 @@ class GrupoServiceTest {
         // --- ASSERT ---
         assertNotNull(response);
         assertEquals(1L, response.id());
-        assertEquals("GRP-001", response.codigo());
+        assertEquals("GRP-001", response.codigoGrupo());
         assertEquals(StatusGrupo.EM_FORMACAO, response.status(), "A regra de negócio exige que o grupo nasça EM_FORMACAO");
 
         verify(repository, times(1)).save(any(Grupo.class));
@@ -166,8 +166,8 @@ class GrupoServiceTest {
         // --- ASSERT ---
         assertNotNull(lista);
         assertEquals(2, lista.getContent().size());
-        assertEquals("G-01", lista.getContent().get(0).codigo());
-        assertEquals("G-02", lista.getContent().get(1).codigo());
+        assertEquals("G-01", lista.getContent().get(0).codigoGrupo());
+        assertEquals("G-02", lista.getContent().get(1).codigoGrupo());
         verify(repository, times(1)).findAll(any(Pageable.class));
     }
 
@@ -316,11 +316,11 @@ class GrupoServiceTest {
         Long grupoId = 1L;
         Grupo grupo = new Grupo();
         grupo.setId(grupoId);
-        grupo.setCodigo("G-001");
+        grupo.setCodigoGrupo("G-001");
         grupo.setStatus(StatusGrupo.EM_ANDAMENTO);
 
         br.com.estudo.consorcio.domain.model.Cota cota = new br.com.estudo.consorcio.domain.model.Cota();
-        cota.setNumeroCota(123);
+        cota.setCodigoCota(123);
 
         Parcela p1 = new Parcela();
         p1.setNumeroParcela(1);

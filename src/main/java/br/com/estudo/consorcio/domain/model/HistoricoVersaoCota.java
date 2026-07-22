@@ -24,8 +24,8 @@ public class HistoricoVersaoCota {
     @JoinColumn(name = "cota_id", nullable = false)
     private Cota cota;
 
-    @Column(nullable = false)
-    private Integer versao;
+    @Column(name = "versao_historico", nullable = false)
+    private Integer versaoHistorico;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status_anterior", length = 50)

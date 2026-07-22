@@ -89,10 +89,10 @@ public class CotaService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CotaResponseDTO> buscar(Long grupoId, Integer numeroCota, Integer versao, String cpfCnpj, Pageable pageable) {
+    public Page<CotaResponseDTO> buscar(Long grupoId, Integer codigoCota, Integer versaoHistorico, String cpfCnpj, Pageable pageable) {
         Specification<Cota> spec = Specification.where(CotaSpecification.porGrupoId(grupoId))
-                .and(CotaSpecification.porNumeroCota(numeroCota))
-                .and(CotaSpecification.porVersao(versao))
+                .and(CotaSpecification.porCodigoCota(codigoCota))
+                .and(CotaSpecification.porVersaoHistorico(versaoHistorico))
                 .and(CotaSpecification.porCpfCnpj(cpfCnpj))
                 .and(CotaSpecification.porStatusDiferenteDe(StatusCota.DISPONIVEL));
         return cotaRepository.findAll(spec, pageable).map(mapper::toResponse);
@@ -105,7 +105,7 @@ public class CotaService {
         // A versão inicial de uma cota deve ser 0, pois corresponde a uma cota em situação normal.
         // A versão 1 corresponde a uma cota excluída.
         if (statusNovo == StatusCota.EXCLUIDA) {
-            cota.setVersao(1);
+            cota.setVersaoHistorico(1);
         }
 
         cota.setStatus(statusNovo);
@@ -115,7 +115,7 @@ public class CotaService {
 
         HistoricoVersaoCota historico = HistoricoVersaoCota.builder()
                 .cota(cota)
-                .versao(cota.getVersao())
+                .versaoHistorico(cota.getVersaoHistorico())
                 .statusAnterior(statusAnterior)
                 .statusNovo(statusNovo)
                 .motivo(motivo)
@@ -136,7 +136,7 @@ public class CotaService {
                 .map(entity -> new HistoricoVersaoCotaResponseDTO(
                         entity.getId(),
                         entity.getCota().getId(),
-                        entity.getVersao(),
+                        entity.getVersaoHistorico(),
                         entity.getStatusAnterior(),
                         entity.getStatusNovo(),
                         entity.getMotivo(),
@@ -328,17 +328,17 @@ public class CotaService {
             String contaDebito = contemplacaoOpt.isPresent() ? ContabilidadeService.CONTA_EXCLUIDOS_DEVOLVER : ContabilidadeService.CONTA_FUNDO_COMUM;
 
             contabilidadeService.registrarBaixa(grupo, cota, null, contaDebito, ContabilidadeService.CONTA_CAIXA,
-                    valorReembolsado, LocalDate.now(), "Desembolso de reembolso de excluído - Cota " + cota.getNumeroCota());
+                    valorReembolsado, LocalDate.now(), "Desembolso de reembolso de excluído - Cota " + cota.getCodigoCota());
 
             movimentoService.registrarMovimento(grupo, cota, null, null,
                     TipoMovimentoFinanceiro.REEMBOLSO, NaturezaMovimento.DEBITO,
-                    valorReembolsado, "Reembolso de cota cancelada - Cota " + cota.getNumeroCota(), usuario);
+                    valorReembolsado, "Reembolso de cota cancelada - Cota " + cota.getCodigoCota(), usuario);
         }
 
         if (multaRescisoria.compareTo(BigDecimal.ZERO) > 0) {
             movimentoService.registrarMovimento(grupo, cota, null, null,
                     TipoMovimentoFinanceiro.MULTA_RESCISORIA, NaturezaMovimento.CREDITO,
-                    multaRescisoria, "Multa rescisória de cota cancelada - Cota " + cota.getNumeroCota(), usuario);
+                    multaRescisoria, "Multa rescisória de cota cancelada - Cota " + cota.getCodigoCota(), usuario);
             
             // Se não foi contemplada, precisamos contabilizar a retenção da multa rescisória no momento do reembolso final.
             // (Para as contempladas, a multa já foi retida na assembleia de contemplação).
@@ -353,7 +353,7 @@ public class CotaService {
                         contaDestinoMulta,
                         multaRescisoria,
                         LocalDate.now(),
-                        "Multa rescisória retida no encerramento - Cota " + cota.getNumeroCota()
+                        "Multa rescisória retida no encerramento - Cota " + cota.getCodigoCota()
                 );
             }
         }
@@ -368,7 +368,7 @@ public class CotaService {
 
         return new CotaReembolsoResponseDTO(
                 cotaId,
-                cota.getNumeroCota(),
+                cota.getCodigoCota(),
                 totalFundoComumPago,
                 multaRescisoria,
                 valorReembolsado,
@@ -468,7 +468,7 @@ public class CotaService {
 
             return new CotaReembolsoSimulacaoDTO(
                     cota.getId(),
-                    cota.getNumeroCota(),
+                    cota.getCodigoCota(),
                     cota.getCliente().getId(),
                     cota.getCliente().getNome(),
                     cota.getCliente().getCpfCnpj(),
@@ -534,14 +534,14 @@ public class CotaService {
         cota.setCliente(novoCliente);
 
         // Registro de versão para auditoria (mesmo status, muda o titular e versão++)
-        cota.setVersao(cota.getVersao() + 1);
+        cota.setVersaoHistorico(cota.getVersaoHistorico() + 1);
         cotaRepository.save(cota);
         
         Usuario usuario = getUsuarioAutenticado();
 
         HistoricoVersaoCota historico = HistoricoVersaoCota.builder()
                 .cota(cota)
-                .versao(cota.getVersao())
+                .versaoHistorico(cota.getVersaoHistorico())
                 .statusAnterior(cota.getStatus())
                 .statusNovo(cota.getStatus())
                 .motivo("Transferência de titularidade de " + clienteAnterior.getNome() + " para " + novoCliente.getNome() + ". Motivo: " + dto.motivo())
@@ -610,14 +610,14 @@ public class CotaService {
         }
 
         cota.setStatus(StatusCota.ATIVA);
-        cota.setVersao(cota.getVersao() + 1);
+        cota.setVersaoHistorico(cota.getVersaoHistorico() + 1);
         cotaRepository.save(cota);
 
         Usuario usuario = getUsuarioAutenticado();
 
         HistoricoVersaoCota historico = HistoricoVersaoCota.builder()
                 .cota(cota)
-                .versao(cota.getVersao())
+                .versaoHistorico(cota.getVersaoHistorico())
                 .statusAnterior(StatusCota.EXCLUIDA)
                 .statusNovo(StatusCota.ATIVA)
                 .motivo("Readmissão de consorciado excluído (Art. 31-A BCB 285).")

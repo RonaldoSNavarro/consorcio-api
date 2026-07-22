@@ -90,7 +90,7 @@ Todos os endpoints requerem cookie `HttpOnly` com JWT válido.
 ### Response: `CotaInadimplenciaResponseDTO`
 ```java
 public record CotaInadimplenciaResponseDTO(
-    Long cotaId, Integer numeroCota, Boolean possuiInadimplencia,
+    Long cotaId, Integer codigoCota, Boolean possuiInadimplencia,
     Integer quantidadeParcelasAtrasadas, BigDecimal valorOriginalAtrasado,
     BigDecimal multaAcumulada, BigDecimal jurosAcumulados,
     BigDecimal saldoDevedorTotal, List<ParcelaResponseDTO> parcelasAtrasadas

@@ -71,9 +71,9 @@ class MotorApuracaoServiceTest {
         // Pedra sorteada = 30
         assembleia.setNumeroSorteado(30);
 
-        Cota cota12 = new Cota(); cota12.setId(12L); cota12.setNumeroCota(12); cota12.setGrupo(grupo);
-        Cota cota25 = new Cota(); cota25.setId(25L); cota25.setNumeroCota(25); cota25.setGrupo(grupo);
-        Cota cota45 = new Cota(); cota45.setId(45L); cota45.setNumeroCota(45); cota45.setGrupo(grupo);
+        Cota cota12 = new Cota(); cota12.setId(12L); cota12.setCodigoCota(12); cota12.setGrupo(grupo);
+        Cota cota25 = new Cota(); cota25.setId(25L); cota25.setCodigoCota(25); cota25.setGrupo(grupo);
+        Cota cota45 = new Cota(); cota45.setId(45L); cota45.setCodigoCota(45); cota45.setGrupo(grupo);
 
         Lance lance12 = new Lance(1L, cota12, assembleia, TipoLance.FIRME, new BigDecimal("20000.00"), LocalDateTime.now(), StatusApuracaoLance.CADASTRADO, ModalidadeLance.FIXO, 0L);
         Lance lance25 = new Lance(2L, cota25, assembleia, TipoLance.FIRME, new BigDecimal("20000.00"), LocalDateTime.now(), StatusApuracaoLance.CADASTRADO, ModalidadeLance.FIXO, 0L);
@@ -115,7 +115,7 @@ class MotorApuracaoServiceTest {
         // Arrange
         assembleia.setNumeroSorteado(30);
 
-        Cota cota25 = new Cota(); cota25.setId(25L); cota25.setNumeroCota(25); cota25.setGrupo(grupo);
+        Cota cota25 = new Cota(); cota25.setId(25L); cota25.setCodigoCota(25); cota25.setGrupo(grupo);
         Lance lance25 = new Lance(2L, cota25, assembleia, TipoLance.FIRME, new BigDecimal("20000.00"), LocalDateTime.now(), StatusApuracaoLance.CADASTRADO, ModalidadeLance.FIXO, 0L);
 
         List<Lance> lances = List.of(lance25);
@@ -142,16 +142,16 @@ class MotorApuracaoServiceTest {
         // Arrange
         Cota cotaAtiva = new Cota();
         cotaAtiva.setId(10L);
-        cotaAtiva.setNumeroCota(20);
+        cotaAtiva.setCodigoCota(20);
         cotaAtiva.setGrupo(grupo);
         cotaAtiva.setStatus(StatusCota.ATIVA);
 
         Cota cotaCancelada = new Cota(); 
         cotaCancelada.setId(20L); 
-        cotaCancelada.setNumeroCota(20); 
+        cotaCancelada.setCodigoCota(20); 
         cotaCancelada.setGrupo(grupo);
         cotaCancelada.setStatus(StatusCota.CANCELADA);
-        cotaCancelada.setVersao(1);
+        cotaCancelada.setVersaoHistorico(1);
 
         when(assembleiaRepository.findById(2L)).thenReturn(Optional.of(assembleia));
         when(lanceRepository.findByAssembleiaIdOrderByValorOfertaDesc(2L)).thenReturn(List.of());

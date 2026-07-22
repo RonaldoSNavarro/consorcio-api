@@ -21,10 +21,10 @@ public interface ContemplacaoMapper {
 
     @Mapping(source = "cota.id", target = "cotaId")
     @Mapping(source = "assembleia.id", target = "assembleiaId")
-    @Mapping(source = "cota.grupo.codigo", target = "codigoGrupo")
+    @Mapping(source = "cota.grupo.codigoGrupo", target = "codigoGrupo")
     @Mapping(source = "cota.cliente.nome", target = "nomeCliente")
     @Mapping(source = "cota.cliente.cpfCnpj", target = "cpfCnpjCliente")
     @Mapping(source = "cota.status", target = "statusCota")
-    @Mapping(source = "cota.numeroCota", target = "numeroCota")
+    @Mapping(source = "cota.codigoCota", target = "codigoCota")
     ContemplacaoResponseDTO toResponse(Contemplacao entity);
 }

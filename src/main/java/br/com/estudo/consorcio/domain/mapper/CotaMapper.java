@@ -27,7 +27,7 @@ public abstract class CotaMapper {
     // Mapeia Cota para CotaResponseDTO, extraindo apenas os IDs de Cliente e Grupo
     @Mapping(source = "cliente.id", target = "clienteId")
     @Mapping(source = "grupo.id", target = "grupoId")
-    @Mapping(source = "grupo.codigo", target = "codigoGrupo")
+    @Mapping(source = "grupo.codigoGrupo", target = "codigoGrupo")
     @Mapping(source = "cliente.nome", target = "nomeConsorciado")
     @Mapping(source = "bemReferencia.id", target = "bemReferenciaId")
     @Mapping(source = "bemReferencia.descricao", target = "nomeBemReferencia")

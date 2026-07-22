@@ -56,7 +56,7 @@ Pool coletivo autônomo com patrimônio de afetação segregado da administrador
 Contrato individualizado de participação dentro de um grupo.
 - **Atributos**:
   - `id` (Long, PK)
-  - `numeroCota` (Integer, obrigatório, único por grupo)
+  - `codigoCota` (Integer, obrigatório, único por grupo)
   - `cliente` (Relationship `@ManyToOne` com `Cliente`)
   - `grupo` (Relationship `@ManyToOne` com `Grupo`)
   - `status` (Enum: `ATIVA`, `CANCELADA`, `AGUARDANDO_ANALISE`, `APROVADO`)

@@ -54,22 +54,22 @@ public class VerificadorInadimplenciaJob {
                 // >= 3 parcelas em atraso
                 if (cota.getStatus() == StatusCota.CONTEMPLADA) {
                     cotaService.registrarTransicaoVersao(cota, StatusCota.EM_EXECUCAO, "Inadimplência grave (>= 3 parcelas) de Cota Contemplada. Início de Execução.");
-                    log.info("Cota {} entrou em execução por inadimplência.", cota.getNumeroCota());
+                    log.info("Cota {} entrou em execução por inadimplência.", cota.getCodigoCota());
                 } else if (cota.getStatus() != StatusCota.EXCLUIDA) {
                     cotaService.registrarTransicaoVersao(cota, StatusCota.EXCLUIDA, "Exclusão por inadimplência (>= 3 parcelas).");
-                    log.info("Cota {} excluída por inadimplência.", cota.getNumeroCota());
+                    log.info("Cota {} excluída por inadimplência.", cota.getCodigoCota());
                 }
             } else if (totalAtrasadas >= 1) {
                 // 1 ou 2 parcelas em atraso: Suspender cota (apenas se não for contemplada)
                 if (cota.getStatus() == StatusCota.ATIVA) {
                     cotaService.registrarTransicaoVersao(cota, StatusCota.SUSPENSA, "Suspensão por inadimplência (1 ou 2 parcelas).");
-                    log.info("Cota {} suspensa por inadimplência.", cota.getNumeroCota());
+                    log.info("Cota {} suspensa por inadimplência.", cota.getCodigoCota());
                 }
             } else {
                 // 0 parcelas em atraso: Reativar cota se estiver suspensa
                 if (cota.getStatus() == StatusCota.SUSPENSA) {
                     cotaService.registrarTransicaoVersao(cota, StatusCota.ATIVA, "Regularização de inadimplência.");
-                    log.info("Cota {} reativada após regularização.", cota.getNumeroCota());
+                    log.info("Cota {} reativada após regularização.", cota.getCodigoCota());
                 }
             }
         }
