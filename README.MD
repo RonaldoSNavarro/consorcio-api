@@ -147,6 +147,11 @@ O sistema implementa regras de negócio financeiras extremamente robustas basead
   * **Efetivação de Contratos e Inauguração:** Ao aprovar uma proposta, gera-se o contrato e a fatura de adesão. A cota nasce recebendo obrigatoriamente um número sequencial dinâmico na base de dados, aguardando a inauguração do grupo (`AGUARDANDO_INAUGURACAO`) se o mesmo for novo (`EM_FORMACAO`). As cotas só são transicionadas para `ATIVA` em lote através da oficialização da 1ª AGO, ou instantaneamente caso entrem como reposição num grupo `EM_ANDAMENTO`.
 * **Performance Híbrida (Anti N+1):** O motor de fechamento de vendas combina Queries Projetadas em DTOs (para tempo real) e Materialized Views (para analítico), evitando degradação de banco (N+1 Fetching).
 
+### 15. Cadastro e Reajuste de Bens de Referência (FIPE & Histórico)
+* **Categorias Regulamentadas BACEN:** Suporte nativo às 4 categorias de bens de consórcio: *Veículos Automotores* (`BEM_MOVEL_I`), *Imóveis* (`BEM_IMOVEL`), *Serviços* (`SERVICO`) e *Outros Bens Móveis* (`BEM_MOVEL_II`), com inicialização automática via `CategoriaBemDataLoader`.
+* **Integração Tabela FIPE (Parallelum API):** Consumo HTTP assíncrono dos serviços públicos da FIPE (`/fipe/marcas`, `/modelos`, `/anos`, `/consultar`), permitindo autofill de valores oficiais de mercado e amarração pelo código FIPE.
+* **Livro de Auditoria de Preços (`historico_valores_bem_referencia`):** Toda alteração de valor de um bem gera um evento imutável anotando o valor anterior, valor novo, origem do reajuste (`FIPE`, `INCC`, `MANUAL`) e timestamp exato.
+
 ## ⚙️ Configuração e Setup
 
 ### Pré-requisitos

@@ -38,6 +38,8 @@ public class BemReferencia {
     
     private LocalDate dataUltimaAtualizacao;
     
+    private String codigoFipe;
+
     @Builder.Default
     private Boolean ativo = true;
 }

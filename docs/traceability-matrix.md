@@ -98,6 +98,16 @@
 
 ---
 
+## bens-referencia — Bens de Referência e Tabela FIPE
+
+| REQ-ID | Regra | Classe(s) Java | Controller/Endpoint | Teste |
+|--------|-------|----------------|---------------------|-------|
+| REQ-BEM-001 | Categorias Regulamentadas BACEN | `CategoriaBemDataLoader`, `BemReferenciaService` | `BemReferenciaController` — `GET /api/bens-referencia/categorias` | Testes de integração REST |
+| REQ-BEM-002 | Integração FIPE (Parallelum API) | `FipeService` | `BemReferenciaController` — `GET /api/bens-referencia/fipe/*` | Testes de integração REST |
+| REQ-BEM-003 | Auditoria de Histórico | `HistoricoValorBemReferencia`, `BemReferenciaService` | `BemReferenciaController` — `GET /api/bens-referencia/{id}/historico` | Testes de integração REST |
+
+---
+
 ## ⚠️ SPEC DRIFT Pendente
 
 | ID | Capability | Descrição | Status |

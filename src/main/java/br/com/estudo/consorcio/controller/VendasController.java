@@ -90,20 +90,20 @@ public class VendasController {
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasAuthority('MANAGE_VENDAS')")
+    @PreAuthorize("hasAnyAuthority('MANAGE_VENDAS', 'MANAGE_GRUPOS')")
     @GetMapping("/produtos")
     public ResponseEntity<List<ProdutoConsorcio>> listarProdutos() {
         return ResponseEntity.ok(produtoRepository.findAll());
     }
 
-    @PreAuthorize("hasAuthority('MANAGE_VENDAS')")
+    @PreAuthorize("hasAnyAuthority('MANAGE_VENDAS', 'MANAGE_GRUPOS')")
     @PostMapping("/propostas")
     public ResponseEntity<PropostaResponseDTO> criarProposta(@RequestBody @Valid PropostaRequestDTO request) {
         PropostaAdesao proposta = propostaService.criarProposta(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(mapper.toResponse(proposta));
     }
 
-    @PreAuthorize("hasAuthority('MANAGE_VENDAS')")
+    @PreAuthorize("hasAnyAuthority('MANAGE_VENDAS', 'MANAGE_GRUPOS')")
     @PostMapping("/propostas/{id}/aprovar")
     public ResponseEntity<ContratoResponseDTO> aprovarProposta(@PathVariable Long id) {
         ContratoAdesao contrato = propostaService.aprovarProposta(id);
@@ -122,7 +122,7 @@ public class VendasController {
         return ResponseEntity.ok(mapper.toContratoResponse(contrato));
     }
 
-    @PreAuthorize("hasAuthority('MANAGE_VENDAS')")
+    @PreAuthorize("hasAnyAuthority('MANAGE_VENDAS', 'MANAGE_GRUPOS')")
     @PostMapping("/contratos/{id}/efetivar")
     public ResponseEntity<ContratoResponseDTO> efetivarContrato(@PathVariable Long id) {
         ContratoAdesao contrato = propostaService.efetivarContrato(id);
