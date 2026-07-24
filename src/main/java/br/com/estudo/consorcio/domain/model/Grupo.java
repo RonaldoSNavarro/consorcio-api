@@ -157,6 +157,12 @@ public class Grupo {
     public BigDecimal getPercentualLanceEmbutidoMaximo() { return percentualLanceEmbutidoMaximo; }
     public void setPercentualLanceEmbutidoMaximo(BigDecimal percentualLanceEmbutidoMaximo) { this.percentualLanceEmbutidoMaximo = percentualLanceEmbutidoMaximo; }
 
+    public IndiceReajuste getIndiceReajuste() { return indiceReajuste; }
+    public void setIndiceReajuste(IndiceReajuste indiceReajuste) { this.indiceReajuste = indiceReajuste; }
+
+    public Integer getMesReajuste() { return mesReajuste; }
+    public void setMesReajuste(Integer mesReajuste) { this.mesReajuste = mesReajuste; }
+
     public StatusGrupo getStatus() { return status; }
     public void setStatus(StatusGrupo status) { this.status = status; }
 

@@ -58,6 +58,9 @@ class GrupoServiceTest {
     @Mock
     private HistoricoConsorciadoService historicoService;
 
+    @Mock
+    private br.com.estudo.consorcio.domain.repository.BemReferenciaRepository bemReferenciaRepository;
+
     @org.mockito.Spy
     private java.time.Clock clock = java.time.Clock.systemDefaultZone();
 
@@ -71,7 +74,7 @@ class GrupoServiceTest {
     @DisplayName("Deve salvar um novo grupo garantindo o status EM_FORMACAO")
     void deveSalvarGrupoComSucesso() {
         // --- ARRANGE ---
-        GrupoRequestDTO request = new GrupoRequestDTO("GRP-001", new BigDecimal("50000.00"), 60, new BigDecimal("15.00"), br.com.estudo.consorcio.domain.enums.CategoriaBem.VEICULO_AUTOMOTOR, null, null);
+        GrupoRequestDTO request = new GrupoRequestDTO("GRP-001", new BigDecimal("50000.00"), 60, new BigDecimal("15.00"), br.com.estudo.consorcio.domain.enums.CategoriaBem.VEICULO_AUTOMOTOR, null, null, 1000, null, null);
 
         // Simula o salvamento e retorna a própria entidade que foi passada como argumento
         when(repository.save(any(Grupo.class))).thenAnswer(i -> {
@@ -349,5 +352,50 @@ class GrupoServiceTest {
         verify(contabilidadeService, times(2)).registrarEncerramento(any(), any(), any(), anyString(), anyString(), any(), any(), anyString());
         verify(parcelaRepository, times(1)).saveAll(anyList());
         verify(repository, times(1)).save(grupo);
+    }
+
+    @Test
+    @DisplayName("Deve lançar RegraDeNegocioException ao tentar salvar Grupo com bem de referência incompatível com a categoria BACEN")
+    void salvar_ComBemIncompativel_DeveLancarExcecao() {
+        // Arrange
+        br.com.estudo.consorcio.domain.enums.CategoriaBem catGrupo = br.com.estudo.consorcio.domain.enums.CategoriaBem.IMOVEL;
+        
+        br.com.estudo.consorcio.domain.model.CategoriaBem catBemMovel = br.com.estudo.consorcio.domain.model.CategoriaBem.builder()
+                .id(1L)
+                .nome("Automóveis")
+                .tipoBacen(br.com.estudo.consorcio.domain.enums.TipoCategoriaBacen.BEM_MOVEL_I)
+                .build();
+
+        br.com.estudo.consorcio.domain.model.BemReferencia bemIncompativel = br.com.estudo.consorcio.domain.model.BemReferencia.builder()
+                .id(100L)
+                .descricao("Carro Sedan 2.0")
+                .categoriaBem(catBemMovel)
+                .build();
+
+        GrupoRequestDTO dto = new GrupoRequestDTO(
+                "GRP-TESTE",
+                new BigDecimal("60000.00"),
+                120,
+                new BigDecimal("15.00"),
+                catGrupo,
+                br.com.estudo.consorcio.domain.model.IndiceReajuste.INCC,
+                1,
+                1000,
+                List.of(100L),
+                List.of(120)
+        );
+
+        when(mapper.toEntity(dto)).thenAnswer(inv -> {
+            Grupo g = new Grupo();
+            g.setCodigoGrupo("GRP-TESTE");
+            g.setCategoriaBem(catGrupo);
+            return g;
+        });
+
+        when(bemReferenciaRepository.findAllById(List.of(100L))).thenReturn(List.of(bemIncompativel));
+
+        // Act & Assert
+        RegraDeNegocioException ex = assertThrows(RegraDeNegocioException.class, () -> service.salvar(dto));
+        assertTrue(ex.getMessage().contains("incompatível com a categoria do grupo"));
     }
 }

@@ -21,6 +21,8 @@ public interface GrupoRepository extends JpaRepository<Grupo, Long> {
     
     List<Grupo> findByStatusAndDataEncerramentoBefore(StatusGrupo status, LocalDate date);
     
+    List<Grupo> findByStatusAndMesReajuste(StatusGrupo status, Integer mesReajuste);
+    
     @org.springframework.data.jpa.repository.Query("""
         SELECT new br.com.estudo.consorcio.domain.dto.GrupoFinanceiroDTO(
             g.id, g.codigoGrupo,
@@ -38,7 +40,7 @@ public interface GrupoRepository extends JpaRepository<Grupo, Long> {
     @org.springframework.data.jpa.repository.Query("""
         SELECT g FROM Grupo g WHERE g.categoriaBem = :categoria
         AND (g.status = 'EM_ANDAMENTO' OR g.status = 'EM_FORMACAO')
-        AND (SELECT COUNT(c) FROM Cota c WHERE c.grupo = g) < 100
+        AND (SELECT COUNT(c) FROM Cota c WHERE c.grupo = g) < g.quantidadeCotas
         ORDER BY g.status ASC, (SELECT COUNT(c) FROM Cota c WHERE c.grupo = g) DESC
         LIMIT 1
     """)

@@ -43,6 +43,13 @@ public class PropostaAdesao {
     private ProdutoConsorcio produto;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "grupo_id")
+    private Grupo grupo;
+
+    @Column(name = "codigo_grupo")
+    private String codigoGrupo;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "corretor_id")
     private Corretor corretor;
 

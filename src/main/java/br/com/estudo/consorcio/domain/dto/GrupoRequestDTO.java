@@ -37,5 +37,12 @@ public record GrupoRequestDTO(
         br.com.estudo.consorcio.domain.model.IndiceReajuste indiceReajuste,
         
         @Schema(example = "1")
-        Integer mesReajuste
+        Integer mesReajuste,
+
+        @Schema(example = "1000")
+        Integer quantidadeCotas,
+
+        java.util.List<Long> bensPermitidos,
+
+        java.util.List<Integer> prazosPermitidos
 ) {}

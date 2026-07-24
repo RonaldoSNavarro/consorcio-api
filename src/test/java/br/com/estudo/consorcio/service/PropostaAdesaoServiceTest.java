@@ -40,6 +40,9 @@ public class PropostaAdesaoServiceTest {
     private AlertaComplianceRepository alertaComplianceRepository;
 
     @Mock
+    private br.com.estudo.consorcio.service.MatchComplianceService matchComplianceService;
+
+    @Mock
     private br.com.estudo.consorcio.domain.repository.GrupoRepository grupoRepository;
 
     @Mock
@@ -111,12 +114,16 @@ public class PropostaAdesaoServiceTest {
 
         br.com.estudo.consorcio.domain.model.Grupo grupoMock = new br.com.estudo.consorcio.domain.model.Grupo();
         grupoMock.setId(1L);
+        grupoMock.setCodigoGrupo("GRP-001");
         grupoMock.setStatus(br.com.estudo.consorcio.domain.model.StatusGrupo.EM_ANDAMENTO);
         grupoMock.setTaxaAdministracao(new java.math.BigDecimal("10.00"));
         grupoMock.setDiasAntecedenciaVencimento(5);
+        grupoMock.setQuantidadeCotas(100);
+
+        proposta.setGrupo(grupoMock);
+        proposta.setCodigoGrupo("GRP-001");
 
         when(propostaRepository.findById(10L)).thenReturn(Optional.of(proposta));
-        when(grupoRepository.encontrarMelhorGrupoDisponivel(any())).thenReturn(Optional.of(grupoMock));
         when(contratoRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         ContratoAdesao contrato = propostaService.analisarPropostaRisco(10L, new br.com.estudo.consorcio.domain.dto.AnaliseRiscoRequestDTO(true, "Tudo ok"));
@@ -139,5 +146,35 @@ public class PropostaAdesaoServiceTest {
         assertEquals(StatusProposta.REPROVADA_POR_RISCO, proposta.getStatus());
         verify(propostaRepository).save(proposta);
         verify(contratoRepository, never()).save(any());
+    }
+
+    @Test
+    void efetivarContrato_SemGrupoDisponivel_DeveLancarExcecaoERejeitarCriacaoAutomatica() {
+        ContratoAdesao contratoMock = new ContratoAdesao();
+        contratoMock.setStatus(br.com.estudo.consorcio.domain.enums.StatusContrato.PENDENTE_PAGAMENTO);
+        
+        br.com.estudo.consorcio.domain.model.CategoriaBem cat = new br.com.estudo.consorcio.domain.model.CategoriaBem();
+        cat.setTipoBacen(br.com.estudo.consorcio.domain.enums.TipoCategoriaBacen.BEM_IMOVEL);
+        
+        br.com.estudo.consorcio.domain.model.BemReferencia bem = new br.com.estudo.consorcio.domain.model.BemReferencia();
+        bem.setCategoriaBem(cat);
+        
+        br.com.estudo.consorcio.domain.model.ProdutoConsorcio produto = new br.com.estudo.consorcio.domain.model.ProdutoConsorcio();
+        produto.setBemReferencia(bem);
+        
+        PropostaAdesao propostaMock = new PropostaAdesao();
+        propostaMock.setStatus(StatusProposta.APROVADA);
+        propostaMock.setProduto(produto);
+        contratoMock.setProposta(propostaMock);
+
+        when(grupoRepository.encontrarMelhorGrupoDisponivel(any())).thenReturn(Optional.empty());
+        when(contratoRepository.save(any())).thenReturn(contratoMock);
+
+        RegraDeNegocioException ex = assertThrows(RegraDeNegocioException.class, () -> {
+            propostaService.efetivarContrato(contratoMock);
+        });
+
+        assertEquals("Nenhum grupo ativo disponível com vagas para a categoria solicitada.", ex.getMessage());
+        verify(grupoRepository, never()).save(any());
     }
 }

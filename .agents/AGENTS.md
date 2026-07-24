@@ -16,4 +16,8 @@ Ao trabalhar em qualquer tarefa do repositório `consorcio-api`, os agentes DEVE
     - **Grupos**: a coluna de identificador no banco é `codigo_grupo` (Java/DTO: `codigoGrupo`). O termo `codigo` em Grupos foi totalmente descontinuado.
     - **Lock Otimista (JPA @Version)**: a coluna no banco DEVE se chamar `versao` (`BIGINT NOT NULL DEFAULT 0`) em todas as tabelas (`cotas`, `grupos`, `parcelas`, `assembleias`, `lances`).
     - **Histórico de Negócio**: campos de versionamento de histórico de negócio (ex: histórico de cessão em Cota) DEVEM se chamar `versao_historico` (`versaoHistorico` em Java).
+11. **Homogeneidade de Categoria BACEN e Crédito por Bem de Referência**:
+    - **Grupos**: É estritamente proibido vincular a um `Grupo` bens de referência com `categoriaBem` diferente da categoria do grupo. O `GrupoService` deve validar e lançar `RegraDeNegocioException` se houver incompatibilidade.
+    - **Proposta de Adesão**: O valor do crédito da proposta (`valorCreditoSolicitado`) deve ser obtido e validado a partir do valor atual do `BemReferencia` selecionado, sendo vedado o preenchimento arbitrário ou inconsistente.
+
 

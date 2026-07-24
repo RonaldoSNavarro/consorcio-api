@@ -35,6 +35,7 @@ import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
 import br.com.estudo.consorcio.domain.model.Assembleia;
 import br.com.estudo.consorcio.domain.model.Parcela;
 import br.com.estudo.consorcio.domain.model.StatusParcela;
+import br.com.estudo.consorcio.service.MatchComplianceService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,6 +56,7 @@ public class PropostaAdesaoService {
     private final ProdutoConsorcioRepository produtoRepository;
     private final TipoVendaRepository tipoVendaRepository;
     private final AlertaComplianceRepository alertaComplianceRepository;
+    private final MatchComplianceService matchComplianceService;
     
     // Injeção dos repositórios de Cota/Grupo
     private final GrupoRepository grupoRepository;
@@ -72,6 +74,9 @@ public class PropostaAdesaoService {
             throw new RegraDeNegocioException("RN-VND-001: Cliente inativo não pode gerar nova proposta.");
         }
 
+        // Executa cruzamento síncrono com listas restritivas antes da proposta
+        matchComplianceService.cruzarClienteEGerarAlertas(cliente);
+
         boolean hasRestrictedAlerts = alertaComplianceRepository.existsByClienteIdAndStatusIn(
                 cliente.getId(), 
                 List.of(StatusAlertaCompliance.PENDENTE_ANALISE, StatusAlertaCompliance.CONFIRMADO)
@@ -86,10 +91,18 @@ public class PropostaAdesaoService {
         TipoVenda tipoVenda = tipoVendaRepository.findById(request.getTipoVendaId())
                 .orElseThrow(() -> new RegraDeNegocioException("Tipo de Venda não encontrado"));
 
+        Grupo grupo = null;
+        if (request.getGrupoId() != null) {
+            grupo = grupoRepository.findById(request.getGrupoId())
+                    .orElseThrow(() -> new RegraDeNegocioException("Grupo selecionado não encontrado"));
+        }
+
         PropostaAdesao proposta = PropostaAdesao.builder()
                 .numeroProposta("PROP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
                 .cliente(cliente)
                 .produto(produto)
+                .grupo(grupo)
+                .codigoGrupo(grupo != null ? grupo.getCodigoGrupo() : null)
                 .tipoVenda(tipoVenda)
                 .valorCreditoSolicitado(request.getValorCreditoSolicitado())
                 .status(StatusProposta.EM_ANALISE)
@@ -108,6 +121,9 @@ public class PropostaAdesaoService {
         if (proposta.getStatus() != StatusProposta.EM_ANALISE) {
             throw new RegraDeNegocioException("Apenas propostas EM_ANALISE podem ser aprovadas.");
         }
+
+        // Executa cruzamento síncrono com listas restritivas na aprovação da proposta
+        matchComplianceService.cruzarClienteEGerarAlertas(proposta.getCliente());
 
         boolean hasRestrictedAlerts = alertaComplianceRepository.existsByClienteIdAndStatusIn(
                 proposta.getCliente().getId(),
@@ -194,22 +210,24 @@ public class PropostaAdesaoService {
         contrato.setDataAssinatura(LocalDateTime.now(clock));
         contrato = contratoRepository.save(contrato);
         
-        br.com.estudo.consorcio.domain.enums.CategoriaBem catEnum = mapCategoriaBacen(contrato.getProposta().getProduto().getBemReferencia().getCategoriaBem().getTipoBacen());
-        
         final br.com.estudo.consorcio.domain.model.PropostaAdesao proposta = contrato.getProposta();
         
-        // Alocação Inteligente
-        Grupo grupo = grupoRepository.encontrarMelhorGrupoDisponivel(catEnum)
-                .orElseGet(() -> {
-                    Grupo novo = new Grupo();
-                    novo.setCodigoGrupo("GRP-" + UUID.randomUUID().toString().substring(0, 5).toUpperCase());
-                    novo.setCategoriaBem(catEnum);
-                    novo.setValorCredito(proposta.getValorCreditoSolicitado());
-                    novo.setPrazoMeses(proposta.getProduto().getPrazoMeses());
-                    novo.setTaxaAdministracao(proposta.getProduto().getTaxaAdministracaoPerc());
-                    novo.setStatus(StatusGrupo.EM_FORMACAO);
-                    return grupoRepository.save(novo);
-                });
+        // Respeita o Grupo selecionado na Proposta; se nulo, busca o melhor grupo existente com vagas
+        Grupo grupo = proposta.getGrupo();
+        if (grupo == null && proposta.getCodigoGrupo() != null) {
+            grupo = grupoRepository.findByCodigoGrupo(proposta.getCodigoGrupo()).orElse(null);
+        }
+        
+        if (grupo == null) {
+            br.com.estudo.consorcio.domain.enums.CategoriaBem catEnum = mapCategoriaBacen(proposta.getProduto().getBemReferencia().getCategoriaBem().getTipoBacen());
+            grupo = grupoRepository.encontrarMelhorGrupoDisponivel(catEnum)
+                    .orElseThrow(() -> new RegraDeNegocioException("Nenhum grupo ativo disponível com vagas para a categoria solicitada."));
+        } else {
+            long cotasExistentes = cotaRepository.countByGrupoId(grupo.getId());
+            if (cotasExistentes >= grupo.getQuantidadeCotas()) {
+                throw new RegraDeNegocioException("O grupo selecionado (" + grupo.getCodigoGrupo() + ") atingiu a capacidade máxima de cotas.");
+            }
+        }
 
         Cota cota = new Cota();
         long cotasNoGrupo = cotaRepository.countByGrupoId(grupo.getId());
@@ -303,17 +321,53 @@ public class PropostaAdesaoService {
 
         return propostas.stream()
                 .map(proposta -> {
-                    List<AlertaCompliance> alertas = alertasPorCliente.getOrDefault(proposta.getCliente().getId(), java.util.Collections.emptyList());
-                    
-                    List<AlertaResumoDTO> alertasDto = alertas.stream()
-                            .map(alerta -> new AlertaResumoDTO(
-                                    alerta.getListaRestritiva().getOrigem().name(),
-                                    alerta.getListaRestritiva().getNome(),
-                                    alerta.getDataDeteccao()
-                            ))
-                            .toList();
-                            
                     Cliente cliente = proposta.getCliente();
+                    List<AlertaCompliance> alertas = alertasPorCliente.getOrDefault(cliente.getId(), java.util.Collections.emptyList());
+                    
+                    List<AlertaResumoDTO> alertasDto = new java.util.ArrayList<>();
+
+                    // 1. Cliente declarado PEP no cadastro
+                    if (Boolean.TRUE.equals(cliente.getPep())) {
+                        alertasDto.add(new AlertaResumoDTO(
+                                "PEP",
+                                "Cliente declarado Pessoa Politicamente Exposta (PEP)",
+                                proposta.getDataProposta() != null ? proposta.getDataProposta() : LocalDateTime.now(clock)
+                        ));
+                    }
+
+                    // 2. Alertas de Listas Restritivas (PEP, OFAC, ONU, CEIS, CNEP, etc.)
+                    for (AlertaCompliance alerta : alertas) {
+                        String origem = (alerta.getListaRestritiva() != null && alerta.getListaRestritiva().getOrigem() != null)
+                                ? alerta.getListaRestritiva().getOrigem().name()
+                                : "LISTA_RESTRITIVA";
+
+                        // Evita duplicar tag PEP se já foi adicionado pelo flag do cliente
+                        if ("PEP".equalsIgnoreCase(origem) && Boolean.TRUE.equals(cliente.getPep())) {
+                            continue;
+                        }
+
+                        String nomeLista = alerta.getListaRestritiva() != null ? alerta.getListaRestritiva().getNome() : "Lista Restritiva";
+                        String desc = nomeLista;
+                        if (alerta.getJustificativa() != null && !alerta.getJustificativa().isBlank()) {
+                            desc += " (" + alerta.getJustificativa() + ")";
+                        }
+
+                        alertasDto.add(new AlertaResumoDTO(
+                                origem,
+                                desc,
+                                alerta.getDataDeteccao() != null ? alerta.getDataDeteccao() : LocalDateTime.now(clock)
+                        ));
+                    }
+
+                    // 3. Fallback de Risco Alto se não houver alertas mapeados
+                    if (cliente.getNivelRisco() == NivelRisco.ALTO && alertasDto.isEmpty()) {
+                        alertasDto.add(new AlertaResumoDTO(
+                                "RISCO_ALTO",
+                                "Cliente com classificação interna de Risco Alto",
+                                proposta.getDataProposta() != null ? proposta.getDataProposta() : LocalDateTime.now(clock)
+                        ));
+                    }
+                            
                     ClienteResponseDTO clienteDto = new ClienteResponseDTO(
                             cliente.getId(),
                             cliente.getNome(),

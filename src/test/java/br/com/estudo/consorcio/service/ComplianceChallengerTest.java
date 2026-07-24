@@ -110,6 +110,7 @@ public class ComplianceChallengerTest {
         propostaAdesaoService = new PropostaAdesaoService(
                 propostaRepository, contratoRepository, clienteRepository,
                 produtoRepository, tipoVendaRepository, alertaComplianceRepository,
+                matchComplianceService,
                 grupoRepository, cotaRepository, assembleiaRepository, parcelaRepository,
                 java.time.Clock.systemDefaultZone()
         );
@@ -269,6 +270,7 @@ public class ComplianceChallengerTest {
         requestDto.setClienteId(1L);
         requestDto.setProdutoId(10L);
         requestDto.setTipoVendaId(20L);
+        requestDto.setGrupoId(100L);
         requestDto.setValorCreditoSolicitado(BigDecimal.valueOf(100000));
 
         assertThrows(RegraDeNegocioException.class, () -> propostaAdesaoService.criarProposta(requestDto),

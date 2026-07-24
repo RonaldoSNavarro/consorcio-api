@@ -4,6 +4,7 @@ import br.com.estudo.consorcio.domain.dto.GrupoEncerrarResponseDTO;
 import br.com.estudo.consorcio.domain.dto.GrupoFinanceiroResponseDTO;
 import br.com.estudo.consorcio.domain.dto.GrupoRequestDTO;
 import br.com.estudo.consorcio.domain.dto.GrupoResponseDTO;
+import br.com.estudo.consorcio.domain.enums.TipoCategoriaBacen;
 import br.com.estudo.consorcio.domain.mapper.GrupoMapper;
 import br.com.estudo.consorcio.domain.model.*;
 import br.com.estudo.consorcio.domain.repository.*;
@@ -31,13 +32,18 @@ public class GrupoService {
     private final HistoricoConsorciadoService historicoService;
     private final ContabilidadeService contabilidadeService;
     private final AssembleiaRepository assembleiaRepository;
+    private final BcbSgsService bcbSgsService;
+    private final HistoricoValorBemReferenciaRepository historicoBemRepository;
+    private final BemReferenciaRepository bemReferenciaRepository;
     private final java.time.Clock clock;
 
     public GrupoService(GrupoRepository repository, ParcelaRepository parcelaRepository,
                         ContemplacaoRepository contemplacaoRepository, GrupoMapper mapper,
                         MovimentoFinanceiroService movimentoService, CotaRepository cotaRepository,
                         HistoricoConsorciadoService historicoService, ContabilidadeService contabilidadeService,
-                        AssembleiaRepository assembleiaRepository, java.time.Clock clock) {
+                        AssembleiaRepository assembleiaRepository, BcbSgsService bcbSgsService,
+                        HistoricoValorBemReferenciaRepository historicoBemRepository,
+                        BemReferenciaRepository bemReferenciaRepository, java.time.Clock clock) {
         this.repository = repository;
         this.parcelaRepository = parcelaRepository;
         this.contemplacaoRepository = contemplacaoRepository;
@@ -47,6 +53,9 @@ public class GrupoService {
         this.historicoService = historicoService;
         this.contabilidadeService = contabilidadeService;
         this.assembleiaRepository = assembleiaRepository;
+        this.bcbSgsService = bcbSgsService;
+        this.historicoBemRepository = historicoBemRepository;
+        this.bemReferenciaRepository = bemReferenciaRepository;
         this.clock = clock;
     }
 
@@ -66,17 +75,34 @@ public class GrupoService {
         // Regra BCB: Todo grupo nasce em formação (Garantido pelo Back-end)
         grupo.setStatus(StatusGrupo.EM_FORMACAO);
 
+        if (dto.quantidadeCotas() != null && dto.quantidadeCotas() > 0) {
+            grupo.setQuantidadeCotas(dto.quantidadeCotas());
+        } else {
+            grupo.setQuantidadeCotas(1000);
+        }
+
+        if (dto.prazoMeses() != null) {
+            grupo.setPrazoMaximoMeses(dto.prazoMeses());
+        }
+
+        if (dto.prazosPermitidos() != null && !dto.prazosPermitidos().isEmpty()) {
+            grupo.setPrazosPermitidos(new java.util.ArrayList<>(dto.prazosPermitidos()));
+        } else if (dto.prazoMeses() != null) {
+            grupo.setPrazosPermitidos(java.util.List.of(dto.prazoMeses()));
+        }
+
+        if (dto.bensPermitidos() != null && !dto.bensPermitidos().isEmpty()) {
+            List<BemReferencia> bens = bemReferenciaRepository.findAllById(dto.bensPermitidos());
+            grupo.setBensPermitidos(bens);
+        }
+
+        // Validação BACEN: Homogeneidade de categoria no Grupo
+        validarHomogeneidadeCategoriaBem(grupo);
+
         // 2. Persistência
         Grupo grupoSalvo = repository.save(grupo);
 
-        // 3. Criar Cotas vazias
-        for (int i = 1; i <= grupoSalvo.getQuantidadeCotas(); i++) {
-            Cota cota = new Cota();
-            cota.setGrupo(grupoSalvo);
-            cota.setCodigoCota(i);
-            cota.setStatus(StatusCota.DISPONIVEL);
-            cotaRepository.save(cota);
-        }
+        // 3. (Removido) Cotas não são mais pré-geradas. Cotas só nascem no banco após a venda efetiva.
 
         // 4. Criar Assembleias baseadas no prazoMaximoMeses e diaBaseAssembleias
         LocalDate currentDate = LocalDate.now(clock);
@@ -198,6 +224,44 @@ public class GrupoService {
         return mapper.toResponse(grupoSalvo);
     }
 
+    @Transactional
+    public GrupoResponseDTO reajustarGrupoPorIndice(Long grupoId, IndiceReajuste indiceOverride) {
+        Grupo grupo = repository.findById(grupoId)
+                .orElseThrow(() -> new RegraDeNegocioException("Grupo não encontrado."));
+
+        if (grupo.getStatus() == StatusGrupo.ENCERRADO) {
+            throw new RegraDeNegocioException("Não é possível reajustar um grupo já encerrado.");
+        }
+
+        IndiceReajuste indice = indiceOverride != null ? indiceOverride : grupo.getIndiceReajuste();
+        if (indice == null || indice == IndiceReajuste.MANUAL) {
+            throw new RegraDeNegocioException("Índice de reajuste econômico não parametrizado para este grupo.");
+        }
+
+        var simulacao = bcbSgsService.simularReajuste(indice, grupo.getValorCredito());
+        BigDecimal novoValorCredito = simulacao.novoValorCalculado();
+
+        // Se o valor for atualizado, registra também no histórico do Bem de Referência principal
+        if (grupo.getBensPermitidos() != null && !grupo.getBensPermitidos().isEmpty()) {
+            BemReferencia bem = grupo.getBensPermitidos().get(0);
+            BigDecimal valorAntigoBem = bem.getValorAtual();
+            bem.setValorAtual(novoValorCredito);
+            bem.setDataUltimaAtualizacao(LocalDate.now());
+
+            if (valorAntigoBem != null && valorAntigoBem.compareTo(novoValorCredito) != 0) {
+                historicoBemRepository.save(HistoricoValorBemReferencia.builder()
+                        .bemReferencia(bem)
+                        .valorAnterior(valorAntigoBem)
+                        .valorNovo(novoValorCredito)
+                        .origemReajuste(indice.name())
+                        .dataAtualizacao(java.time.LocalDateTime.now())
+                        .build());
+            }
+        }
+
+        return reajustarGrupo(grupoId, novoValorCredito);
+    }
+
     public GrupoFinanceiroResponseDTO obterRelatorioFinanceiro(Long grupoId) {
         Grupo grupo = repository.findById(grupoId)
                 .orElseThrow(() -> new RegraDeNegocioException("Grupo não encontrado."));
@@ -313,5 +377,35 @@ public class GrupoService {
     public Page<GrupoResponseDTO> listarTodos(Pageable pageable) {
         return repository.findAll(pageable)
                 .map(mapper::toResponse);
+    }
+
+    private void validarHomogeneidadeCategoriaBem(Grupo grupo) {
+        if (grupo.getCategoriaBem() == null || grupo.getBensPermitidos() == null || grupo.getBensPermitidos().isEmpty()) {
+            return;
+        }
+
+        br.com.estudo.consorcio.domain.enums.CategoriaBem catGrupo = grupo.getCategoriaBem();
+
+        for (BemReferencia bem : grupo.getBensPermitidos()) {
+            if (bem.getCategoriaBem() != null) {
+                TipoCategoriaBacen tipoBacen = bem.getCategoriaBem().getTipoBacen();
+                if (!isCategoriaCompativel(catGrupo, tipoBacen)) {
+                    throw new RegraDeNegocioException(
+                        String.format("O bem de referência '%s' (%s) é incompatível com a categoria do grupo (%s). De acordo com as regras do BACEN, grupos só podem conter bens da mesma categoria.",
+                            bem.getDescricao(), tipoBacen, catGrupo)
+                    );
+                }
+            }
+        }
+    }
+
+    private boolean isCategoriaCompativel(br.com.estudo.consorcio.domain.enums.CategoriaBem catGrupo, TipoCategoriaBacen tipoBacen) {
+        if (catGrupo == null || tipoBacen == null) return true;
+        return switch (catGrupo) {
+            case IMOVEL -> tipoBacen == TipoCategoriaBacen.BEM_IMOVEL;
+            case VEICULO_AUTOMOTOR -> tipoBacen == TipoCategoriaBacen.BEM_MOVEL_I;
+            case OUTROS_BENS_MOVEIS -> tipoBacen == TipoCategoriaBacen.BEM_MOVEL_II;
+            case SERVICO -> tipoBacen == TipoCategoriaBacen.SERVICO;
+        };
     }
 }

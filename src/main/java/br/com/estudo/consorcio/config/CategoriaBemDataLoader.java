@@ -22,16 +22,17 @@ public class CategoriaBemDataLoader implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-        if (repository.count() < 4) {
-            repository.deleteAll();
-            List<CategoriaBem> categorias = List.of(
-                CategoriaBem.builder().nome("Veículos Automotores").tipoBacen(TipoCategoriaBacen.BEM_MOVEL_I).indiceReajustePadrao(IndiceReajuste.FIPE).build(),
-                CategoriaBem.builder().nome("Imóveis").tipoBacen(TipoCategoriaBacen.BEM_IMOVEL).indiceReajustePadrao(IndiceReajuste.INCC).build(),
-                CategoriaBem.builder().nome("Serviços").tipoBacen(TipoCategoriaBacen.SERVICO).indiceReajustePadrao(IndiceReajuste.IPCA).build(),
-                CategoriaBem.builder().nome("Outros Bens Móveis").tipoBacen(TipoCategoriaBacen.BEM_MOVEL_II).indiceReajustePadrao(IndiceReajuste.IPCA).build()
-            );
-            repository.saveAll(categorias);
-            System.out.println("🌱 Seeded " + categorias.size() + " categorias de bem com sucesso!");
+        List<CategoriaBem> desejadas = List.of(
+            CategoriaBem.builder().nome("Veículos Automotores").tipoBacen(TipoCategoriaBacen.BEM_MOVEL_I).indiceReajustePadrao(IndiceReajuste.FIPE).build(),
+            CategoriaBem.builder().nome("Imóveis").tipoBacen(TipoCategoriaBacen.BEM_IMOVEL).indiceReajustePadrao(IndiceReajuste.INCC).build(),
+            CategoriaBem.builder().nome("Serviços").tipoBacen(TipoCategoriaBacen.SERVICO).indiceReajustePadrao(IndiceReajuste.IPCA).build(),
+            CategoriaBem.builder().nome("Outros Bens Móveis").tipoBacen(TipoCategoriaBacen.BEM_MOVEL_II).indiceReajustePadrao(IndiceReajuste.IPCA).build()
+        );
+
+        for (CategoriaBem c : desejadas) {
+            if (repository.findByTipoBacen(c.getTipoBacen()).isEmpty()) {
+                repository.save(c);
+            }
         }
     }
 }

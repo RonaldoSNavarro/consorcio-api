@@ -13,6 +13,8 @@ public class PropostaResponseDTO {
     private String numeroProposta;
     private Long clienteId;
     private Long produtoId;
+    private Long grupoId;
+    private String codigoGrupo;
     private BigDecimal valorCreditoSolicitado;
     private String status;
     private LocalDateTime dataProposta;
