@@ -1,7 +1,7 @@
 # 📋 Contrato de API — Composição de Fundos e Parcelas (fundos)
 
 *   **Capability**: fundos
-*   **Versão**: v1.0 (Baseline Retroativo)
+*   **Versão**: v1.1
 *   **Spec de referência**: [spec.md](spec.md)
 *   **Última alteração**: Geração retroativa baseada no código implementado.
 
@@ -14,6 +14,12 @@ Todos os endpoints requerem cookie `HttpOnly` com JWT válido.
 ---
 
 ## 📡 Endpoints
+
+### PUT `/api/parcelas/{parcelaId}/pagar`
+
+Registra o pagamento real. Se `numeroParcela = 1` e a cota estiver em
+`AGUARDANDO_PAGAMENTO`, a mesma transação efetiva o contrato e promove a cota para
+`ATIVA` ou `AGUARDANDO_INAUGURACAO`.
 
 ### POST `/api/parcelas`
 

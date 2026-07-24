@@ -117,6 +117,7 @@ O `AuthContext.jsx` inicializa o token a partir do `localStorage.getItem('consor
 ## 📈 4. Estado Atual do Projeto
 
 - **Fase Atual:** Projeto Integrado e Estabilizado (Esteira de Vendas CRM/Comercial 100% finalizada e Otimizações de Performance aplicadas).
+- **Patch de Vendas v2.2:** A aprovação registra contrato `PENDENTE_PAGAMENTO`, cota `AGUARDANDO_PAGAMENTO` e parcela nº 1 `PENDENTE`; somente a baixa real dessa parcela, pelo módulo Financeiro, efetiva contrato e cota na mesma transação.
 - **Status:** Todas as 14 exigências regulatórias (GAPs) da `consorcio-brasil` foram integradas à API e testadas com sucesso via Frontend real em modo de Produção (Zero Mocks). As capabilities de **Esteira de Vendas** e **Bens de Referência (com integração FIPE e Histórico de Preços)** foram validadas de ponta a ponta. Adotamos o uso híbrido de DTOs Projections (Spring Data JPA) e *Materialized Views* (PostgreSQL via Flyway V45) para aniquilar gargalos de Fetch N+1 nas Queries de totalização financeira. A API está agora 100% aderente às diretrizes técnicas da Lei 11.795/08 e Circular/Resolução BACEN. O sistema atingiu a sua maturidade funcional absoluta.
 - **Artefatos Gerados:** 
   - [REQUIREMENTS.md](file:///f:/Dev/Projetos/consorcio-api/docs/REQUIREMENTS.md) (Índice geral e modelos de dados compartilhados).

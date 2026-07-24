@@ -1,19 +1,12 @@
 ---
 name: consorcio-brasil
 description: >
-  Conhecimento completo e atualizado sobre o Sistema de Consórcios brasileiro regulamentado pelo
-  Banco Central do Brasil. Use esta skill sempre que o usuário perguntar sobre ou precisar
-  implementar qualquer aspecto de consórcio: regras de sorteio/contemplação por Loteria Federal,
-  algoritmos de pedra-chave, tipos e apuração de lances, desempate, sorteio de excluídos,
-  composição de parcelas, reajustes (INCC/IPCA/FIPE), fundo comum, taxa de administração, fundo de
-  reserva, inadimplência, exclusão, restituição, assembleias (AGO/AGE), transferência de cotas,
-  regras do BACEN (Circular 3432/2009 e Resolução BCB 285/2023), modelagem de dados,
-  desenvolvimento de APIs ou qualquer outro tema relacionado a consórcios no Brasil.
-  Também inclui conhecimentos sobre: PLD/FT (Lavagem de Dinheiro), LGPD, Contabilidade COSIF,
-  Seguros Prestamistas, Análise de Crédito, e Liquidação de Grupos.
-  Deve ser usada SEMPRE que o usuário mencionar palavras como "consórcio", "contemplação",
-  "assembleia", "cota", "carta de crédito", "fundo comum", "lance", "sorteio", "BACEN consórcio",
-  "administradora de consórcio" ou qualquer variante, mesmo que a pergunta pareça simples.
+  Regras técnicas e regulatórias do Sistema de Consórcios brasileiro. Usar sempre que a tarefa
+  envolver consórcio, cota, grupo, proposta, carta de crédito, contemplação, sorteio, lance,
+  assembleia, parcelas, reajustes, fundos, inadimplência, exclusão, restituição, transferência,
+  BACEN, PLD/FT, LGPD, COSIF, seguros, análise de crédito ou liquidação de grupos. Orienta
+  modelagem, APIs, cálculos, estados e auditoria conforme a Lei 11.795/2008, Circular 3.432/2009
+  e Resolução BCB 285/2023, sempre subordinada às specs SDD vigentes da capability.
 ---
 
 # Skill: Sistema de Consórcios Brasileiro

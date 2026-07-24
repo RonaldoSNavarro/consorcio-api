@@ -30,6 +30,7 @@
 | REQ-FUN-001 | Composição da Parcela Mensal | `ParcelaService`, `Parcela.java` | `ParcelaController` — `POST /api/parcelas` | `ParcelaServiceTest` |
 | REQ-FUN-002 | Hook JPA de Consistência | `Parcela.java` (`@PrePersist/@PreUpdate`) | N/A (automático) | `ParcelaServiceTest` |
 | REQ-FUN-003 | Segregação Contábil | `ContabilidadeService`, `LancamentoContabil` | N/A (interno) | `ContabilidadeServiceTest` |
+| REQ-FUN-004 | Efetivação após pagamento da adesão | `ParcelaService.pagar()` | `ParcelaController` — endpoint de pagamento | `ParcelaServiceTest` |
 
 ---
 
@@ -105,6 +106,21 @@
 | REQ-BEM-001 | Categorias Regulamentadas BACEN | `CategoriaBemDataLoader`, `BemReferenciaService` | `BemReferenciaController` — `GET /api/bens-referencia/categorias` | Testes de integração REST |
 | REQ-BEM-002 | Integração FIPE (Parallelum API) | `FipeService` | `BemReferenciaController` — `GET /api/bens-referencia/fipe/*` | Testes de integração REST |
 | REQ-BEM-003 | Auditoria de Histórico | `HistoricoValorBemReferencia`, `BemReferenciaService` | `BemReferenciaController` — `GET /api/bens-referencia/{id}/historico` | Testes de integração REST |
+
+---
+
+## vendas — Módulo de Vendas
+
+| REQ-ID | Regra | Classe(s) Java | Controller/Endpoint | Teste |
+|--------|-------|----------------|---------------------|-------|
+| REQ-VND-001 | Cliente ativo para proposta | `PropostaAdesaoService.criarProposta()` | `VendasController` — `POST /api/vendas/propostas` | `ComplianceChallengerTest` |
+| REQ-VND-002 | Produtos de consórcio | `ProdutoConsorcio` | `VendasController` — `GET /api/vendas/produtos` | — |
+| REQ-VND-003 | Geração da proposta | `PropostaAdesaoService.criarProposta()` | `VendasController` — `POST /api/vendas/propostas` | `ComplianceChallengerTest` |
+| REQ-VND-004 | Aprovação registra contrato/cota aguardando pagamento | `PropostaAdesaoService.aprovarProposta()`, `prepararContratoParaPagamento()` | `VendasController` — `POST /api/vendas/propostas/{id}/aprovar` | `PropostaAdesaoServiceTest` |
+| REQ-VND-005 | Efetivação da adesão mediante pagamento real | `ParcelaService.pagar()` | endpoint de pagamento de parcela; endpoint legado `/api/vendas/contratos/{id}/efetivar` apenas prepara idempotentemente | `PropostaAdesaoServiceTest`, `ParcelaServiceTest` |
+| REQ-VND-006 | Tipos de venda | `TipoVenda` | `VendasController` — endpoints `/api/vendas/tipos` | — |
+| REQ-VND-007 | Comissionamento | `ComissaoVendaService` | Fluxo interno de vendas | — |
+| REQ-VND-008 | Retenção PLD/FT para Compliance | `PropostaAdesaoService.criarProposta()`, `listarPropostasPendentesDeRisco()` | `POST /api/vendas/propostas`, `GET /api/vendas/propostas/pendentes-risco` | `ComplianceChallengerTest`, `PropostaAdesaoServiceTest` |
 
 ---
 

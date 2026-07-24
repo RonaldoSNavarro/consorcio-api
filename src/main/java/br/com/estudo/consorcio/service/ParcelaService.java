@@ -6,7 +6,9 @@ import br.com.estudo.consorcio.domain.dto.ParcelaResponseDTO;
 import br.com.estudo.consorcio.domain.mapper.ParcelaMapper;
 import br.com.estudo.consorcio.domain.model.*;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
+import br.com.estudo.consorcio.domain.repository.ContratoAdesaoRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
+import br.com.estudo.consorcio.domain.enums.StatusContrato;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -28,11 +30,12 @@ public class ParcelaService {
     private final HistoricoConsorciadoService historicoService;
     private final ContabilidadeService contabilidadeService;
     private final ComissaoVendaService comissaoService;
+    private final ContratoAdesaoRepository contratoRepository;
 
     public ParcelaService(ParcelaRepository parcelaRepository, CotaRepository cotaRepository,
-                          ParcelaMapper mapper, MovimentoFinanceiroService movimentoService,
-                          HistoricoConsorciadoService historicoService, ContabilidadeService contabilidadeService,
-                          ComissaoVendaService comissaoService) {
+                           ParcelaMapper mapper, MovimentoFinanceiroService movimentoService,
+                           HistoricoConsorciadoService historicoService, ContabilidadeService contabilidadeService,
+                          ComissaoVendaService comissaoService, ContratoAdesaoRepository contratoRepository) {
         this.parcelaRepository = parcelaRepository;
         this.cotaRepository = cotaRepository;
         this.mapper = mapper;
@@ -40,6 +43,7 @@ public class ParcelaService {
         this.historicoService = historicoService;
         this.contabilidadeService = contabilidadeService;
         this.comissaoService = comissaoService;
+        this.contratoRepository = contratoRepository;
     }
 
     private Usuario getUsuarioAutenticado() {
@@ -196,7 +200,40 @@ public class ParcelaService {
             }
         }
 
+        efetivarAdesaoAposPagamento(parcelaMapeada, dataPagamento);
+
         return mapper.toResponse(parcelaMapeada); // Usar o mapper
+    }
+
+    /**
+     * Efetiva contrato e cota somente depois da baixa real da primeira parcela.
+     * A transição participa da mesma transação dos lançamentos COSIF do pagamento.
+     *
+     * @param parcela primeira parcela já baixada
+     * @param dataPagamento data efetiva do recebimento
+     * @throws RegraDeNegocioException se a cota pendente não possuir contrato válido
+     */
+    private void efetivarAdesaoAposPagamento(Parcela parcela, LocalDate dataPagamento) {
+        Cota cota = parcela.getCota();
+        if (!Integer.valueOf(1).equals(parcela.getNumeroParcela())
+                || cota.getStatus() != StatusCota.AGUARDANDO_PAGAMENTO) {
+            return;
+        }
+
+        ContratoAdesao contrato = cota.getContratoAdesao();
+        if (contrato == null || contrato.getStatus() != StatusContrato.PENDENTE_PAGAMENTO) {
+            throw new RegraDeNegocioException("Cota aguardando pagamento deve possuir contrato PENDENTE_PAGAMENTO.");
+        }
+
+        contrato.setStatus(StatusContrato.EFETIVADO);
+        contrato.setDataAssinatura(dataPagamento.atStartOfDay());
+        contratoRepository.save(contrato);
+
+        StatusCota novoStatus = cota.getGrupo().getStatus() == StatusGrupo.EM_FORMACAO
+                ? StatusCota.AGUARDANDO_INAUGURACAO
+                : StatusCota.ATIVA;
+        cota.setStatus(novoStatus);
+        cotaRepository.save(cota);
     }
 
     @Transactional

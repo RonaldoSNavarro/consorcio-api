@@ -2,8 +2,8 @@
 
 *   **Capability**: fundos
 *   **Spec de referência**: [spec.md](spec.md)
-*   **Total de tarefas**: 8
-*   **REQ-IDs cobertos**: 3/3
+*   **Total de tarefas**: 10
+*   **REQ-IDs cobertos**: 4/4
 
 ---
 
@@ -22,3 +22,7 @@
 - [x] Integrar `ContabilidadeService.java` — lançamentos de partida dobrada ao pagar parcela
 - [x] Mapear contas COSIF: FC → `2.1.2.10.10-6`, TA → `2.1.2.10.30-2`, FR → `2.1.2.10.20-9`
 - [x] Criar entidades `ContaContabil.java` e `LancamentoContabil.java`
+
+### [BACKEND] REQ-FUN-004: Efetivação após pagamento da adesão
+- [x] Promover `ContratoAdesao` e `Cota` dentro da transação de `ParcelaService.pagar()`
+- [x] Cobrir a transição com teste unitário para a parcela de adesão e preservar o fluxo normal das parcelas posteriores

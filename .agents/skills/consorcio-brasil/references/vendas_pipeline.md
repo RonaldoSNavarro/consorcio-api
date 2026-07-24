@@ -25,16 +25,22 @@ A Proposta de Adesão é o documento formal (físico ou digital) onde o interess
 
 ### Status da Proposta (`StatusProposta`)
 1. `EM_ANALISE`: Cliente submeteu a proposta. Passa por validações KYC/AML e birô de crédito.
-2. `APROVADA`: Proposta passou nas análises de compliance e crédito.
-3. `RECUSADA`: Proposta bloqueada por compliance (ex: CPF em lista restritiva) ou restrição de crédito (conforme regra RN-VND-001).
-4. `CANCELADA`: Cliente desistiu ou prazo expirou.
+2. `PENDENTE_ANALISE_RISCO`: Cliente possui risco `ALTO` ou alerta restritivo
+   `PENDENTE_ANALISE`/`CONFIRMADO`; a intenção de venda permanece registrada, mas contrato,
+   pagamento e cota ficam bloqueados até a deliberação do Compliance.
+3. `APROVADA`: Proposta passou nas análises de compliance e crédito.
+4. `RECUSADA`: Proposta foi reprovada pelo Compliance ou por restrição de crédito, com
+   justificativa auditável quando aplicável.
+5. `CANCELADA`: Cliente desistiu ou prazo expirou.
 
 ### Validações de Compliance (KYC/AML)
 Toda proposta passa pelo subsistema de PLD/FT (Prevenção à Lavagem de Dinheiro):
 - Validação de CPF/CNPJ.
 - Verificação de PEP (Pessoa Exposta Politicamente).
 - Consulta a listas restritivas (OFAC, ONU).
-- *Se houver match (score Jaro-Winkler ≥ 0.90), a proposta é suspensa para análise manual.*
+- *Se houver match (score Jaro-Winkler ≥ 0.90), a proposta é persistida em
+  `PENDENTE_ANALISE_RISCO` e encaminhada à análise manual, conforme `REQ-VND-008`/
+  `RN-VND-008` de `docs/specs/vendas/`.*
 
 ---
 
@@ -51,16 +57,18 @@ Após a aprovação da proposta, é gerado o Contrato de Adesão.
 ### A Primeira Parcela (Adesão)
 - **Regra RN-VND-003**: A primeira parcela cobrada no momento da adesão é composta de **100% Antecipação de Taxa de Administração + Fundo de Reserva**.
 - Não há cobrança de Fundo Comum na parcela inaugural (ou é mínima), pois o fundo só será formado de fato após a constituição do grupo.
+- A aprovação da proposta apenas gera a parcela nº 1 em `PENDENTE`, sem `dataPagamento` ou `valorPago`. A confirmação financeira real é o único gatilho para `ContratoAdesao.EFETIVADO`.
 
 ---
 
 ## 4. Alocação Inteligente de Cota
 
-Quando o contrato é efetivado, o sistema executa a **Alocação Inteligente**:
+Quando a proposta é aprovada, o sistema executa a **Alocação Inteligente** para reservar a vaga:
 1. Busca um grupo `EM_FORMACAO` ou `ATIVO` que tenha a mesma `CategoriaBem` e `ProdutoConsorcio`.
 2. Verifica se o grupo tem vagas disponíveis (não atingiu limite máximo).
 3. Se não houver grupo compatível com vagas, o sistema auto-instancia um novo grupo `EM_FORMACAO`.
-4. Uma `Cota` é alocada ao cliente, inicialmente com status `AGUARDANDO_INAUGURACAO` (se grupo em formação) ou `ATIVA` (se grupo já ativo).
+4. Uma `Cota` é alocada ao cliente em `AGUARDANDO_PAGAMENTO`.
+5. Após o pagamento confirmado da parcela nº 1, a cota avança para `AGUARDANDO_INAUGURACAO` (grupo em formação) ou `ATIVA` (grupo já ativo).
 
 ### Regra dos 10% (Limite de Concentração)
 - O BACEN proíbe que um único cliente detenha mais de 10% das cotas ativas de um mesmo grupo. A alocação deve validar isso por CPF/CNPJ.

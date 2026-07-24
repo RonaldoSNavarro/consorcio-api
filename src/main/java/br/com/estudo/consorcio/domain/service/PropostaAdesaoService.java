@@ -81,10 +81,6 @@ public class PropostaAdesaoService {
                 cliente.getId(), 
                 List.of(StatusAlertaCompliance.PENDENTE_ANALISE, StatusAlertaCompliance.CONFIRMADO)
         );
-        if (hasRestrictedAlerts) {
-            throw new RegraDeNegocioException("Venda bloqueada por PLD/FT: Cliente possui alertas restritivos.");
-        }
-
         ProdutoConsorcio produto = produtoRepository.findById(request.getProdutoId())
                 .orElseThrow(() -> new RegraDeNegocioException("Produto não encontrado"));
 
@@ -105,7 +101,9 @@ public class PropostaAdesaoService {
                 .codigoGrupo(grupo != null ? grupo.getCodigoGrupo() : null)
                 .tipoVenda(tipoVenda)
                 .valorCreditoSolicitado(request.getValorCreditoSolicitado())
-                .status(StatusProposta.EM_ANALISE)
+                .status(hasRestrictedAlerts || cliente.getNivelRisco() == NivelRisco.ALTO
+                        ? StatusProposta.PENDENTE_ANALISE_RISCO
+                        : StatusProposta.EM_ANALISE)
                 .dataProposta(LocalDateTime.now(clock))
                 .dataAtualizacao(LocalDateTime.now(clock))
                 .build();
@@ -156,8 +154,8 @@ public class PropostaAdesaoService {
 
         // Gera fatura/boleto simbólico da 1ª parcela da Proposta
         System.out.println("[INFO] Fatura gerada para o contrato: " + contrato.getNumeroContrato());
-        
-        return contrato;
+
+        return prepararContratoParaPagamento(contrato);
     }
 
     @Transactional
@@ -177,8 +175,7 @@ public class PropostaAdesaoService {
             return null;
         }
 
-        ContratoAdesao contrato = efetivarAprovacaoInterna(proposta);
-        return efetivarContrato(contrato);
+        return efetivarAprovacaoInterna(proposta);
     }
 
     @Transactional
@@ -188,8 +185,22 @@ public class PropostaAdesaoService {
         return efetivarContrato(contrato);
     }
 
+    /**
+     * Mantém compatibilidade com o endpoint legado de efetivação, preparando a cota e
+     * as parcelas sem simular o pagamento da adesão.
+     *
+     * @param contrato contrato pendente de pagamento
+     * @return contrato ainda em {@link StatusContrato#PENDENTE_PAGAMENTO}
+     * @deprecated desde a versão 2.2; a aprovação da proposta já prepara a venda e
+     *             o pagamento real deve ocorrer pelo módulo Financeiro
+     */
+    @Deprecated(since = "2.2")
     @Transactional
     public ContratoAdesao efetivarContrato(ContratoAdesao contrato) {
+        return prepararContratoParaPagamento(contrato);
+    }
+
+    private ContratoAdesao prepararContratoParaPagamento(ContratoAdesao contrato) {
         if (contrato == null) {
             throw new RegraDeNegocioException("Contrato não encontrado");
         }
@@ -202,13 +213,9 @@ public class PropostaAdesaoService {
             throw new RegraDeNegocioException("Contrato só pode ser efetivado para propostas no status APROVADA.");
         }
 
-
-        // RN-VND-003: Contrato só gera cota após pagamento
-        // Aqui simularíamos o retorno do webhook do banco ou integração com Financeiro
-        
-        contrato.setStatus(StatusContrato.EFETIVADO);
-        contrato.setDataAssinatura(LocalDateTime.now(clock));
-        contrato = contratoRepository.save(contrato);
+        if (contrato.getId() != null && cotaRepository.findByContratoAdesaoId(contrato.getId()).isPresent()) {
+            return contrato;
+        }
         
         final br.com.estudo.consorcio.domain.model.PropostaAdesao proposta = contrato.getProposta();
         
@@ -236,11 +243,7 @@ public class PropostaAdesaoService {
         cota.setGrupo(grupo);
         cota.setContratoAdesao(contrato);
         
-        if (grupo.getStatus() == StatusGrupo.EM_FORMACAO) {
-            cota.setStatus(StatusCota.AGUARDANDO_INAUGURACAO);
-        } else {
-            cota.setStatus(StatusCota.ATIVA);
-        }
+        cota.setStatus(StatusCota.AGUARDANDO_PAGAMENTO);
         
         cotaRepository.save(cota);
 
@@ -254,7 +257,7 @@ public class PropostaAdesaoService {
         BigDecimal taxaAdm = valorParcela.multiply(grupo.getTaxaAdministracao()).divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
         BigDecimal fundoComum = valorParcela.subtract(taxaAdm);
 
-        // 1ª Parcela: Adesão (já vencendo hoje)
+        // 1ª Parcela: cobrança de adesão aguardando baixa real no Financeiro
         Parcela adesao = new Parcela();
         adesao.setCota(cota);
         adesao.setNumeroParcela(numero++);
@@ -264,10 +267,9 @@ public class PropostaAdesaoService {
         adesao.setValorTaxaAdministracao(taxaAdm);
         adesao.setValorFundoReserva(BigDecimal.ZERO);
         adesao.setValorSeguro(BigDecimal.ZERO);
-        // Se já está efetivando o contrato, a adesão foi paga
-        adesao.setStatus(StatusParcela.PAGA);
-        adesao.setDataPagamento(LocalDate.now(clock));
-        adesao.setValorPago(valorParcela);
+        adesao.setStatus(StatusParcela.PENDENTE);
+        adesao.setDataPagamento(null);
+        adesao.setValorPago(null);
         parcelas.add(adesao);
 
         // Demais parcelas vinculadas às assembleias futuras

@@ -22,6 +22,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Optional;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -74,8 +75,8 @@ public class PropostaAdesaoServiceTest {
         proposta.setCliente(cliente);
         proposta.setStatus(StatusProposta.EM_ANALISE);
 
-        when(clock.instant()).thenReturn(Instant.parse("2026-07-20T10:00:00Z"));
-        when(clock.getZone()).thenReturn(ZoneId.of("UTC"));
+        lenient().when(clock.instant()).thenReturn(Instant.parse("2026-07-20T10:00:00Z"));
+        lenient().when(clock.getZone()).thenReturn(ZoneId.of("UTC"));
     }
 
     @Test
@@ -130,8 +131,27 @@ public class PropostaAdesaoServiceTest {
 
         assertNotNull(contrato);
         assertEquals(StatusProposta.APROVADA, proposta.getStatus());
+        assertEquals(br.com.estudo.consorcio.domain.enums.StatusContrato.PENDENTE_PAGAMENTO, contrato.getStatus());
         verify(propostaRepository).save(proposta);
-        verify(contratoRepository, times(2)).save(any(ContratoAdesao.class));
+        verify(contratoRepository).save(any(ContratoAdesao.class));
+
+        org.mockito.ArgumentCaptor<br.com.estudo.consorcio.domain.model.Cota> cotaCaptor =
+                org.mockito.ArgumentCaptor.forClass(br.com.estudo.consorcio.domain.model.Cota.class);
+        verify(cotaRepository).save(cotaCaptor.capture());
+        assertEquals(br.com.estudo.consorcio.domain.model.StatusCota.AGUARDANDO_PAGAMENTO,
+                cotaCaptor.getValue().getStatus());
+
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<List<br.com.estudo.consorcio.domain.model.Parcela>> parcelasCaptor =
+                org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(parcelaRepository).saveAll(parcelasCaptor.capture());
+        br.com.estudo.consorcio.domain.model.Parcela primeiraParcela = parcelasCaptor.getValue().get(0);
+        assertAll(
+                () -> assertEquals(1, primeiraParcela.getNumeroParcela()),
+                () -> assertEquals(br.com.estudo.consorcio.domain.model.StatusParcela.PENDENTE, primeiraParcela.getStatus()),
+                () -> assertNull(primeiraParcela.getDataPagamento()),
+                () -> assertNull(primeiraParcela.getValorPago())
+        );
     }
 
     @Test
@@ -168,7 +188,6 @@ public class PropostaAdesaoServiceTest {
         contratoMock.setProposta(propostaMock);
 
         when(grupoRepository.encontrarMelhorGrupoDisponivel(any())).thenReturn(Optional.empty());
-        when(contratoRepository.save(any())).thenReturn(contratoMock);
 
         RegraDeNegocioException ex = assertThrows(RegraDeNegocioException.class, () -> {
             propostaService.efetivarContrato(contratoMock);
