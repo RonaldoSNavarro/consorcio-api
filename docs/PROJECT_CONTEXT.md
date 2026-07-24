@@ -107,6 +107,11 @@ O `AuthContext.jsx` inicializa o token a partir do `localStorage.getItem('consor
 *   **Decisão:** Substituição do TOTP de aplicativo autenticador pelo envio de código numérico de 6 dígitos enviado por e-mail (usando Jakarta Mail local com fallback de impressão no console).
 *   **Consequência:** Fluxo operacional resiliente e livre de problemas de drift de relógio local.
 
+### ADR 014: Homogeneidade BACEN de Categoria no Grupo e Crédito Derivado do Bem de Referência
+*   **Contexto:** Exigência regulatória da Circular BCB 3.432/2009 para garantia de compatibilidade entre a categoria BACEN dos bens e do grupo, e definição automatizada do crédito na proposta.
+*   **Decisão:** Implementação de trava `validarHomogeneidadeCategoriaBem` no `GrupoService` e crédito imutável no frontend derivado do valor atual do `BemReferencia`.
+*   **Consequência:** Conformidade estrita com o BACEN e eliminação de inconsistências operacionais na venda.
+
 ---
 
 ## 📈 4. Estado Atual do Projeto
