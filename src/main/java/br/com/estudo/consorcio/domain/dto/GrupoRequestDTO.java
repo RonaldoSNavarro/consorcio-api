@@ -10,9 +10,9 @@ import java.math.BigDecimal;
 
 @Schema(description = "Dados de entrada para criação de um novo grupo")
 public record GrupoRequestDTO(
-        @NotBlank(message = "Código é obrigatório")
+        @NotBlank(message = "Código do grupo é obrigatório")
         @Schema(example = "GRP-AUTO-002")
-        String codigo,
+        String codigoGrupo,
 
         @NotNull(message = "Valor do crédito é obrigatório")
         @Positive(message = "Valor do crédito deve ser positivo")
@@ -37,5 +37,12 @@ public record GrupoRequestDTO(
         br.com.estudo.consorcio.domain.model.IndiceReajuste indiceReajuste,
         
         @Schema(example = "1")
-        Integer mesReajuste
+        Integer mesReajuste,
+
+        @Schema(example = "1000")
+        Integer quantidadeCotas,
+
+        java.util.List<Long> bensPermitidos,
+
+        java.util.List<Integer> prazosPermitidos
 ) {}

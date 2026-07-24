@@ -23,11 +23,13 @@ public class ClienteService {
     private final ClienteRepository repository;
     private final ClienteMapper mapper;
     private final ViaCepService viaCepService;
+    private final MatchComplianceService matchComplianceService;
 
-    public ClienteService(ClienteRepository repository, ClienteMapper mapper, ViaCepService viaCepService) {
+    public ClienteService(ClienteRepository repository, ClienteMapper mapper, ViaCepService viaCepService, MatchComplianceService matchComplianceService) {
         this.repository = repository;
         this.mapper = mapper;
         this.viaCepService = viaCepService;
+        this.matchComplianceService = matchComplianceService;
     }
 
     // -------------------------------------------------------------------------
@@ -36,7 +38,7 @@ public class ClienteService {
 
     @Transactional
     public ClienteResponseDTO salvar(ClienteRequestDTO dto) {
-        validarDocumentoUnico(dto.cpfCnpj()); // CORRIGIDO: dto.documento() para dto.cpfCnpj()
+        validarDocumentoUnico(dto.cpfCnpj());
 
         ViaCepResponseDTO viaCep = viaCepService.buscarCep(dto.cep());
 
@@ -47,7 +49,12 @@ public class ClienteService {
         cliente.setLocalidade(viaCep.localidade());
         cliente.setUf(viaCep.uf());
 
-        return mapper.toResponse(repository.save(cliente));
+        Cliente salvo = repository.save(cliente);
+        if (Boolean.TRUE.equals(salvo.getPep())) {
+            matchComplianceService.cruzarClienteEGerarAlertas(salvo);
+        }
+
+        return mapper.toResponse(salvo);
     }
 
     // -------------------------------------------------------------------------
@@ -95,7 +102,11 @@ public class ClienteService {
         cliente.setLocalidade(viaCep.localidade());
         cliente.setUf(viaCep.uf());
 
-        return mapper.toResponse(repository.save(cliente));
+        Cliente salvo = repository.save(cliente);
+        if (Boolean.TRUE.equals(salvo.getPep())) {
+            matchComplianceService.cruzarClienteEGerarAlertas(salvo);
+        }
+        return mapper.toResponse(salvo);
     }
 
     // -------------------------------------------------------------------------

@@ -335,7 +335,7 @@ class ContemplacaoServiceTest {
 
         Cota cota = new Cota();
         cota.setId(idCota);
-        cota.setNumeroCota(44);
+        cota.setCodigoCota(44);
         cota.setGrupo(grupo);
         cota.setStatus(StatusCota.PENDENTE_INTEGRALIZACAO);
 

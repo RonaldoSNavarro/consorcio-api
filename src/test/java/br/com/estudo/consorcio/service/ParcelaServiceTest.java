@@ -4,11 +4,15 @@ import br.com.estudo.consorcio.domain.dto.CotaInadimplenciaResponseDTO;
 import br.com.estudo.consorcio.domain.dto.ParcelaResponseDTO;
 import br.com.estudo.consorcio.domain.model.*;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
+import br.com.estudo.consorcio.domain.repository.ContratoAdesaoRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
+import br.com.estudo.consorcio.domain.enums.StatusContrato;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -39,6 +43,12 @@ class ParcelaServiceTest {
 
     @Mock
     private ContabilidadeService contabilidadeService;
+
+    @Mock
+    private ComissaoVendaService comissaoService;
+
+    @Mock
+    private ContratoAdesaoRepository contratoRepository;
 
     @org.mockito.Spy
     private br.com.estudo.consorcio.domain.mapper.ParcelaMapper mapper = org.mapstruct.factory.Mappers.getMapper(br.com.estudo.consorcio.domain.mapper.ParcelaMapper.class);
@@ -128,6 +138,58 @@ class ParcelaServiceTest {
         verify(parcelaRepository, never()).save(any());
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            "EM_ANDAMENTO, ATIVA",
+            "EM_FORMACAO, AGUARDANDO_INAUGURACAO"
+    })
+    @DisplayName("Deve efetivar contrato e promover cota após pagamento real da primeira parcela")
+    void deveEfetivarAdesaoAposPagamentoPrimeiraParcela(
+            StatusGrupo statusGrupo,
+            StatusCota statusCotaEsperado) {
+        Grupo grupo = new Grupo();
+        grupo.setId(20L);
+        grupo.setStatus(statusGrupo);
+        grupo.setValorCredito(new BigDecimal("100000.00"));
+
+        ContratoAdesao contrato = new ContratoAdesao();
+        contrato.setId(30L);
+        contrato.setStatus(StatusContrato.PENDENTE_PAGAMENTO);
+
+        Cota cota = new Cota();
+        cota.setId(10L);
+        cota.setGrupo(grupo);
+        cota.setCliente(new Cliente());
+        cota.setContratoAdesao(contrato);
+        cota.setStatus(StatusCota.AGUARDANDO_PAGAMENTO);
+
+        Parcela parcela = new Parcela();
+        parcela.setId(1L);
+        parcela.setCota(cota);
+        parcela.setNumeroParcela(1);
+        parcela.setValorFundoComum(new BigDecimal("1000.00"));
+        parcela.setValorTaxaAdministracao(new BigDecimal("150.00"));
+        parcela.setValorFundoReserva(new BigDecimal("50.00"));
+        parcela.setValorSeguro(BigDecimal.ZERO);
+        parcela.setDataVencimento(LocalDate.now());
+        parcela.setStatus(StatusParcela.PENDENTE);
+        parcela.calcularValorTotal();
+
+        when(parcelaRepository.findById(1L)).thenReturn(Optional.of(parcela));
+        when(parcelaRepository.save(any(Parcela.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ParcelaResponseDTO resultado = service.pagar(1L, LocalDate.now());
+
+        assertAll(
+                () -> assertEquals(StatusParcela.PAGA, resultado.status()),
+                () -> assertEquals(StatusContrato.EFETIVADO, contrato.getStatus()),
+                () -> assertEquals(statusCotaEsperado, cota.getStatus()),
+                () -> assertNotNull(contrato.getDataAssinatura())
+        );
+        verify(contratoRepository).save(contrato);
+        verify(cotaRepository).save(cota);
+    }
+
     @Test
     @DisplayName("Deve amortizar por diluição e aplicar a regra do centavo perdido na última parcela")
     void deveAmortizarPorDiluicaoComRegraDoCentavoPerdido() {
@@ -214,7 +276,7 @@ class ParcelaServiceTest {
         Long cotaId = 1L;
         Cota cota = new Cota();
         cota.setId(cotaId);
-        cota.setNumeroCota(100);
+        cota.setCodigoCota(100);
 
         Parcela p1 = new Parcela();
         p1.setStatus(StatusParcela.PENDENTE);
@@ -233,7 +295,7 @@ class ParcelaServiceTest {
         // --- ASSERT ---
         assertNotNull(response);
         assertEquals(cotaId, response.cotaId());
-        assertEquals(100, response.numeroCota());
+        assertEquals(100, response.codigoCota());
         assertFalse(response.possuiInadimplencia());
         assertEquals(0, response.quantidadeParcelasAtrasadas());
         assertEquals(BigDecimal.ZERO, response.multaAcumulada());
@@ -248,7 +310,7 @@ class ParcelaServiceTest {
         Long cotaId = 1L;
         Cota cota = new Cota();
         cota.setId(cotaId);
-        cota.setNumeroCota(100);
+        cota.setCodigoCota(100);
 
         // Parcela atrasada há 10 dias
         // Valor total original: FC 1000 + TaxaAdmin 150 + FundoReserva 50 = 1200.00

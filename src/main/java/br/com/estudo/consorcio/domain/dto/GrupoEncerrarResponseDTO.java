@@ -5,7 +5,7 @@ import java.time.LocalDate;
 
 public record GrupoEncerrarResponseDTO(
         Long grupoId,
-        String codigo,
+        String codigoGrupo,
         long totalParcelasBaixadas,
         BigDecimal valorTotalPDD,
         BigDecimal valorTransferidoRNP,

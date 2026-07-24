@@ -5,7 +5,7 @@ import java.time.LocalDate;
 
 public record CotaReembolsoSimulacaoDTO(
         Long id,
-        Integer numeroCota,
+        Integer codigoCota,
         Long clienteId,
         String clienteNome,
         String cpfCnpj,

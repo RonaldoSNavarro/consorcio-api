@@ -18,6 +18,8 @@ public class PropostaRequestDTO {
     @NotNull
     private Long tipoVendaId;
 
+    private Long grupoId;
+
     @NotNull
     @Positive
     private BigDecimal valorCreditoSolicitado;

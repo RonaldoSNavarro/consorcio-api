@@ -6,7 +6,7 @@ import br.com.estudo.consorcio.domain.enums.CategoriaBem;
 
 public record CotaResponseDTO(
         Long id,
-        Integer numeroCota,
+        Integer codigoCota,
         Long clienteId,
         Long grupoId,
         String codigoGrupo,
@@ -19,5 +19,5 @@ public record CotaResponseDTO(
         CategoriaBem categoriaBem,
         Integer prazoMeses,
         StatusCota status,
-        Integer versao
+        Integer versaoHistorico
 ) {}

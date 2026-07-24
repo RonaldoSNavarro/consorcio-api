@@ -6,10 +6,10 @@ import jakarta.validation.constraints.Positive;
 
 @Schema(description = "Dados de entrada para venda de uma nova cota")
 public record CotaRequestDTO(
-        @NotNull(message = "Número da cota é obrigatório")
-        @Positive(message = "Número da cota deve ser positivo")
+        @NotNull(message = "Código da cota é obrigatório")
+        @Positive(message = "Código da cota deve ser positivo")
         @Schema(example = "15")
-        Integer numeroCota,
+        Integer codigoCota,
 
         @NotNull(message = "ID do cliente é obrigatório")
         @Positive(message = "ID do cliente deve ser positivo")

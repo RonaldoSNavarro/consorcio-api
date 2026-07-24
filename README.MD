@@ -27,11 +27,11 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 * **Mapeamento Declarativo com MapStruct:** Camada de conversão compilada de alta performance entre entidades e DTOs, garantindo separação rígida e eliminando boilerplate.
 * **Bloqueio Otimista (Optimistic Locking):** Prevenção de concorrência e race conditions (condições de corrida) por meio do mapeamento de atributos `@Version` nas tabelas críticas (`cotas`, `grupos` e `parcelas`), impedindo sobrescrita de dados financeiros por requisições concorrentes.
 * **Paginação Robusta de Recursos:** Migração de listagens gerais para o padrão `Pageable` do Spring Data nos endpoints de Clientes, Grupos e Cotas, protegendo a memória Heap contra gargalos de volume massivo.
-* **Busca Avançada via Specifications:** Implementação do padrão `Specification` do Spring Data JPA na entidade Cota, provendo uma API de busca flexível e paginada por múltiplos critérios (Grupo, Número, Versão, CPF/CNPJ).
+* **Busca Avançada via Specifications:** Implementação do padrão `Specification` do Spring Data JPA na entidade Cota, provendo uma API de busca flexível e paginada por múltiplos critérios (Grupo, Número, Versão, CPF/CNPJ) com filtragem automática de cotas comercializadas (excluindo o status `DISPONIVEL`).
 
 ## 🧪 Qualidade de Software e Testes
 
-O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura conta com **ampla suíte de testes unitários e de integração 100% verdes**:
+O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura conta com **ampla suíte de 154 testes unitários e de integração 100% verdes**:
 
 * **Testes Unitários (100% Service & Validator Coverage):** Toda a camada de `Service` possui cobertura total, incluindo os novos serviços de sincronização de listas restritivas (`ComplianceServiceTest`). Criamos suítes de teste de baixo nível como `CpfCnpjValidatorTest` e `ViaCepServiceTest` (usando mocks avançados da API fluente do `RestClient` do Spring).
 * **Módulos de Auditoria e Livro Razão:** Testados exaustivamente em `MovimentoFinanceiroServiceTest` e `HistoricoConsorciadoServiceTest` para validar consistência de saldos contábeis e a fórmula regulatória da categoria.
@@ -147,6 +147,11 @@ O sistema implementa regras de negócio financeiras extremamente robustas basead
   * **Efetivação de Contratos e Inauguração:** Ao aprovar uma proposta, gera-se o contrato e a fatura de adesão. A cota nasce recebendo obrigatoriamente um número sequencial dinâmico na base de dados, aguardando a inauguração do grupo (`AGUARDANDO_INAUGURACAO`) se o mesmo for novo (`EM_FORMACAO`). As cotas só são transicionadas para `ATIVA` em lote através da oficialização da 1ª AGO, ou instantaneamente caso entrem como reposição num grupo `EM_ANDAMENTO`.
 * **Performance Híbrida (Anti N+1):** O motor de fechamento de vendas combina Queries Projetadas em DTOs (para tempo real) e Materialized Views (para analítico), evitando degradação de banco (N+1 Fetching).
 
+### 15. Cadastro e Reajuste de Bens de Referência (FIPE & Histórico)
+* **Categorias Regulamentadas BACEN:** Suporte nativo às 4 categorias de bens de consórcio: *Veículos Automotores* (`BEM_MOVEL_I`), *Imóveis* (`BEM_IMOVEL`), *Serviços* (`SERVICO`) e *Outros Bens Móveis* (`BEM_MOVEL_II`), com inicialização automática via `CategoriaBemDataLoader`.
+* **Integração Tabela FIPE (Parallelum API):** Consumo HTTP assíncrono dos serviços públicos da FIPE (`/fipe/marcas`, `/modelos`, `/anos`, `/consultar`), permitindo autofill de valores oficiais de mercado e amarração pelo código FIPE.
+* **Livro de Auditoria de Preços (`historico_valores_bem_referencia`):** Toda alteração de valor de um bem gera um evento imutável anotando o valor anterior, valor novo, origem do reajuste (`FIPE`, `INCC`, `MANUAL`) e timestamp exato.
+
 ## ⚙️ Configuração e Setup
 
 ### Pré-requisitos
@@ -212,3 +217,5 @@ A interface foi organizada para refletir o ciclo de vida real de um consórcio:
 * **CRM, Vendas e Comissões:** Motor de originação de consórcios com cadastro de Corretores, orçamentação e Propostas de Adesão. A inteligência de `TipoVenda` determina as regras de comissionamento. O sistema já gerencia integralmente Comissões de corretores, possuindo gatilhos contábeis inteligentes (liquidação na adesão ou na 1ª parcela) e um motor automatizado de Estornos (Clawback) que aciona dívidas caso ocorra cancelamento prematuro de cotas.
 * **Arquitetura Desacoplada:** Princípios de Domain-Driven Design (DDD) garantem a segregação de repositórios através de camadas de serviço especializadas, evitando vazamento de regras de negócios.
 * **Compliance Avançado e Alta Performance:** O motor de PLD/FT conta com algoritmos nativos de similaridade de strings no nível do banco de dados (extensão `pg_trgm` e índices `GIN` do PostgreSQL) para matching rápido e seguro de entidades suspeitas contra Listas Restritivas (OFAC, ONU), otimizando radicalmente o uso de memória e processamento (substituindo algoritmos Jaro-Winkler locais). Inclui também travas regulatórias (Siscoaf) e máquina de estados para emissão de alertas.
+* **Índices Econômicos BACEN e Reajuste Automático (INCC-M, IPCA, IGP-M):** Integração com as séries temporais públicas do Banco Central do Brasil (SGS) para atualização automática do valor do crédito e recalculo proporcional das parcelas pendentes dos Grupos no seu mês de aniversário (`mesReajuste`), com simulador e auditoria histórica de preços.
+* **Homogeneidade BACEN e Esteira de Venda com Crédito Derivado:** Validação estrita da compatibilidade de Categoria BACEN nos Grupos (impossibilitando bens de categorias distintas) e automação completa do formulário de Venda de Proposta, onde o valor do crédito é imutável manualmente e derivado do valor do Bem de Referência selecionado (com auto-seleção em categoria de bem único e alocação automática de Grupo e Cota).

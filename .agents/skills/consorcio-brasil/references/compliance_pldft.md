@@ -34,10 +34,16 @@ O `MatchComplianceService` não exige coincidência exata de nomes, pois as list
 
 ### Regras de Bloqueio (Blocking Rules)
 Se um cliente possui qualquer alerta `PENDENTE_ANALISE` ou `CONFIRMADO`:
-- É **proibido** criar novas `PropostaAdesao`.
+- A intenção de venda deve ser preservada: a `PropostaAdesao` é criada com status
+  `PENDENTE_ANALISE_RISCO` e encaminhada à revisão humana do Compliance.
+- É **proibido** aprovar diretamente essa proposta, gerar contrato, receber a primeira
+  parcela ou alocar cota antes da deliberação favorável do Compliance.
 - É **proibido** aprovar contemplações.
 - É **proibido** realizar `TransferenciaCota` (Cessão de Direitos).
 - Toda transação associada fica congelada até o descarte do alerta.
+
+Essa regra segue `REQ-VND-008`/`RN-VND-008`. Em caso de divergência, a spec vigente em
+`docs/specs/vendas/` prevalece sobre esta referência de domínio.
 
 ---
 

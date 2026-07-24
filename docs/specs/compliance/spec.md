@@ -1,4 +1,4 @@
-﻿# Compliance e Listas Restritivas (PLD/FT)
+# Compliance e Listas Restritivas (PLD/FT)
 
 *   **Status**: IMPLEMENTED v1.0
 VersÃ£o: v1.2
@@ -30,6 +30,7 @@ Adicionalmente, o sistema permite uploads manuais das listas PEP (CSV), ONU (XML
 10. **REQ-COMP-010**: O endpoint de sincronizaÃ§Ã£o manual `/api/compliance/sincronizar` deve retornar informaÃ§Ãµes em tempo real sobre a disponibilidade das APIs externas (como a OFAC) e a contagem de registros processados.
 11. **REQ-COMP-011**: O processamento de arquivos em massa (como a Lista PEP) deve utilizar processamento em lote (batching) e mitigaÃ§Ã£o de N+1 queries para evitar sobrecarga no banco de dados e garantir escalabilidade.
 12. **REQ-COMP-012**: A busca e matching textual de nomes deve ser delegada ao banco de dados PostgreSQL utilizando a extensÃ£o `pg_trgm`, Ã­ndices de expressÃ£o `GIN` e o operador de similaridade (`%`) para assegurar alta performance.
+13. **REQ-COMP-013**: No Cadastro/Edição de Cliente, o formulário deve conter um checkbox "Pessoa Politicamente Exposta (PEP)". Se selecionado, ao salvar o cadastro o sistema deve disparar o cruzamento imediato com a base PEP e gerar um alerta de compliance caso haja registro correspondente.
 
 ## 3. Regras de NegÃ³cio (InegociÃ¡veis)
 

@@ -45,16 +45,16 @@ public class CotaController {
         return ResponseEntity.ok(service.listarTodas(pageable));
     }
 
-    @Operation(summary = "Buscar cotas com filtros", description = "Pesquisa cotas por grupo, número, versão e/ou CPF/CNPJ do cliente.")
+    @Operation(summary = "Buscar cotas com filtros", description = "Pesquisa cotas por grupo, código da cota, versão de histórico e/ou CPF/CNPJ do cliente.")
     @PreAuthorize("hasAuthority('VIEW_COTAS')")
     @GetMapping("/buscar")
     public ResponseEntity<Page<CotaResponseDTO>> buscar(
             @RequestParam(required = false) Long grupoId,
-            @RequestParam(required = false) Integer numeroCota,
-            @RequestParam(required = false) Integer versao,
+            @RequestParam(required = false) Integer codigoCota,
+            @RequestParam(required = false) Integer versaoHistorico,
             @RequestParam(required = false) String cpfCnpj,
             @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(service.buscar(grupoId, numeroCota, versao, cpfCnpj, pageable));
+        return ResponseEntity.ok(service.buscar(grupoId, codigoCota, versaoHistorico, cpfCnpj, pageable));
     }
 
     @Operation(summary = "Listar por cliente", description = "Lista cotas por cliente")

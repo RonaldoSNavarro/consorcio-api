@@ -49,9 +49,10 @@ public class Lance {
     private boolean notificarSiscoaf = false;
 
     @Version
-    private Long version;
+    @Column(name = "versao")
+    private Long versao;
 
-    public Lance(Long id, Cota cota, Assembleia assembleia, TipoLance tipo, BigDecimal valorOferta, LocalDateTime dataOferta, StatusApuracaoLance statusApuracao, ModalidadeLance modalidade, Long version) {
+    public Lance(Long id, Cota cota, Assembleia assembleia, TipoLance tipo, BigDecimal valorOferta, LocalDateTime dataOferta, StatusApuracaoLance statusApuracao, ModalidadeLance modalidade, Long versao) {
         this.id = id;
         this.cota = cota;
         this.assembleia = assembleia;
@@ -60,7 +61,7 @@ public class Lance {
         this.dataOferta = dataOferta;
         this.statusApuracao = statusApuracao;
         this.modalidade = modalidade;
-        this.version = version;
+        this.versao = versao;
         this.notificarSiscoaf = false;
     }
 

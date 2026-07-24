@@ -17,8 +17,8 @@ public class Grupo {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String codigo;
+    @Column(name = "codigo_grupo", nullable = false, unique = true)
+    private String codigoGrupo;
 
     @Column(name = "quantidade_cotas", nullable = false)
     private Integer quantidadeCotas = 120;
@@ -95,14 +95,20 @@ public class Grupo {
     private DirecaoFallbackSorteio direcaoFallbackSorteio = DirecaoFallbackSorteio.ACIMA_DEPOIS_ABAIXO;
 
     @Version
-    private Long version;
+    @Column(name = "versao")
+    private Long versao;
 
     // Getters e Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
-    public String getCodigo() { return codigo; }
-    public void setCodigo(String codigo) { this.codigo = codigo; }
+    public String getCodigoGrupo() { return codigoGrupo; }
+    public void setCodigoGrupo(String codigoGrupo) { this.codigoGrupo = codigoGrupo; }
+
+    @Deprecated
+    public String getCodigo() { return codigoGrupo; }
+    @Deprecated
+    public void setCodigo(String codigo) { this.codigoGrupo = codigo; }
 
     public Integer getQuantidadeCotas() { return quantidadeCotas; }
     public void setQuantidadeCotas(Integer quantidadeCotas) { this.quantidadeCotas = quantidadeCotas; }
@@ -151,6 +157,12 @@ public class Grupo {
     public BigDecimal getPercentualLanceEmbutidoMaximo() { return percentualLanceEmbutidoMaximo; }
     public void setPercentualLanceEmbutidoMaximo(BigDecimal percentualLanceEmbutidoMaximo) { this.percentualLanceEmbutidoMaximo = percentualLanceEmbutidoMaximo; }
 
+    public IndiceReajuste getIndiceReajuste() { return indiceReajuste; }
+    public void setIndiceReajuste(IndiceReajuste indiceReajuste) { this.indiceReajuste = indiceReajuste; }
+
+    public Integer getMesReajuste() { return mesReajuste; }
+    public void setMesReajuste(Integer mesReajuste) { this.mesReajuste = mesReajuste; }
+
     public StatusGrupo getStatus() { return status; }
     public void setStatus(StatusGrupo status) { this.status = status; }
 
@@ -163,8 +175,13 @@ public class Grupo {
     public LocalDate getDataEncerramento() { return dataEncerramento; }
     public void setDataEncerramento(LocalDate dataEncerramento) { this.dataEncerramento = dataEncerramento; }
 
-    public Long getVersion() { return version; }
-    public void setVersion(Long version) { this.version = version; }
+    public Long getVersao() { return versao; }
+    public void setVersao(Long versao) { this.versao = versao; }
+
+    @Deprecated
+    public Long getVersion() { return versao; }
+    @Deprecated
+    public void setVersion(Long version) { this.versao = version; }
 
     public CriterioDesempateLance getCriterioDesempateLance() { return criterioDesempateLance; }
     public void setCriterioDesempateLance(CriterioDesempateLance criterioDesempateLance) { this.criterioDesempateLance = criterioDesempateLance; }

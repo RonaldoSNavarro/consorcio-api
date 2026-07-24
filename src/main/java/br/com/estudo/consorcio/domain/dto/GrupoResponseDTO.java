@@ -7,7 +7,7 @@ import br.com.estudo.consorcio.domain.enums.CategoriaBem;
 
 public record GrupoResponseDTO(
         Long id,
-        String codigo,
+        String codigoGrupo,
         BigDecimal valorCredito,
         Integer prazoMeses,
         BigDecimal taxaAdministracao,
@@ -16,5 +16,8 @@ public record GrupoResponseDTO(
         LocalDate dataInauguracao,
         CategoriaBem categoriaBem,
         br.com.estudo.consorcio.domain.model.IndiceReajuste indiceReajuste,
-        Integer mesReajuste
+        Integer mesReajuste,
+        Integer quantidadeCotas,
+        java.util.List<BemReferenciaResponseDTO> bensPermitidos,
+        java.util.List<Integer> prazosPermitidos
 ) {}

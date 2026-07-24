@@ -12,13 +12,20 @@ import java.util.Optional;
 @Repository
 public interface GrupoRepository extends JpaRepository<Grupo, Long> {
 
-    Optional<Grupo> findByCodigo(String codigo);
+    Optional<Grupo> findByCodigoGrupo(String codigoGrupo);
+    
+    @Deprecated
+    default Optional<Grupo> findByCodigo(String codigo) {
+        return findByCodigoGrupo(codigo);
+    }
     
     List<Grupo> findByStatusAndDataEncerramentoBefore(StatusGrupo status, LocalDate date);
     
+    List<Grupo> findByStatusAndMesReajuste(StatusGrupo status, Integer mesReajuste);
+    
     @org.springframework.data.jpa.repository.Query("""
         SELECT new br.com.estudo.consorcio.domain.dto.GrupoFinanceiroDTO(
-            g.id, g.codigo,
+            g.id, g.codigoGrupo,
             COALESCE(SUM(p.valorFundoComum), 0),
             COALESCE(SUM(p.valorTaxaAdministracao), 0),
             COALESCE(SUM(p.valorFundoReserva), 0)
@@ -26,14 +33,14 @@ public interface GrupoRepository extends JpaRepository<Grupo, Long> {
         FROM Grupo g
         LEFT JOIN Cota c ON c.grupo.id = g.id
         LEFT JOIN Parcela p ON p.cota.id = c.id AND p.status = 'PAGA'
-        GROUP BY g.id, g.codigo
+        GROUP BY g.id, g.codigoGrupo
     """)
     List<br.com.estudo.consorcio.domain.dto.GrupoFinanceiroDTO> findGruposFinanceiroResumo();
 
     @org.springframework.data.jpa.repository.Query("""
         SELECT g FROM Grupo g WHERE g.categoriaBem = :categoria
         AND (g.status = 'EM_ANDAMENTO' OR g.status = 'EM_FORMACAO')
-        AND (SELECT COUNT(c) FROM Cota c WHERE c.grupo = g) < 100
+        AND (SELECT COUNT(c) FROM Cota c WHERE c.grupo = g) < g.quantidadeCotas
         ORDER BY g.status ASC, (SELECT COUNT(c) FROM Cota c WHERE c.grupo = g) DESC
         LIMIT 1
     """)

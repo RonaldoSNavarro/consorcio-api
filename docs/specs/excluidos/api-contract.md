@@ -53,28 +53,56 @@ Todos os endpoints requerem cookie `HttpOnly` com JWT válido.
 ```json
 {
   "cotaId": "Long",
-  "numeroCota": "Integer",
-  "totalFundoComumPago": "BigDecimal — soma histórica paga ao FC",
-  "multaRescisoria": "BigDecimal — 10% do valor bruto da devolução",
-  "valorReembolsado": "BigDecimal — valor líquido (90% do VBD)",
-  "reembolsada": "Boolean — true após efetivação"
+  "codigoCota": "Integer",
+  "totalFundoComumPago": "BigDecimal",
+  "multaRescisoria": "BigDecimal",
+  "valorReembolsado": "BigDecimal",
+  "reembolsada": "Boolean"
 }
 ```
 
-**Erros**:
-| Código | Cenário |
-|---|---|
-| `400` | Cota não está cancelada |
-| `422` | Cota já foi reembolsada |
+#### Erros Possíveis
+
+- `400 Bad Request`: Cota não está com status `CANCELADA`.
+- `400 Bad Request`: Cota já foi reembolsada.
+- `404 Not Found`: Cota não encontrada.
 
 ---
 
-## 📐 DTOs de Referência
+### `GET /cotas/pendentes-reembolso`
 
-### Response: `CotaReembolsoResponseDTO`
+Retorna a lista de todas as cotas canceladas que ainda não foram reembolsadas, com simulação do cálculo do reembolso.
+
+- **Autenticação**: Requerida (`VIEW_COTAS`)
+- **Response**: `200 OK`
+
+```json
+[
+  {
+    "id": "Long",
+    "codigoCota": "Integer",
+    "clienteId": "Long",
+    "clienteNome": "String",
+    "cpfCnpj": "String",
+    "numeroAssembleiaAGO": "String",
+    "dataContemplacaoAGO": "LocalDate",
+    "valorBemReferenciaAGO": "BigDecimal",
+    "percentualFundoComumPago": "BigDecimal",
+    "valorHistoricoPago": "BigDecimal",
+    "valorBrutoRestituicao": "BigDecimal",
+    "valorMultaRestituicao": "BigDecimal",
+    "valorLiquidoRestituicao": "BigDecimal"
+  }
+]
+```
+
+---
+
+## 2. Tipos de Dados / DTOs (Java Records)
+
 ```java
 public record CotaReembolsoResponseDTO(
-    Long cotaId, Integer numeroCota,
+    Long cotaId, Integer codigoCota,
     BigDecimal totalFundoComumPago, BigDecimal multaRescisoria,
     BigDecimal valorReembolsado, Boolean reembolsada
 ) {}

@@ -51,5 +51,12 @@ public record ClienteRequestDTO(
 
         @NotNull(message = "Nível de risco é obrigatório")
         @Schema(example = "MEDIO")
-        NivelRisco nivelRisco
-) {}
+        NivelRisco nivelRisco,
+
+        @Schema(example = "false", description = "Indica se o cliente é Pessoa Politicamente Exposta (PEP)")
+        Boolean pep
+) {
+    public ClienteRequestDTO(String nome, String cpfCnpj, String email, String telefone, String cep, String numero, String complemento, BigDecimal patrimonio, BigDecimal rendaMensal, NivelRisco nivelRisco) {
+        this(nome, cpfCnpj, email, telefone, cep, numero, complemento, patrimonio, rendaMensal, nivelRisco, false);
+    }
+}

@@ -60,7 +60,8 @@ public class Assembleia {
     private Integer fallbacksAplicados;
 
     @Version
-    private Long version;
+    @Column(name = "versao")
+    private Long versao;
 
     @PrePersist
     protected void onCreate() {

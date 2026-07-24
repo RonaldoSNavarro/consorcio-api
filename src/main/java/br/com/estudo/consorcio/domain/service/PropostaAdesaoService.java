@@ -1,9 +1,14 @@
 package br.com.estudo.consorcio.domain.service;
 
 import br.com.estudo.consorcio.domain.dto.PropostaRequestDTO;
+import br.com.estudo.consorcio.domain.dto.PropostaComplianceResponseDTO;
+import br.com.estudo.consorcio.domain.dto.AlertaResumoDTO;
+import br.com.estudo.consorcio.domain.dto.ClienteResponseDTO;
+import br.com.estudo.consorcio.domain.dto.ProdutoConsorcioResponseDTO;
 import br.com.estudo.consorcio.domain.enums.StatusContrato;
 import br.com.estudo.consorcio.domain.enums.StatusProposta;
 import br.com.estudo.consorcio.domain.model.Cliente;
+import br.com.estudo.consorcio.domain.model.AlertaCompliance;
 import br.com.estudo.consorcio.domain.model.ContratoAdesao;
 import br.com.estudo.consorcio.domain.model.ProdutoConsorcio;
 import br.com.estudo.consorcio.domain.model.PropostaAdesao;
@@ -23,15 +28,17 @@ import br.com.estudo.consorcio.domain.model.StatusCota;
 import br.com.estudo.consorcio.domain.enums.TipoCategoriaBacen;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import br.com.estudo.consorcio.domain.model.StatusAlertaCompliance;
+import br.com.estudo.consorcio.domain.model.NivelRisco;
 import br.com.estudo.consorcio.domain.repository.AlertaComplianceRepository;
 import br.com.estudo.consorcio.domain.repository.AssembleiaRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
 import br.com.estudo.consorcio.domain.model.Assembleia;
 import br.com.estudo.consorcio.domain.model.Parcela;
 import br.com.estudo.consorcio.domain.model.StatusParcela;
+import br.com.estudo.consorcio.service.MatchComplianceService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -49,6 +56,7 @@ public class PropostaAdesaoService {
     private final ProdutoConsorcioRepository produtoRepository;
     private final TipoVendaRepository tipoVendaRepository;
     private final AlertaComplianceRepository alertaComplianceRepository;
+    private final MatchComplianceService matchComplianceService;
     
     // Injeção dos repositórios de Cota/Grupo
     private final GrupoRepository grupoRepository;
@@ -66,27 +74,36 @@ public class PropostaAdesaoService {
             throw new RegraDeNegocioException("RN-VND-001: Cliente inativo não pode gerar nova proposta.");
         }
 
+        // Executa cruzamento síncrono com listas restritivas antes da proposta
+        matchComplianceService.cruzarClienteEGerarAlertas(cliente);
+
         boolean hasRestrictedAlerts = alertaComplianceRepository.existsByClienteIdAndStatusIn(
                 cliente.getId(), 
                 List.of(StatusAlertaCompliance.PENDENTE_ANALISE, StatusAlertaCompliance.CONFIRMADO)
         );
-        if (hasRestrictedAlerts) {
-            throw new RegraDeNegocioException("Venda bloqueada por PLD/FT: Cliente possui alertas restritivos.");
-        }
-
         ProdutoConsorcio produto = produtoRepository.findById(request.getProdutoId())
                 .orElseThrow(() -> new RegraDeNegocioException("Produto não encontrado"));
 
         TipoVenda tipoVenda = tipoVendaRepository.findById(request.getTipoVendaId())
                 .orElseThrow(() -> new RegraDeNegocioException("Tipo de Venda não encontrado"));
 
+        Grupo grupo = null;
+        if (request.getGrupoId() != null) {
+            grupo = grupoRepository.findById(request.getGrupoId())
+                    .orElseThrow(() -> new RegraDeNegocioException("Grupo selecionado não encontrado"));
+        }
+
         PropostaAdesao proposta = PropostaAdesao.builder()
                 .numeroProposta("PROP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
                 .cliente(cliente)
                 .produto(produto)
+                .grupo(grupo)
+                .codigoGrupo(grupo != null ? grupo.getCodigoGrupo() : null)
                 .tipoVenda(tipoVenda)
                 .valorCreditoSolicitado(request.getValorCreditoSolicitado())
-                .status(StatusProposta.EM_ANALISE)
+                .status(hasRestrictedAlerts || cliente.getNivelRisco() == NivelRisco.ALTO
+                        ? StatusProposta.PENDENTE_ANALISE_RISCO
+                        : StatusProposta.EM_ANALISE)
                 .dataProposta(LocalDateTime.now(clock))
                 .dataAtualizacao(LocalDateTime.now(clock))
                 .build();
@@ -94,7 +111,7 @@ public class PropostaAdesaoService {
         return propostaRepository.save(proposta);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = RegraDeNegocioException.class)
     public ContratoAdesao aprovarProposta(Long propostaId) {
         PropostaAdesao proposta = propostaRepository.findById(propostaId)
                 .orElseThrow(() -> new RegraDeNegocioException("Proposta não encontrada"));
@@ -103,14 +120,25 @@ public class PropostaAdesaoService {
             throw new RegraDeNegocioException("Apenas propostas EM_ANALISE podem ser aprovadas.");
         }
 
+        // Executa cruzamento síncrono com listas restritivas na aprovação da proposta
+        matchComplianceService.cruzarClienteEGerarAlertas(proposta.getCliente());
+
         boolean hasRestrictedAlerts = alertaComplianceRepository.existsByClienteIdAndStatusIn(
                 proposta.getCliente().getId(),
                 List.of(StatusAlertaCompliance.PENDENTE_ANALISE, StatusAlertaCompliance.CONFIRMADO)
         );
-        if (hasRestrictedAlerts) {
-            throw new RegraDeNegocioException("Venda bloqueada por PLD/FT: Cliente possui alertas restritivos.");
+        if (hasRestrictedAlerts || proposta.getCliente().getNivelRisco() == NivelRisco.ALTO) {
+            proposta.setStatus(StatusProposta.PENDENTE_ANALISE_RISCO);
+            proposta.setDataAtualizacao(LocalDateTime.now(clock));
+            propostaRepository.save(proposta);
+            throw new RegraDeNegocioException("Proposta encaminhada para análise manual de risco (Compliance).");
         }
 
+
+        return efetivarAprovacaoInterna(proposta);
+    }
+
+    private ContratoAdesao efetivarAprovacaoInterna(PropostaAdesao proposta) {
         proposta.setStatus(StatusProposta.APROVADA);
         proposta.setDataAtualizacao(LocalDateTime.now(clock));
         propostaRepository.save(proposta);
@@ -126,63 +154,96 @@ public class PropostaAdesaoService {
 
         // Gera fatura/boleto simbólico da 1ª parcela da Proposta
         System.out.println("[INFO] Fatura gerada para o contrato: " + contrato.getNumeroContrato());
-        
-        return contrato;
+
+        return prepararContratoParaPagamento(contrato);
+    }
+
+    @Transactional
+    public ContratoAdesao analisarPropostaRisco(Long propostaId, br.com.estudo.consorcio.domain.dto.AnaliseRiscoRequestDTO request) {
+        PropostaAdesao proposta = propostaRepository.findById(propostaId)
+                .orElseThrow(() -> new RegraDeNegocioException("Proposta não encontrada"));
+
+        if (proposta.getStatus() != StatusProposta.PENDENTE_ANALISE_RISCO) {
+            throw new RegraDeNegocioException("Apenas propostas em PENDENTE_ANALISE_RISCO podem ser analisadas no compliance.");
+        }
+
+        if (!request.isAprovada()) {
+            proposta.setStatus(StatusProposta.REPROVADA_POR_RISCO);
+            proposta.setJustificativaReprovacao(request.getJustificativa());
+            proposta.setDataAtualizacao(LocalDateTime.now(clock));
+            propostaRepository.save(proposta);
+            return null;
+        }
+
+        return efetivarAprovacaoInterna(proposta);
     }
 
     @Transactional
     public ContratoAdesao efetivarContrato(Long contratoId) {
         ContratoAdesao contrato = contratoRepository.findById(contratoId)
                 .orElseThrow(() -> new RegraDeNegocioException("Contrato não encontrado"));
+        return efetivarContrato(contrato);
+    }
+
+    /**
+     * Mantém compatibilidade com o endpoint legado de efetivação, preparando a cota e
+     * as parcelas sem simular o pagamento da adesão.
+     *
+     * @param contrato contrato pendente de pagamento
+     * @return contrato ainda em {@link StatusContrato#PENDENTE_PAGAMENTO}
+     * @deprecated desde a versão 2.2; a aprovação da proposta já prepara a venda e
+     *             o pagamento real deve ocorrer pelo módulo Financeiro
+     */
+    @Deprecated(since = "2.2")
+    @Transactional
+    public ContratoAdesao efetivarContrato(ContratoAdesao contrato) {
+        return prepararContratoParaPagamento(contrato);
+    }
+
+    private ContratoAdesao prepararContratoParaPagamento(ContratoAdesao contrato) {
+        if (contrato == null) {
+            throw new RegraDeNegocioException("Contrato não encontrado");
+        }
 
         if (contrato.getStatus() != StatusContrato.PENDENTE_PAGAMENTO) {
             throw new RegraDeNegocioException("Contrato deve estar PENDENTE_PAGAMENTO para ser efetivado.");
         }
 
-        boolean hasRestrictedAlerts = alertaComplianceRepository.existsByClienteIdAndStatusIn(
-                contrato.getProposta().getCliente().getId(),
-                List.of(StatusAlertaCompliance.PENDENTE_ANALISE, StatusAlertaCompliance.CONFIRMADO)
-        );
-        if (hasRestrictedAlerts) {
-            throw new RegraDeNegocioException("Venda bloqueada por PLD/FT: Cliente possui alertas restritivos.");
+        if (contrato.getProposta() == null || contrato.getProposta().getStatus() != StatusProposta.APROVADA) {
+            throw new RegraDeNegocioException("Contrato só pode ser efetivado para propostas no status APROVADA.");
         }
 
-        // RN-VND-003: Contrato só gera cota após pagamento
-        // Aqui simularíamos o retorno do webhook do banco ou integração com Financeiro
-        
-        contrato.setStatus(StatusContrato.EFETIVADO);
-        contrato.setDataAssinatura(LocalDateTime.now(clock));
-        contrato = contratoRepository.save(contrato);
-        
-        br.com.estudo.consorcio.domain.enums.CategoriaBem catEnum = mapCategoriaBacen(contrato.getProposta().getProduto().getBemReferencia().getCategoriaBem().getTipoBacen());
+        if (contrato.getId() != null && cotaRepository.findByContratoAdesaoId(contrato.getId()).isPresent()) {
+            return contrato;
+        }
         
         final br.com.estudo.consorcio.domain.model.PropostaAdesao proposta = contrato.getProposta();
         
-        // Alocação Inteligente
-        Grupo grupo = grupoRepository.encontrarMelhorGrupoDisponivel(catEnum)
-                .orElseGet(() -> {
-                    Grupo novo = new Grupo();
-                    novo.setCodigo("GRP-" + UUID.randomUUID().toString().substring(0, 5).toUpperCase());
-                    novo.setCategoriaBem(catEnum);
-                    novo.setValorCredito(proposta.getValorCreditoSolicitado());
-                    novo.setPrazoMeses(proposta.getProduto().getPrazoMeses());
-                    novo.setTaxaAdministracao(proposta.getProduto().getTaxaAdministracaoPerc());
-                    novo.setStatus(StatusGrupo.EM_FORMACAO);
-                    return grupoRepository.save(novo);
-                });
+        // Respeita o Grupo selecionado na Proposta; se nulo, busca o melhor grupo existente com vagas
+        Grupo grupo = proposta.getGrupo();
+        if (grupo == null && proposta.getCodigoGrupo() != null) {
+            grupo = grupoRepository.findByCodigoGrupo(proposta.getCodigoGrupo()).orElse(null);
+        }
+        
+        if (grupo == null) {
+            br.com.estudo.consorcio.domain.enums.CategoriaBem catEnum = mapCategoriaBacen(proposta.getProduto().getBemReferencia().getCategoriaBem().getTipoBacen());
+            grupo = grupoRepository.encontrarMelhorGrupoDisponivel(catEnum)
+                    .orElseThrow(() -> new RegraDeNegocioException("Nenhum grupo ativo disponível com vagas para a categoria solicitada."));
+        } else {
+            long cotasExistentes = cotaRepository.countByGrupoId(grupo.getId());
+            if (cotasExistentes >= grupo.getQuantidadeCotas()) {
+                throw new RegraDeNegocioException("O grupo selecionado (" + grupo.getCodigoGrupo() + ") atingiu a capacidade máxima de cotas.");
+            }
+        }
 
         Cota cota = new Cota();
         long cotasNoGrupo = cotaRepository.countByGrupoId(grupo.getId());
-        cota.setNumeroCota((int) cotasNoGrupo + 1);
+        cota.setCodigoCota((int) cotasNoGrupo + 1);
         cota.setCliente(contrato.getProposta().getCliente());
         cota.setGrupo(grupo);
         cota.setContratoAdesao(contrato);
         
-        if (grupo.getStatus() == StatusGrupo.EM_FORMACAO) {
-            cota.setStatus(StatusCota.AGUARDANDO_INAUGURACAO);
-        } else {
-            cota.setStatus(StatusCota.ATIVA);
-        }
+        cota.setStatus(StatusCota.AGUARDANDO_PAGAMENTO);
         
         cotaRepository.save(cota);
 
@@ -196,7 +257,7 @@ public class PropostaAdesaoService {
         BigDecimal taxaAdm = valorParcela.multiply(grupo.getTaxaAdministracao()).divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
         BigDecimal fundoComum = valorParcela.subtract(taxaAdm);
 
-        // 1ª Parcela: Adesão (já vencendo hoje)
+        // 1ª Parcela: cobrança de adesão aguardando baixa real no Financeiro
         Parcela adesao = new Parcela();
         adesao.setCota(cota);
         adesao.setNumeroParcela(numero++);
@@ -206,10 +267,9 @@ public class PropostaAdesaoService {
         adesao.setValorTaxaAdministracao(taxaAdm);
         adesao.setValorFundoReserva(BigDecimal.ZERO);
         adesao.setValorSeguro(BigDecimal.ZERO);
-        // Se já está efetivando o contrato, a adesão foi paga
-        adesao.setStatus(StatusParcela.PAGA);
-        adesao.setDataPagamento(LocalDate.now(clock));
-        adesao.setValorPago(valorParcela);
+        adesao.setStatus(StatusParcela.PENDENTE);
+        adesao.setDataPagamento(null);
+        adesao.setValorPago(null);
         parcelas.add(adesao);
 
         // Demais parcelas vinculadas às assembleias futuras
@@ -242,5 +302,111 @@ public class PropostaAdesaoService {
         if (tipoBacen == TipoCategoriaBacen.BEM_MOVEL_I) return br.com.estudo.consorcio.domain.enums.CategoriaBem.VEICULO_AUTOMOTOR;
         if (tipoBacen == TipoCategoriaBacen.BEM_MOVEL_II) return br.com.estudo.consorcio.domain.enums.CategoriaBem.OUTROS_BENS_MOVEIS;
         return br.com.estudo.consorcio.domain.enums.CategoriaBem.SERVICO;
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<PropostaComplianceResponseDTO> listarPropostasPendentesDeRisco() {
+        List<PropostaAdesao> propostas = propostaRepository.findByStatus(StatusProposta.PENDENTE_ANALISE_RISCO);
+        
+        if (propostas.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        
+        List<Long> clienteIds = propostas.stream().map(p -> p.getCliente().getId()).toList();
+        List<AlertaCompliance> todosAlertas = alertaComplianceRepository.findByClienteIdInAndStatusIn(
+                clienteIds, 
+                List.of(StatusAlertaCompliance.PENDENTE_ANALISE, StatusAlertaCompliance.CONFIRMADO)
+        );
+        
+        java.util.Map<Long, List<AlertaCompliance>> alertasPorCliente = todosAlertas.stream()
+                .collect(java.util.stream.Collectors.groupingBy(a -> a.getCliente().getId()));
+
+        return propostas.stream()
+                .map(proposta -> {
+                    Cliente cliente = proposta.getCliente();
+                    List<AlertaCompliance> alertas = alertasPorCliente.getOrDefault(cliente.getId(), java.util.Collections.emptyList());
+                    
+                    List<AlertaResumoDTO> alertasDto = new java.util.ArrayList<>();
+
+                    // 1. Cliente declarado PEP no cadastro
+                    if (Boolean.TRUE.equals(cliente.getPep())) {
+                        alertasDto.add(new AlertaResumoDTO(
+                                "PEP",
+                                "Cliente declarado Pessoa Politicamente Exposta (PEP)",
+                                proposta.getDataProposta() != null ? proposta.getDataProposta() : LocalDateTime.now(clock)
+                        ));
+                    }
+
+                    // 2. Alertas de Listas Restritivas (PEP, OFAC, ONU, CEIS, CNEP, etc.)
+                    for (AlertaCompliance alerta : alertas) {
+                        String origem = (alerta.getListaRestritiva() != null && alerta.getListaRestritiva().getOrigem() != null)
+                                ? alerta.getListaRestritiva().getOrigem().name()
+                                : "LISTA_RESTRITIVA";
+
+                        // Evita duplicar tag PEP se já foi adicionado pelo flag do cliente
+                        if ("PEP".equalsIgnoreCase(origem) && Boolean.TRUE.equals(cliente.getPep())) {
+                            continue;
+                        }
+
+                        String nomeLista = alerta.getListaRestritiva() != null ? alerta.getListaRestritiva().getNome() : "Lista Restritiva";
+                        String desc = nomeLista;
+                        if (alerta.getJustificativa() != null && !alerta.getJustificativa().isBlank()) {
+                            desc += " (" + alerta.getJustificativa() + ")";
+                        }
+
+                        alertasDto.add(new AlertaResumoDTO(
+                                origem,
+                                desc,
+                                alerta.getDataDeteccao() != null ? alerta.getDataDeteccao() : LocalDateTime.now(clock)
+                        ));
+                    }
+
+                    // 3. Fallback de Risco Alto se não houver alertas mapeados
+                    if (cliente.getNivelRisco() == NivelRisco.ALTO && alertasDto.isEmpty()) {
+                        alertasDto.add(new AlertaResumoDTO(
+                                "RISCO_ALTO",
+                                "Cliente com classificação interna de Risco Alto",
+                                proposta.getDataProposta() != null ? proposta.getDataProposta() : LocalDateTime.now(clock)
+                        ));
+                    }
+                            
+                    ClienteResponseDTO clienteDto = new ClienteResponseDTO(
+                            cliente.getId(),
+                            cliente.getNome(),
+                            cliente.getCpfCnpj(),
+                            cliente.getEmail(),
+                            cliente.getTelefone(),
+                            cliente.getCep(),
+                            cliente.getLogradouro(),
+                            cliente.getNumero(),
+                            cliente.getComplemento(),
+                            cliente.getBairro(),
+                            cliente.getLocalidade(),
+                            cliente.getUf(),
+                            cliente.getPatrimonio(),
+                            cliente.getRendaMensal(),
+                            cliente.getNivelRisco(),
+                            cliente.getDataCadastro(),
+                            cliente.getStatus()
+                    );
+                    
+                    ProdutoConsorcio produto = proposta.getProduto();
+                    ProdutoConsorcioResponseDTO produtoDto = new ProdutoConsorcioResponseDTO(
+                            produto.getId(),
+                            produto.getNome(),
+                            produto.getPrazoMeses(),
+                            produto.getTaxaAdministracaoPerc()
+                    );
+                    
+                    return new PropostaComplianceResponseDTO(
+                            proposta.getId(),
+                            proposta.getNumeroProposta(),
+                            proposta.getValorCreditoSolicitado(),
+                            clienteDto,
+                            produtoDto,
+                            alertasDto
+                    );
+                })
+                .toList();
     }
 }

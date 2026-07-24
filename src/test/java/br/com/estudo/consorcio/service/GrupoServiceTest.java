@@ -58,6 +58,9 @@ class GrupoServiceTest {
     @Mock
     private HistoricoConsorciadoService historicoService;
 
+    @Mock
+    private br.com.estudo.consorcio.domain.repository.BemReferenciaRepository bemReferenciaRepository;
+
     @org.mockito.Spy
     private java.time.Clock clock = java.time.Clock.systemDefaultZone();
 
@@ -71,7 +74,7 @@ class GrupoServiceTest {
     @DisplayName("Deve salvar um novo grupo garantindo o status EM_FORMACAO")
     void deveSalvarGrupoComSucesso() {
         // --- ARRANGE ---
-        GrupoRequestDTO request = new GrupoRequestDTO("GRP-001", new BigDecimal("50000.00"), 60, new BigDecimal("15.00"), br.com.estudo.consorcio.domain.enums.CategoriaBem.VEICULO_AUTOMOTOR, null, null);
+        GrupoRequestDTO request = new GrupoRequestDTO("GRP-001", new BigDecimal("50000.00"), 60, new BigDecimal("15.00"), br.com.estudo.consorcio.domain.enums.CategoriaBem.VEICULO_AUTOMOTOR, null, null, 1000, null, null);
 
         // Simula o salvamento e retorna a própria entidade que foi passada como argumento
         when(repository.save(any(Grupo.class))).thenAnswer(i -> {
@@ -86,7 +89,7 @@ class GrupoServiceTest {
         // --- ASSERT ---
         assertNotNull(response);
         assertEquals(1L, response.id());
-        assertEquals("GRP-001", response.codigo());
+        assertEquals("GRP-001", response.codigoGrupo());
         assertEquals(StatusGrupo.EM_FORMACAO, response.status(), "A regra de negócio exige que o grupo nasça EM_FORMACAO");
 
         verify(repository, times(1)).save(any(Grupo.class));
@@ -166,8 +169,8 @@ class GrupoServiceTest {
         // --- ASSERT ---
         assertNotNull(lista);
         assertEquals(2, lista.getContent().size());
-        assertEquals("G-01", lista.getContent().get(0).codigo());
-        assertEquals("G-02", lista.getContent().get(1).codigo());
+        assertEquals("G-01", lista.getContent().get(0).codigoGrupo());
+        assertEquals("G-02", lista.getContent().get(1).codigoGrupo());
         verify(repository, times(1)).findAll(any(Pageable.class));
     }
 
@@ -316,11 +319,11 @@ class GrupoServiceTest {
         Long grupoId = 1L;
         Grupo grupo = new Grupo();
         grupo.setId(grupoId);
-        grupo.setCodigo("G-001");
+        grupo.setCodigoGrupo("G-001");
         grupo.setStatus(StatusGrupo.EM_ANDAMENTO);
 
         br.com.estudo.consorcio.domain.model.Cota cota = new br.com.estudo.consorcio.domain.model.Cota();
-        cota.setNumeroCota(123);
+        cota.setCodigoCota(123);
 
         Parcela p1 = new Parcela();
         p1.setNumeroParcela(1);
@@ -349,5 +352,50 @@ class GrupoServiceTest {
         verify(contabilidadeService, times(2)).registrarEncerramento(any(), any(), any(), anyString(), anyString(), any(), any(), anyString());
         verify(parcelaRepository, times(1)).saveAll(anyList());
         verify(repository, times(1)).save(grupo);
+    }
+
+    @Test
+    @DisplayName("Deve lançar RegraDeNegocioException ao tentar salvar Grupo com bem de referência incompatível com a categoria BACEN")
+    void salvar_ComBemIncompativel_DeveLancarExcecao() {
+        // Arrange
+        br.com.estudo.consorcio.domain.enums.CategoriaBem catGrupo = br.com.estudo.consorcio.domain.enums.CategoriaBem.IMOVEL;
+        
+        br.com.estudo.consorcio.domain.model.CategoriaBem catBemMovel = br.com.estudo.consorcio.domain.model.CategoriaBem.builder()
+                .id(1L)
+                .nome("Automóveis")
+                .tipoBacen(br.com.estudo.consorcio.domain.enums.TipoCategoriaBacen.BEM_MOVEL_I)
+                .build();
+
+        br.com.estudo.consorcio.domain.model.BemReferencia bemIncompativel = br.com.estudo.consorcio.domain.model.BemReferencia.builder()
+                .id(100L)
+                .descricao("Carro Sedan 2.0")
+                .categoriaBem(catBemMovel)
+                .build();
+
+        GrupoRequestDTO dto = new GrupoRequestDTO(
+                "GRP-TESTE",
+                new BigDecimal("60000.00"),
+                120,
+                new BigDecimal("15.00"),
+                catGrupo,
+                br.com.estudo.consorcio.domain.model.IndiceReajuste.INCC,
+                1,
+                1000,
+                List.of(100L),
+                List.of(120)
+        );
+
+        when(mapper.toEntity(dto)).thenAnswer(inv -> {
+            Grupo g = new Grupo();
+            g.setCodigoGrupo("GRP-TESTE");
+            g.setCategoriaBem(catGrupo);
+            return g;
+        });
+
+        when(bemReferenciaRepository.findAllById(List.of(100L))).thenReturn(List.of(bemIncompativel));
+
+        // Act & Assert
+        RegraDeNegocioException ex = assertThrows(RegraDeNegocioException.class, () -> service.salvar(dto));
+        assertTrue(ex.getMessage().contains("incompatível com a categoria do grupo"));
     }
 }

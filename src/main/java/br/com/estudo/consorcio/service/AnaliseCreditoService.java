@@ -111,7 +111,7 @@ public class AnaliseCreditoService {
 
             movimentoService.registrarMovimento(cota.getGrupo(), cota, null, contemplacao,
                     TipoMovimentoFinanceiro.LIBERACAO_CREDITO, NaturezaMovimento.DEBITO,
-                    contemplacao.getValorCreditoLiberado(), "Liberação de carta de crédito após aprovação na análise de crédito - Cota " + cota.getNumeroCota(), usuario);
+                    contemplacao.getValorCreditoLiberado(), "Liberação de carta de crédito após aprovação na análise de crédito - Cota " + cota.getCodigoCota(), usuario);
 
             historicoService.registrarInteracao(
                     cota.getCliente(), cota, cota.getGrupo(), null,

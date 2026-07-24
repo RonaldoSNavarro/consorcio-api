@@ -17,6 +17,8 @@ public class PropostaAdesaoMapper {
                 .numeroProposta(model.getNumeroProposta())
                 .clienteId(model.getCliente() != null ? model.getCliente().getId() : null)
                 .produtoId(model.getProduto() != null ? model.getProduto().getId() : null)
+                .grupoId(model.getGrupo() != null ? model.getGrupo().getId() : null)
+                .codigoGrupo(model.getCodigoGrupo() != null ? model.getCodigoGrupo() : (model.getGrupo() != null ? model.getGrupo().getCodigoGrupo() : null))
                 .valorCreditoSolicitado(model.getValorCreditoSolicitado())
                 .status(model.getStatus() != null ? model.getStatus().name() : null)
                 .dataProposta(model.getDataProposta())

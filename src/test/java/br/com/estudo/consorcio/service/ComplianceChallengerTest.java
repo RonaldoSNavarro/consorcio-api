@@ -110,6 +110,7 @@ public class ComplianceChallengerTest {
         propostaAdesaoService = new PropostaAdesaoService(
                 propostaRepository, contratoRepository, clienteRepository,
                 produtoRepository, tipoVendaRepository, alertaComplianceRepository,
+                matchComplianceService,
                 grupoRepository, cotaRepository, assembleiaRepository, parcelaRepository,
                 java.time.Clock.systemDefaultZone()
         );
@@ -250,11 +251,11 @@ public class ComplianceChallengerTest {
     }
 
     // =========================================================================
-    // FOCUS 3: Simulating transactional flows and checking they are correctly blocked
+    // FOCUS 3: Simulating transactional flows with compliance restrictions
     // =========================================================================
 
     @Test
-    @DisplayName("3.1. PropostaAdesaoService - Criar, aprovar e efetivar proposta deve bloquear cliente com alertas restritivos")
+    @DisplayName("3.1. PropostaAdesaoService - Criação deve registrar e encaminhar proposta restritiva ao Compliance")
     public void testBlockProposalFlows() {
         Cliente client = new Cliente();
         client.setId(1L);
@@ -262,19 +263,34 @@ public class ComplianceChallengerTest {
 
         when(clienteRepository.findById(1L)).thenReturn(Optional.of(client));
 
-        // When client has PENDENTE_ANALISE alert, proposal creation should be blocked
+        ProdutoConsorcio produto = new ProdutoConsorcio();
+        produto.setId(10L);
+        TipoVenda tipoVenda = new TipoVenda();
+        tipoVenda.setId(20L);
+        Grupo grupo = new Grupo();
+        grupo.setId(100L);
+
+        when(produtoRepository.findById(10L)).thenReturn(Optional.of(produto));
+        when(tipoVendaRepository.findById(20L)).thenReturn(Optional.of(tipoVenda));
+        when(grupoRepository.findById(100L)).thenReturn(Optional.of(grupo));
+        when(propostaRepository.save(any(PropostaAdesao.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Cliente com alerta deve ter a venda registrada na esteira de risco
         when(alertaComplianceRepository.existsByClienteIdAndStatusIn(eq(1L), anyList())).thenReturn(true);
 
         PropostaRequestDTO requestDto = new PropostaRequestDTO();
         requestDto.setClienteId(1L);
         requestDto.setProdutoId(10L);
         requestDto.setTipoVendaId(20L);
+        requestDto.setGrupoId(100L);
         requestDto.setValorCreditoSolicitado(BigDecimal.valueOf(100000));
 
-        assertThrows(RegraDeNegocioException.class, () -> propostaAdesaoService.criarProposta(requestDto),
-                "Should block proposal creation for client with compliance alerts");
+        PropostaAdesao propostaCriada = propostaAdesaoService.criarProposta(requestDto);
 
-        // Repeat for proposal approval
+        assertEquals(StatusProposta.PENDENTE_ANALISE_RISCO, propostaCriada.getStatus());
+        verify(propostaRepository).save(propostaCriada);
+
+        // Uma proposta comum ainda deve ser retida se o alerta surgir na aprovação
         PropostaAdesao proposta = new PropostaAdesao();
         proposta.setId(5L);
         proposta.setCliente(client);

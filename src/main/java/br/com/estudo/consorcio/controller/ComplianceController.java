@@ -184,8 +184,7 @@ public class ComplianceController {
     @GetMapping("/config")
     @PreAuthorize("hasAnyAuthority('VIEW_COMPLIANCE')")
     public ResponseEntity<ComplianceConfigDTO> getConfig() {
-        ComplianceConfig config = configRepository.findById(1L)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Configuração do agendador não encontrada."));
+        ComplianceConfig config = getOrCreateConfig();
 
         return ResponseEntity.ok(new ComplianceConfigDTO(
                 config.getCronExpression(),
@@ -202,8 +201,7 @@ public class ComplianceController {
     public ResponseEntity<ComplianceConfigDTO> updateConfig(
             @Valid @RequestBody ComplianceConfigDTO request) {
         
-        ComplianceConfig config = configRepository.findById(1L)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Configuração do agendador não encontrada."));
+        ComplianceConfig config = getOrCreateConfig();
 
         String cron = gerarCronExpression(request.frequencia(), request.horario());
 
@@ -220,6 +218,18 @@ public class ComplianceController {
                 config.getHorario(),
                 config.getDataAtualizacao()
         ));
+    }
+
+    private ComplianceConfig getOrCreateConfig() {
+        return configRepository.findById(1L).orElseGet(() -> {
+            ComplianceConfig newConfig = new ComplianceConfig();
+            newConfig.setId(1L);
+            newConfig.setCronExpression("0 0 3 * * *");
+            newConfig.setFrequencia("DIARIO");
+            newConfig.setHorario("03:00");
+            newConfig.setDataAtualizacao(LocalDateTime.now());
+            return configRepository.save(newConfig);
+        });
     }
 
     private String gerarCronExpression(String frequencia, String horario) {

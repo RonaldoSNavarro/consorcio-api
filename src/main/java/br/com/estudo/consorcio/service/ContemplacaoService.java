@@ -187,7 +187,7 @@ public class ContemplacaoService {
                     ContabilidadeService.CONTA_EXCLUIDOS_DEVOLVER,
                     valorCreditoLiberado,
                     LocalDate.now(),
-                    "Restituição de cota excluída sorteada - Cota " + cota.getNumeroCota()
+                    "Restituição de cota excluída sorteada - Cota " + cota.getCodigoCota()
             );
 
             // Reclassificar a multa rescisória do Fundo Comum para a conta de destino parametrizada pelo Grupo
@@ -202,7 +202,7 @@ public class ContemplacaoService {
                         contaDestinoMulta,
                         multaRescisoria,
                         LocalDate.now(),
-                        "Multa rescisória sobre restituição - Cota " + cota.getNumeroCota()
+                        "Multa rescisória sobre restituição - Cota " + cota.getCodigoCota()
                 );
             }
         } else {
@@ -222,7 +222,7 @@ public class ContemplacaoService {
                         ContabilidadeService.CONTA_CREDITOS_LIBERAR,
                         valorCreditoLiberado,
                         LocalDate.now(),
-                        "Trânsito de crédito contemplado - Cota " + cota.getNumeroCota()
+                        "Trânsito de crédito contemplado - Cota " + cota.getCodigoCota()
                 );
             }
         }
@@ -231,7 +231,7 @@ public class ContemplacaoService {
             // O lance embutido reduz o crédito e fica no fundo comum. Como o fundo comum nunca chegou a perder esse montante,
             // podemos registrar um estorno contra a provisão ou simplesmente uma retenção se for estritamente contábil.
             contabilidadeService.registrarBaixa(grupo, cota, null, ContabilidadeService.CONTA_DIREITOS_RECEBER, ContabilidadeService.CONTA_FUNDO_COMUM,
-                    contemplacaoSalva.getValorLance(), LocalDate.now(), "Lance embutido retido no Fundo Comum - Cota " + cota.getNumeroCota());
+                    contemplacaoSalva.getValorLance(), LocalDate.now(), "Lance embutido retido no Fundo Comum - Cota " + cota.getCodigoCota());
         }
 
         // Movimento de LIBERACAO_CREDITO foi movido para o fluxo de Análise de Crédito (AnaliseCreditoService).
@@ -264,7 +264,7 @@ public class ContemplacaoService {
 
         // O bem faturado sai do Fundo Comum e vai para Fornecedores ou Caixa (liquidação)
         contabilidadeService.registrarBaixa(grupo, cota, null, ContabilidadeService.CONTA_FUNDO_COMUM, ContabilidadeService.CONTA_CAIXA,
-                contemplacao.getValorCreditoLiberado(), LocalDate.now(), "Pagamento de bem alienado - Cota " + cota.getNumeroCota());
+                contemplacao.getValorCreditoLiberado(), LocalDate.now(), "Pagamento de bem alienado - Cota " + cota.getCodigoCota());
         
         // Zera o crédito para impedir duplo pagamento
         contemplacao.setValorCreditoLiberado(BigDecimal.ZERO);
@@ -319,7 +319,7 @@ public class ContemplacaoService {
                 ContabilidadeService.CONTA_FUNDO_COMUM,
                 lance.getValorOferta(),
                 LocalDate.now(),
-                "Integralização física de lance livre - Cota " + cota.getNumeroCota()
+                "Integralização física de lance livre - Cota " + cota.getCodigoCota()
         );
 
         // 2. Trânsito do crédito liberado: Débito em CONTA_FUNDO_COMUM e Crédito em CONTA_CREDITOS_LIBERAR pelo valor líquido liberado
@@ -329,7 +329,7 @@ public class ContemplacaoService {
                 ContabilidadeService.CONTA_CREDITOS_LIBERAR,
                 contemplacao.getValorCreditoLiberado(),
                 LocalDate.now(),
-                "Trânsito de crédito contemplado pós-integralização - Cota " + cota.getNumeroCota()
+                "Trânsito de crédito contemplado pós-integralização - Cota " + cota.getCodigoCota()
         );
 
         // 3. Transitar status da cota para AGUARDANDO_ANALISE
