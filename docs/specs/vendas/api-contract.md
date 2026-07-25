@@ -93,3 +93,7 @@ Body (AnaliseRiscoRequestDTO):
 ```
 
 Role: ANALISTA_COMPLIANCE, ADMIN.
+
+Resposta:
+- `200 OK` com o `ContratoResponseDTO` quando a proposta é aprovada;
+- `204 No Content` quando a proposta é reprovada: a decisão e sua justificativa foram persistidas, mas nenhum contrato é gerado. O cliente deve tratar essa resposta como sucesso e atualizar a lista de pendências.
