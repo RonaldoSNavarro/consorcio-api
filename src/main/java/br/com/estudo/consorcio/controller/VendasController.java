@@ -117,7 +117,7 @@ public class VendasController {
             @org.springframework.web.bind.annotation.RequestBody br.com.estudo.consorcio.domain.dto.AnaliseRiscoRequestDTO request) {
         ContratoAdesao contrato = propostaService.analisarPropostaRisco(id, request);
         if (contrato == null) {
-            return ResponseEntity.ok().build();
+            return ResponseEntity.noContent().build();
         }
         return ResponseEntity.ok(mapper.toContratoResponse(contrato));
     }
