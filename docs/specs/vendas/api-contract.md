@@ -1,10 +1,10 @@
 # 📡 API Contract — Vendas de Proposta
 
 - **Capability**: vendas
-- **Versão**: v2.2
+- **Versão**: v2.3
 - **Status**: LOCKED
 - **Spec**: [spec.md](spec.md)
-- **Última alteração**: Venda registrada com cota e primeira parcela pendentes — origem: BUG-FIN-VND-002.
+- **Última alteração**: Reversão da adesão e amortização sem quitação implícita — origem: CR-FIN-VND-003.
 
 ## Endpoints de Bens
 
@@ -32,6 +32,7 @@ Body:
   "clienteId": 1,
   "produtoId": 2,
   "tipoVendaId": 1,
+  "grupoId": 10,
   "valorCreditoSolicitado": 100000.00
 }
 ```
@@ -77,6 +78,19 @@ Ao pagar a parcela nº 1 de uma cota em `AGUARDANDO_PAGAMENTO`:
 - registra a baixa contábil e o histórico do pagamento;
 - muda o `ContratoAdesao` para `EFETIVADO`;
 - muda a cota para `ATIVA` ou `AGUARDANDO_INAUGURACAO`.
+
+### POST /api/parcelas/{parcelaId}/estornar
+
+Estorna o pagamento e seus lançamentos COSIF. Para a primeira parcela de uma adesão,
+somente é permitido quando não houver parcelas posteriores pagas; na mesma transação a
+parcela retorna a `PENDENTE`, o contrato a `PENDENTE_PAGAMENTO` e a cota a
+`AGUARDANDO_PAGAMENTO`.
+
+### POST /api/parcelas/cota/{cotaId}/lance/reducao-prazo
+
+Amortiza exclusivamente o Fundo Comum de parcelas futuras de uma cota já efetivada.
+Não marca parcelas como `PAGA` nem registra pagamento. Cotas em
+`AGUARDANDO_PAGAMENTO` recebem `409 Conflict`.
 ### GET /api/vendas/propostas/pendentes-risco
 Retorna as propostas que ficaram retidas na análise de risco de PLD/FT (status `PENDENTE_ANALISE_RISCO`).
 Utilizado pelo dashboard de compliance.

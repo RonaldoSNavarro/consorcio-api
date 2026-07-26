@@ -282,6 +282,8 @@ public class ParcelaService {
                     parcela.getValorJuros(), parcela.getDataVencimento(), "Estorno de Provisão de Juros - Parcela " + parcela.getNumeroParcela());
         }
 
+        reverterAdesaoAposEstorno(parcela, grupo, cota, hoje);
+
         // 2. Altera status da parcela para PENDENTE (reabrir cobrança)
         parcela.setStatus(StatusParcela.PENDENTE);
 
@@ -296,28 +298,79 @@ public class ParcelaService {
         return mapper.toResponse(parcelaSalva);
     }
 
+    /**
+     * Reverte a efetivação que foi produzida exclusivamente pela baixa da primeira parcela.
+     *
+     * <p>A reversão mantém a atomicidade entre a parcela, o contrato, a cota e a comissão,
+     * conforme RN-VND-011 e RN-FUN-005. Uma adesão com pagamentos posteriores não pode ser
+     * estornada isoladamente, pois isso deixaria o histórico financeiro inconsistente.</p>
+     *
+     * @param parcela parcela submetida ao estorno
+     * @param grupo grupo vinculado à cota
+     * @param cota cota vinculada à parcela
+     * @param dataEstorno data contábil do estorno
+     * @throws RegraDeNegocioException se houver pagamento posterior ou estados incompatíveis
+     */
+    private void reverterAdesaoAposEstorno(Parcela parcela, Grupo grupo, Cota cota, LocalDate dataEstorno) {
+        if (!Integer.valueOf(1).equals(parcela.getNumeroParcela())) {
+            return;
+        }
+
+        boolean possuiPagamentosPosteriores = parcelaRepository.findByCotaId(cota.getId()).stream()
+                .anyMatch(p -> p.getNumeroParcela() != null
+                        && p.getNumeroParcela() > 1
+                        && p.getStatus() == StatusParcela.PAGA);
+        if (possuiPagamentosPosteriores) {
+            throw new RegraDeNegocioException("Não é possível estornar a primeira parcela após pagamentos posteriores.");
+        }
+
+        ContratoAdesao contrato = cota.getContratoAdesao();
+        if (contrato == null
+                || contrato.getStatus() != StatusContrato.EFETIVADO
+                || (cota.getStatus() != StatusCota.ATIVA
+                && cota.getStatus() != StatusCota.AGUARDANDO_INAUGURACAO)) {
+            throw new RegraDeNegocioException("Estorno da adesão encontrou contrato ou cota em estado incompatível.");
+        }
+
+        comissaoService.buscarPorContratoEStatus(contrato.getId(), "PAGA").ifPresent(comissao -> {
+            comissaoService.estornarComissao(comissao);
+            contabilidadeService.registrarEstorno(grupo, cota, parcela,
+                    ContabilidadeService.CONTA_CAIXA,
+                    ContabilidadeService.CONTA_TAXA_ADM,
+                    comissao.getValorTotalComissao(),
+                    dataEstorno,
+                    "Estorno de comissão pela reversão da adesão - Contrato " + contrato.getId());
+        });
+
+        contrato.setStatus(StatusContrato.PENDENTE_PAGAMENTO);
+        contrato.setDataAssinatura(null);
+        contratoRepository.save(contrato);
+
+        cota.setStatus(StatusCota.AGUARDANDO_PAGAMENTO);
+        cotaRepository.save(cota);
+    }
+
     // Os métodos de amortização continuam iguais, pois eles operam listas internas no banco
     @Transactional
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('MANAGE_FINANCEIRO')")
     public void amortizarPorReducaoDePrazo(Long cotaId, BigDecimal valorLance) {
+        Cota cota = cotaRepository.findById(cotaId)
+                .orElseThrow(() -> new RegraDeNegocioException("Cota não encontrada."));
+        if (cota.getContratoAdesao() == null
+                || cota.getContratoAdesao().getStatus() != StatusContrato.EFETIVADO) {
+            throw new RegraDeNegocioException("Amortização só é permitida para cotas com adesão efetivada.");
+        }
+
         List<Parcela> parcelasDeTrasParaFrente = parcelaRepository.findByCotaIdAndStatusOrderByNumeroParcelaDesc(cotaId, StatusParcela.PENDENTE);
         BigDecimal saldoLance = valorLance;
 
         for (Parcela parcela : parcelasDeTrasParaFrente) {
             if (saldoLance.compareTo(BigDecimal.ZERO) <= 0) break;
 
-            if (saldoLance.compareTo(parcela.getValorParcela()) >= 0) {
-                parcela.setStatus(StatusParcela.PAGA);
-                parcela.setDataPagamento(LocalDate.now());
-                parcela.setValorMulta(BigDecimal.ZERO);
-                parcela.setValorJuros(BigDecimal.ZERO);
-                parcela.setValorPago(parcela.getValorParcela());
-                saldoLance = saldoLance.subtract(parcela.getValorParcela());
-            } else {
-                BigDecimal novoFundoComum = parcela.getValorFundoComum().subtract(saldoLance);
-                parcela.setValorFundoComum(novoFundoComum);
-                saldoLance = BigDecimal.ZERO;
-            }
+            BigDecimal amortizacao = saldoLance.min(parcela.getValorFundoComum());
+            parcela.setValorFundoComum(parcela.getValorFundoComum().subtract(amortizacao));
+            parcela.calcularValorTotal();
+            saldoLance = saldoLance.subtract(amortizacao);
         }
         parcelaRepository.saveAll(parcelasDeTrasParaFrente);
     }

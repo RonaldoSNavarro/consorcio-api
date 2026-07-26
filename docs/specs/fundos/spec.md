@@ -1,9 +1,9 @@
 # Spec — Composição de Fundos e Parcelas
 
 - **Capability**: fundos
-- **Versão**: v1.1
+- **Versão**: v1.2
 - **Status**: IMPLEMENTED
-- **Última alteração**: Integração da baixa da primeira parcela com a efetivação do contrato — origem: BUG-FIN-VND-002.
+- **Última alteração**: Reversão atômica da adesão e bloqueio de quitação implícita — origem: CR-FIN-VND-003.
 
 ## Requisitos
 
@@ -20,6 +20,8 @@
 - RN-FUN-002: Somente a operação de pagamento preenche `dataPagamento`, `valorPago` e status `PAGA`.
 - RN-FUN-003: Parcela `PENDENTE` não compõe arrecadação, saldo de Fundo Comum nem dashboard financeiro.
 - RN-FUN-004: O pagamento da parcela nº 1 promove o contrato de `PENDENTE_PAGAMENTO` para `EFETIVADO` e a cota de `AGUARDANDO_PAGAMENTO` para o estado compatível com o grupo.
+- RN-FUN-005: O estorno da parcela nº 1, quando não houver pagamentos posteriores, reverte contrato e cota aos estados pendentes na mesma transação dos lançamentos de estorno.
+- RN-FUN-006: Amortização não representa pagamento; não pode definir `PAGA`, `dataPagamento` ou `valorPago`.
 
 ## Critério de Aceitação — REQ-FUN-004
 
@@ -27,3 +29,9 @@
 - **When** o Financeiro confirma o pagamento;
 - **Then** pagamento, ledger, contrato e cota são atualizados na mesma transação;
 - **And** uma falha em qualquer etapa reverte toda a operação.
+
+## Critério de Aceitação — REQ-FUN-004 (estorno)
+
+- **Given** uma primeira parcela paga sem pagamentos posteriores;
+- **When** o Financeiro registra seu estorno;
+- **Then** parcela, ledger, contrato e cota retornam de forma atômica ao estado anterior à baixa.

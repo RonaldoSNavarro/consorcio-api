@@ -1,9 +1,9 @@
 # 📋 Spec — Módulo de Vendas de Proposta (vendas)
 
 - **Capability**: vendas
-- **Versão**: v2.2
+- **Versão**: v2.3
 - **Status**: IMPLEMENTED
-- **Última alteração**: Separação entre registro da venda e pagamento da primeira parcela — origem: BUG-FIN-VND-002.
+- **Última alteração**: Proteção contra quitação implícita por amortização e reversão atômica do estorno da adesão — origem: CR-FIN-VND-003.
 
 ## 1. Contexto
 
@@ -63,9 +63,11 @@ A cota deve estar sempre atrelada a um bem que dite o seu reajuste.
 - RN-VND-003: A aprovação da venda gera a Cota em `AGUARDANDO_PAGAMENTO` e a primeira parcela em `PENDENTE`. A parcela não possui data/valor de pagamento e não integra arrecadação até a baixa real no Financeiro.
 - RN-VND-004: Propostas Reprovadas são canceladas definitivamente.
 - RN-VND-005 (Comissionamento): A comissão do corretor é diluída ao longo das parcelas pagas pelo cliente. Comissões poderão ser bloqueadas ou estornadas caso o cliente se torne inadimplente.
-- RN-VND-006 (Alocação Inteligente): O sistema sempre prioriza preencher grupos existentes (`EM_ANDAMENTO` e `EM_FORMACAO`) antes de abrir novos. O limite da query atual do sistema está em 100 cotas/grupo como hard-limit, atrelado à categoria de bem.
+- RN-VND-006 (Alocação Inteligente): O sistema aloca exclusivamente grupos existentes (`EM_ANDAMENTO` e `EM_FORMACAO`) com vagas e categoria compatível; nunca cria grupos automaticamente durante a venda.
 - RN-VND-007 (Geração de Cota): Ao registrar a venda, a cota gerada deve obrigatoriamente receber um número sequencial calculado dinamicamente de acordo com o total de cotas atuais do grupo alocado (restrição NOT NULL no banco de dados).
 - RN-VND-009 (Baixa da Adesão): Somente `ParcelaService.pagar()` pode mudar a primeira parcela para `PAGA`, preencher `dataPagamento`/`valorPago`, registrar o ledger COSIF e efetivar `ContratoAdesao`/`Cota`.
+- RN-VND-010 (Amortização): Amortização de lance reduz exclusivamente o componente de Fundo Comum de parcelas futuras de cotas já efetivadas; ela não altera nenhuma parcela para `PAGA`, não preenche dados de pagamento e não pode ser executada para cotas em `AGUARDANDO_PAGAMENTO`.
+- RN-VND-011 (Estorno da Adesão): Ao estornar a primeira parcela de uma adesão sem pagamentos posteriores, o sistema reverte na mesma transação a parcela para `PENDENTE`, o contrato para `PENDENTE_PAGAMENTO`, a cota para `AGUARDANDO_PAGAMENTO`, a assinatura e qualquer comissão liberada por esse pagamento.
 
 ## 6. Diretrizes Técnicas / Notas de Arquitetura
 - **Persistência / Serialização:** Entidades chave do módulo (como `ProdutoConsorcio` e `BemReferencia`) possuem dependências aninhadas. Deve-se adotar `FetchType.EAGER` ou Projetar em DTOs a fim de contornar `LazyInitializationException` no momento de retorno via Jackson API.
@@ -108,3 +110,19 @@ A cota deve estar sempre atrelada a um bem que dite o seu reajuste.
 - **Then** a parcela passa para `PAGA` e gera os lançamentos COSIF;
 - **And** o contrato passa para `EFETIVADO`;
 - **And** a cota passa para `ATIVA` se o grupo está `EM_ANDAMENTO`, ou `AGUARDANDO_INAUGURACAO` se está `EM_FORMACAO`.
+
+### AC-VND-009-03 — Impedir quitação implícita por amortização
+
+- **Given** uma cota em `AGUARDANDO_PAGAMENTO`;
+- **When** o Financeiro solicita amortização por lance;
+- **Then** a operação é rejeitada;
+- **And** nenhuma parcela é marcada como `PAGA` fora de `ParcelaService.pagar()`.
+
+### AC-VND-009-04 — Reverter integralmente a adesão estornada
+
+- **Given** uma primeira parcela paga, contrato `EFETIVADO` e cota ativa;
+- **When** o Financeiro estorna a primeira parcela sem pagamentos posteriores;
+- **Then** os lançamentos COSIF são estornados;
+- **And** a parcela volta para `PENDENTE`;
+- **And** contrato e cota retornam para os estados pendentes de pagamento;
+- **And** qualquer comissão liberada pelo pagamento é estornada.

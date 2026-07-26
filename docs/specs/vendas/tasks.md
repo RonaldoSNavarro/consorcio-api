@@ -1,8 +1,8 @@
 # Tasks SDD — Módulo de Vendas
 
 - **Capability**: vendas
-- **Spec**: [spec.md](spec.md) v2.2
-- **API Contract**: [api-contract.md](api-contract.md) v2.2
+- **Spec**: [spec.md](spec.md) v2.3
+- **API Contract**: [api-contract.md](api-contract.md) v2.3
 - **Status**: IMPLEMENTED
 
 ## BUG-PLD-VND-001 — REQ-VND-008
@@ -36,3 +36,11 @@
 - Resultado backend: 158 testes aprovados, 0 falhas, 2 ignorados.
 - `hooks.test.jsx` e `AnaliseRiscoPage.test.jsx`
 - Resultado frontend direcionado: 16 testes aprovados, 0 falhas.
+
+## CR-FIN-VND-003 — Consistência da amortização e do estorno da adesão
+
+- [x] **[SPEC] RN-VND-006** — Alinhar a alocação a grupos existentes, sem criação automática.
+- [x] **[SPEC] RN-VND-010/RN-VND-011** — Definir amortização sem quitação implícita e reversão atômica da adesão.
+- [x] **[BACKEND] RN-VND-010** — Bloquear amortização para cota pendente e impedir que a operação marque parcelas como `PAGA`.
+- [x] **[BACKEND] RN-VND-011** — Reverter contrato, cota e comissão no estorno da primeira parcela.
+- [x] **[QA] AC-VND-009-03/04** — Cobrir os dois cenários de regressão.
