@@ -58,6 +58,9 @@ class ContemplacaoServiceTest {
     private LanceRepository lanceRepository;
 
     @Mock
+    private ParcelaService parcelaService;
+
+    @Mock
     private br.com.estudo.consorcio.domain.mapper.CotaMapper cotaMapper;
 
     @org.mockito.Spy
@@ -346,27 +349,116 @@ class ContemplacaoServiceTest {
         Lance lance = new Lance();
         lance.setId(idLance);
         lance.setCota(cota);
+        lance.setTipo(TipoLance.FIRME);
         lance.setStatusApuracao(StatusApuracaoLance.VENCEDOR);
         lance.setValorOferta(new BigDecimal("20000.00"));
 
+        Assembleia assembleia = new Assembleia();
+        assembleia.setId(2L);
+        lance.setAssembleia(assembleia);
+
         Contemplacao contemplacao = new Contemplacao();
         contemplacao.setCota(cota);
+        contemplacao.setAssembleia(assembleia);
         contemplacao.setValorCreditoLiberado(new BigDecimal("100000.00"));
 
         when(lanceRepository.findById(idLance)).thenReturn(Optional.of(lance));
-        when(contemplacaoRepository.findTopByCotaIdOrderByDataContemplacaoDesc(idCota)).thenReturn(Optional.of(contemplacao));
+        when(contemplacaoRepository.findByCotaIdAndAssembleiaId(idCota, 2L)).thenReturn(Optional.of(contemplacao));
         when(cotaMapper.toResponse(any(Cota.class))).thenReturn(new CotaResponseDTO(idCota, 44, 3L, 10L, "001", "Cliente Teste", java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, 1L, "Bem", java.math.BigDecimal.ZERO, br.com.estudo.consorcio.domain.enums.CategoriaBem.VEICULO_AUTOMOTOR, 60, StatusCota.AGUARDANDO_ANALISE, 0));
 
         // --- ACT ---
-        CotaResponseDTO response = service.confirmarPagamentoLance(idLance);
+        CotaResponseDTO response = service.liquidarLance(idLance, TipoAmortizacaoLance.REDUCAO_PRAZO);
 
         // --- ASSERT ---
         assertNotNull(response);
         verify(cotaService, times(1)).registrarTransicaoVersao(cota, StatusCota.AGUARDANDO_ANALISE, "Integralização do lance efetuada - Cota aguardando análise de crédito");
         
         // Verifica se fez os dois lançamentos contábeis no Ledger
-        verify(contabilidadeService, times(1)).registrarBaixa(grupo, cota, null, ContabilidadeService.CONTA_CAIXA, ContabilidadeService.CONTA_FUNDO_COMUM, new BigDecimal("20000.00"), LocalDate.now(), "Integralização física de lance livre - Cota 44");
+        verify(contabilidadeService, times(1)).registrarBaixa(grupo, cota, null, ContabilidadeService.CONTA_CAIXA, ContabilidadeService.CONTA_FUNDO_COMUM, new BigDecimal("20000.00"), LocalDate.now(), "Integralização física de lance - Cota 44");
         verify(contabilidadeService, times(1)).registrarBaixa(grupo, cota, null, ContabilidadeService.CONTA_FUNDO_COMUM, ContabilidadeService.CONTA_CREDITOS_LIBERAR, new BigDecimal("100000.00"), LocalDate.now(), "Trânsito de crédito contemplado pós-integralização - Cota 44");
+        verify(parcelaService).amortizarPorReducaoDePrazo(idCota, new BigDecimal("20000.00"));
+        assertEquals(StatusApuracaoLance.LIQUIDADO, lance.getStatusApuracao());
+    }
+
+    @Test
+    @DisplayName("Deve retornar idempotentemente quando o lance já foi liquidado")
+    void deveRetornarIdempotentementeQuandoLanceJaLiquidado() {
+        Lance lance = lanceComStatus(StatusApuracaoLance.LIQUIDADO, TipoLance.FIRME);
+        lance.setTipoAmortizacao(TipoAmortizacaoLance.DILUICAO);
+        when(lanceRepository.findById(5L)).thenReturn(Optional.of(lance));
+        when(cotaMapper.toResponse(lance.getCota())).thenReturn(respostaCota(lance.getCota()));
+
+        assertNotNull(service.liquidarLance(5L, TipoAmortizacaoLance.DILUICAO));
+        verifyNoInteractions(parcelaService, contabilidadeService, contemplacaoRepository);
+        verify(lanceRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar modalidade divergente após a liquidação")
+    void deveRejeitarModalidadeDivergenteAposLiquidacao() {
+        Lance lance = lanceComStatus(StatusApuracaoLance.LIQUIDADO, TipoLance.FIRME);
+        lance.setTipoAmortizacao(TipoAmortizacaoLance.REDUCAO_PRAZO);
+        when(lanceRepository.findById(5L)).thenReturn(Optional.of(lance));
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.liquidarLance(5L, TipoAmortizacaoLance.DILUICAO));
+        verifyNoInteractions(parcelaService, contabilidadeService, contemplacaoRepository);
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar liquidação de lance não vencedor")
+    void deveRejeitarLanceNaoVencedor() {
+        Lance lance = lanceComStatus(StatusApuracaoLance.PERDEDOR, TipoLance.FIRME);
+        when(lanceRepository.findById(5L)).thenReturn(Optional.of(lance));
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.liquidarLance(5L, TipoAmortizacaoLance.DILUICAO));
+        verifyNoInteractions(parcelaService, contabilidadeService, contemplacaoRepository);
+    }
+
+    @Test
+    @DisplayName("Deve liquidar lance embutido sem registrar entrada de caixa")
+    void deveLiquidarLanceEmbutidoSemEntradaDeCaixa() {
+        Lance lance = lanceComStatus(StatusApuracaoLance.VENCEDOR, TipoLance.EMBUTIDO);
+        lance.getCota().setStatus(StatusCota.AGUARDANDO_ANALISE);
+        Contemplacao contemplacao = contemplacaoPara(lance);
+        when(lanceRepository.findById(5L)).thenReturn(Optional.of(lance));
+        when(contemplacaoRepository.findByCotaIdAndAssembleiaId(1L, 2L)).thenReturn(Optional.of(contemplacao));
+        when(cotaMapper.toResponse(lance.getCota())).thenReturn(respostaCota(lance.getCota()));
+
+        service.liquidarLance(5L, TipoAmortizacaoLance.DILUICAO);
+
+        verifyNoInteractions(contabilidadeService);
+        verify(parcelaService).amortizarPorDiluicao(1L, new BigDecimal("20000.00"));
+        assertEquals(StatusApuracaoLance.LIQUIDADO, lance.getStatusApuracao());
+    }
+
+    @Test
+    @DisplayName("Deve bloquear lance misto até existir composição financeira")
+    void deveBloquearLanceMisto() {
+        Lance lance = lanceComStatus(StatusApuracaoLance.VENCEDOR, TipoLance.MISTO);
+        when(lanceRepository.findById(5L)).thenReturn(Optional.of(lance));
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.liquidarLance(5L, TipoAmortizacaoLance.REDUCAO_PRAZO));
+        verifyNoInteractions(parcelaService, contabilidadeService, contemplacaoRepository);
+    }
+
+    private Lance lanceComStatus(StatusApuracaoLance status, TipoLance tipo) {
+        Grupo grupo = new Grupo(); grupo.setId(10L); grupo.setValorCredito(new BigDecimal("100000.00"));
+        Cota cota = new Cota(); cota.setId(1L); cota.setCodigoCota(44); cota.setGrupo(grupo); cota.setStatus(StatusCota.PENDENTE_INTEGRALIZACAO); cota.setCliente(new Cliente());
+        Assembleia assembleia = new Assembleia(); assembleia.setId(2L); assembleia.setGrupo(grupo);
+        Lance lance = new Lance(); lance.setId(5L); lance.setCota(cota); lance.setAssembleia(assembleia); lance.setTipo(tipo); lance.setValorOferta(new BigDecimal("20000.00")); lance.setStatusApuracao(status);
+        return lance;
+    }
+
+    private Contemplacao contemplacaoPara(Lance lance) {
+        Contemplacao contemplacao = new Contemplacao(); contemplacao.setCota(lance.getCota()); contemplacao.setAssembleia(lance.getAssembleia()); contemplacao.setValorCreditoLiberado(new BigDecimal("80000.00"));
+        return contemplacao;
+    }
+
+    private CotaResponseDTO respostaCota(Cota cota) {
+        return new CotaResponseDTO(cota.getId(), cota.getCodigoCota(), null, 10L, "001", null, BigDecimal.ZERO, BigDecimal.ZERO, null, null, null, null, null, cota.getStatus(), 0);
     }
 
     @Test
@@ -412,7 +504,7 @@ class ContemplacaoServiceTest {
 
         // --- ASSERT ---
         verify(cotaService, times(1)).registrarTransicaoVersao(cota, StatusCota.ATIVA, "Contemplação cancelada por atraso na integralização do lance.");
-        assertEquals(StatusApuracaoLance.INVALIDO, lance.getStatusApuracao());
+        assertEquals(StatusApuracaoLance.EXPIRADO, lance.getStatusApuracao());
         verify(contemplacaoRepository, times(1)).delete(contemplacao);
     }
 

@@ -4,6 +4,8 @@ import br.com.estudo.consorcio.domain.dto.ContemplacaoRequestDTO;
 import br.com.estudo.consorcio.domain.model.*;
 import br.com.estudo.consorcio.domain.repository.AssembleiaRepository;
 import br.com.estudo.consorcio.domain.repository.LanceRepository;
+import br.com.estudo.consorcio.domain.repository.LoteriaFederalRepository;
+import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +34,9 @@ class MotorApuracaoServiceTest {
 
     @Mock
     private LanceRepository lanceRepository;
+
+    @Mock
+    private LoteriaFederalRepository loteriaFederalRepository;
 
     @Mock
     private ContabilidadeService contabilidadeService;
@@ -55,12 +61,22 @@ class MotorApuracaoServiceTest {
         grupo = new Grupo();
         grupo.setId(1L);
         grupo.setValorCredito(new BigDecimal("100000.00"));
+        grupo.setAlgoritmoPedraChave(AlgoritmoPedraChave.CENTENA);
+        grupo.setDirecaoFallbackSorteio(DirecaoFallbackSorteio.ACIMA_DEPOIS_ABAIXO);
         grupo.setCriterioDesempateLance(CriterioDesempateLance.LOTERIA_FEDERAL);
 
         assembleia = new Assembleia();
         assembleia.setId(2L);
         assembleia.setGrupo(grupo);
         assembleia.setStatus(StatusAssembleia.REALIZADA);
+        assembleia.setDataAssembleia(java.time.LocalDate.now());
+        LoteriaFederal extracao = new LoteriaFederal();
+        extracao.setConcurso("9999");
+        extracao.setDataSorteio(java.time.LocalDate.now());
+        extracao.setPremio1("00030");
+        extracao.setPremio2("00020");
+        lenient().when(loteriaFederalRepository.findTopByDataSorteioLessThanEqualOrderByDataSorteioDesc(any()))
+                .thenReturn(Optional.of(extracao));
     }
 
     @Test
@@ -140,6 +156,7 @@ class MotorApuracaoServiceTest {
     @DisplayName("REQ-CON-007: Deve incluir e contemplar por sorteio uma cota cancelada (restituição) se o realizarSorteio for true")
     void deveContemplarPorSorteioCotaCancelada() {
         // Arrange
+        assembleia.setNumeroSorteado(30);
         Cota cotaAtiva = new Cota();
         cotaAtiva.setId(10L);
         cotaAtiva.setCodigoCota(20);
@@ -175,5 +192,54 @@ class MotorApuracaoServiceTest {
         assertEquals(10L, registered.get(0).cotaId()); // Ativa sorteada
         assertEquals(20L, registered.get(1).cotaId()); // Excluída sorteada
         assertEquals(TipoContemplacao.SORTEIO, registered.get(1).tipoContemplacao());
+    }
+
+    @Test
+    @DisplayName("Não deve reprocessar assembleia já fechada")
+    void naoDeveReprocessarAssembleiaFechada() {
+        assembleia.setStatus(StatusAssembleia.FECHADA);
+        when(assembleiaRepository.findById(2L)).thenReturn(Optional.of(assembleia));
+
+        motorApuracaoService.apurarAssembleia(2L);
+
+        verifyNoInteractions(contabilidadeService, cotaRepository, lanceRepository, contemplacaoService,
+                loteriaFederalRepository);
+        verify(assembleiaRepository).findById(2L);
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar extração vinculada posterior à data da assembleia")
+    void deveRejeitarExtracaoFuturaVinculada() {
+        assembleia.setNumeroExtracaoLoteria("12345");
+        LoteriaFederal extracaoFutura = new LoteriaFederal();
+        extracaoFutura.setConcurso("12345");
+        extracaoFutura.setDataSorteio(LocalDate.now().plusDays(1));
+        extracaoFutura.setPremio1("00030");
+        extracaoFutura.setPremio2("00020");
+        when(assembleiaRepository.findById(2L)).thenReturn(Optional.of(assembleia));
+        when(contabilidadeService.calcularSaldoConta(eq(grupo), eq(ContabilidadeService.CONTA_FUNDO_COMUM)))
+                .thenReturn(new BigDecimal("100000.00"));
+        when(loteriaFederalRepository.findByConcurso("12345")).thenReturn(Optional.of(extracaoFutura));
+
+        RegraDeNegocioException erro = assertThrows(RegraDeNegocioException.class,
+                () -> motorApuracaoService.apurarAssembleia(2L));
+
+        assertTrue(erro.getMessage().contains("não é elegível"));
+        verifyNoInteractions(contemplacaoService, lanceRepository, cotaRepository);
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar segundo prêmio gravado diferente da extração oficial")
+    void deveRejeitarPremioExcluidosDivergente() {
+        assembleia.setPremioExcluidos(99);
+        when(assembleiaRepository.findById(2L)).thenReturn(Optional.of(assembleia));
+        when(contabilidadeService.calcularSaldoConta(eq(grupo), eq(ContabilidadeService.CONTA_FUNDO_COMUM)))
+                .thenReturn(new BigDecimal("100000.00"));
+
+        RegraDeNegocioException erro = assertThrows(RegraDeNegocioException.class,
+                () -> motorApuracaoService.apurarAssembleia(2L));
+
+        assertTrue(erro.getMessage().contains("prêmio de excluídos"));
+        verifyNoInteractions(contemplacaoService, lanceRepository, cotaRepository);
     }
 }

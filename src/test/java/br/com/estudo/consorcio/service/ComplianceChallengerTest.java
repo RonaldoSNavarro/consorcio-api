@@ -103,7 +103,8 @@ public class ComplianceChallengerTest {
         contemplacaoService = new ContemplacaoService(
                 contemplacaoRepository, assembleiaRepository, cotaRepository,
                 parcelaRepository, contemplacaoMapper, contabilidadeService,
-                cotaService, historicoService, lanceRepository, cotaMapperSpy, alertaComplianceRepository
+                cotaService, historicoService, lanceRepository, cotaMapperSpy, alertaComplianceRepository,
+                mock(ParcelaService.class)
         );
 
         // PropostaAdesaoService

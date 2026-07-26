@@ -22,6 +22,7 @@
 - RN-FUN-004: O pagamento da parcela nº 1 promove o contrato de `PENDENTE_PAGAMENTO` para `EFETIVADO` e a cota de `AGUARDANDO_PAGAMENTO` para o estado compatível com o grupo.
 - RN-FUN-005: O estorno da parcela nº 1, quando não houver pagamentos posteriores, reverte contrato e cota aos estados pendentes na mesma transação dos lançamentos de estorno.
 - RN-FUN-006: Amortização não representa pagamento; não pode definir `PAGA`, `dataPagamento` ou `valorPago`.
+- RN-FUN-007: Amortização de lance é acionada exclusivamente pela liquidação rastreável de lance vencedor; o abatimento não pode exceder o Fundo Comum pendente e deve recalcular o total da parcela.
 
 ## Critério de Aceitação — REQ-FUN-004
 

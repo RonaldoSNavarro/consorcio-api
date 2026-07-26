@@ -3,6 +3,7 @@ package br.com.estudo.consorcio.controller;
 import br.com.estudo.consorcio.domain.dto.ContemplacaoRequestDTO;
 import br.com.estudo.consorcio.domain.dto.ContemplacaoResponseDTO;
 import br.com.estudo.consorcio.domain.dto.CotaResponseDTO;
+import br.com.estudo.consorcio.domain.dto.LiquidacaoLanceRequestDTO;
 import br.com.estudo.consorcio.service.ContemplacaoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -63,8 +64,9 @@ public class ContemplacaoController {
             description = "Registra a compensação bancária do lance livre. Transita o status da cota para AGUARDANDO_ANALISE e gera os lançamentos contábeis no Ledger.")
     @PreAuthorize("hasAuthority('MANAGE_GRUPOS')")
     @PostMapping("/lances/{id}/integralizar")
-    public ResponseEntity<CotaResponseDTO> confirmarIntegralizacao(@PathVariable Long id) {
-        CotaResponseDTO response = service.confirmarPagamentoLance(id);
+    public ResponseEntity<CotaResponseDTO> confirmarIntegralizacao(@PathVariable Long id,
+                                                                     @Valid @RequestBody LiquidacaoLanceRequestDTO request) {
+        CotaResponseDTO response = service.liquidarLance(id, request.tipoAmortizacao());
         return ResponseEntity.ok(response);
     }
 

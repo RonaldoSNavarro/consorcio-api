@@ -86,11 +86,8 @@ somente é permitido quando não houver parcelas posteriores pagas; na mesma tra
 parcela retorna a `PENDENTE`, o contrato a `PENDENTE_PAGAMENTO` e a cota a
 `AGUARDANDO_PAGAMENTO`.
 
-### POST /api/parcelas/cota/{cotaId}/lance/reducao-prazo
+> Os endpoints de amortização direta por cota/valor foram removidos. A amortização ocorre somente na liquidação identificada de lance vencedor em `POST /api/contemplacoes/lances/{id}/integralizar`.
 
-Amortiza exclusivamente o Fundo Comum de parcelas futuras de uma cota já efetivada.
-Não marca parcelas como `PAGA` nem registra pagamento. Cotas em
-`AGUARDANDO_PAGAMENTO` recebem `409 Conflict`.
 ### GET /api/vendas/propostas/pendentes-risco
 Retorna as propostas que ficaram retidas na análise de risco de PLD/FT (status `PENDENTE_ANALISE_RISCO`).
 Utilizado pelo dashboard de compliance.

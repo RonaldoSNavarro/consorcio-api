@@ -66,7 +66,7 @@ A cota deve estar sempre atrelada a um bem que dite o seu reajuste.
 - RN-VND-006 (Alocação Inteligente): O sistema aloca exclusivamente grupos existentes (`EM_ANDAMENTO` e `EM_FORMACAO`) com vagas e categoria compatível; nunca cria grupos automaticamente durante a venda.
 - RN-VND-007 (Geração de Cota): Ao registrar a venda, a cota gerada deve obrigatoriamente receber um número sequencial calculado dinamicamente de acordo com o total de cotas atuais do grupo alocado (restrição NOT NULL no banco de dados).
 - RN-VND-009 (Baixa da Adesão): Somente `ParcelaService.pagar()` pode mudar a primeira parcela para `PAGA`, preencher `dataPagamento`/`valorPago`, registrar o ledger COSIF e efetivar `ContratoAdesao`/`Cota`.
-- RN-VND-010 (Amortização): Amortização de lance reduz exclusivamente o componente de Fundo Comum de parcelas futuras de cotas já efetivadas; ela não altera nenhuma parcela para `PAGA`, não preenche dados de pagamento e não pode ser executada para cotas em `AGUARDANDO_PAGAMENTO`.
+- RN-VND-010 (Amortização): Amortização de lance reduz exclusivamente o componente de Fundo Comum de parcelas futuras de cotas já efetivadas; ela não altera nenhuma parcela para `PAGA`, não preenche dados de pagamento e não pode ser executada para cotas em `AGUARDANDO_PAGAMENTO`. É consequência da liquidação identificada de lance vencedor, nunca de endpoint avulso por cota e valor.
 - RN-VND-011 (Estorno da Adesão): Ao estornar a primeira parcela de uma adesão sem pagamentos posteriores, o sistema reverte na mesma transação a parcela para `PENDENTE`, o contrato para `PENDENTE_PAGAMENTO`, a cota para `AGUARDANDO_PAGAMENTO`, a assinatura e qualquer comissão liberada por esse pagamento.
 
 ## 6. Diretrizes Técnicas / Notas de Arquitetura

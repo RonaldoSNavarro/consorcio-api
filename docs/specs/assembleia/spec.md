@@ -5,9 +5,20 @@ O módulo de Assembleia gerencia as reuniões onde ocorrem as contemplações de
 
 ## Regras de Apuração (Motor de Apuração)
 
+### P1 — Fonte oficial e reprodutibilidade
+- A apuração por sorteio usa exclusivamente o primeiro prêmio de uma extração persistida de `LoteriaFederal`, elegível na data da assembleia.
+- O motor não pode gerar números aleatórios nem aceitar número avulso como fonte de sorteio.
+- A assembleia persiste concurso e prêmio usado antes do encerramento, permitindo reprodução da pedra-chave e da ata.
+- Ausência ou prêmio inválido da extração oficial interrompe a apuração antes de qualquer contemplação.
+
+### P2 — Excluídos e desempates
+- O sorteio de excluídos é independente da existência de contemplado ativo e usa o segundo prêmio da extração oficial.
+- `LOTERIA_FEDERAL` calcula a pedra pelo algoritmo contratual do grupo; `PROXIMIDADE_COTA_SORTEADA` usa a mesma referência apenas quando não houver uma cota ativa sorteada registrada.
+- `MAIOR_LANCE_ACUMULADO` ordena pelo Fundo Comum efetivamente pago pela cota até a data da apuração; em empate, aplica código de cota crescente.
+
 ### 1. Sorteio (Loteria Federal / Pedra Chave)
 De acordo com o BCB, os sorteios em consórcios frequentemente se apoiam nos resultados da Loteria Federal.
-- **Dezena de Sorteio**: O usuário (via UI) pode informar uma "Dezena da Loteria Federal" ou uma "Pedra Chave". Esta dezena deve ser usada como "semente" ou parâmetro para a localização da cota contemplada.
+- **Fonte do sorteio**: o motor seleciona ou valida exclusivamente uma extração oficial persistida em `LoteriaFederal`, elegível na data da assembleia. A interface não informa dezena ou pedra-chave avulsa.
 - **Elegibilidade**: Todas as cotas com status `ATIVA` que não tenham sido contempladas anteriormente.
 
 ### 2. Participação de Cotas Canceladas no Sorteio

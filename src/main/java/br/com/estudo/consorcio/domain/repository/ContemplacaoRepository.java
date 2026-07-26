@@ -15,6 +15,7 @@ import java.util.List;
 public interface ContemplacaoRepository extends JpaRepository<Contemplacao, Long> {
     List<Contemplacao> findByAssembleiaId(Long assembleiaId);
     java.util.Optional<Contemplacao> findTopByCotaIdOrderByDataContemplacaoDesc(Long cotaId);
+    java.util.Optional<Contemplacao> findByCotaIdAndAssembleiaId(Long cotaId, Long assembleiaId);
 
     @Query("SELECT c FROM Contemplacao c WHERE c.cota.status IN (br.com.estudo.consorcio.domain.model.StatusCota.PENDENTE_INTEGRALIZACAO, br.com.estudo.consorcio.domain.model.StatusCota.AGUARDANDO_ANALISE, br.com.estudo.consorcio.domain.model.StatusCota.APROVADO)")
     List<Contemplacao> findPendentesIntegralizacao();

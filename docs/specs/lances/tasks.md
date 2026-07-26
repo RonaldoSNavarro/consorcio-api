@@ -2,7 +2,7 @@
 
 *   **Capability**: lances
 *   **Spec de referência**: [spec.md](spec.md)
-*   **Total de tarefas**: 9
+*   **Total de tarefas**: 12
 *   **REQ-IDs cobertos**: 3/3
 
 ---
@@ -22,7 +22,7 @@
 - [x] Implementar `ParcelaService.amortizarPorReducaoDePrazo()` — quita parcelas de trás para frente com diluição de TA/FR
 - [x] Implementar `ParcelaService.amortizarPorDiluicao()` — reduz uniformemente cada parcela restante
 - [x] Implementar regra do centavo perdido (ajuste de arredondamento na última parcela)
-- [x] Criar endpoints em `ParcelaController` — `POST /cota/{cotaId}/lance/reducao-prazo` e `POST /cota/{cotaId}/lance/diluicao`
+- [x] Criar endpoints em `ParcelaController` — posteriormente removidos em favor da liquidação identificada (REQ-LAN-005).
 
 ### [BACKEND] REQ-LAN-004: Cadastro de Oferta de Lance Fixo
 - [x] Criar migration Flyway para adicionar `percentual_lance_fixo` na tabela `grupos` e `modalidade` na tabela `lances`
@@ -34,4 +34,14 @@
 - [x] Escrever testes de integração em `LanceControllerTest.java` validando segurança e requisições no endpoint `POST /api/lances`
 - [x] Escrever testes de unidade em `LanceServiceTest.java` para o fluxo de cadastro e validação de Lance Fixo
 
+### [BACKEND] REQ-LAN-005: Liquidação rastreável de lance
+- [x] Adicionar status `LIQUIDADO`, data, modalidade e flag de amortização aplicada ao lance.
+- [x] Substituir a integralização sem payload por liquidação por `lanceId` e modalidade obrigatória.
+- [x] Tornar a liquidação idempotente e bloquear modalidades sem composição financeira.
+- [x] Remover endpoints públicos que amortizavam por cota e valor livre.
 
+### [FRONTEND] REQ-LAN-005: Liquidação identificada
+- [x] Remover clientes e hooks de amortização direta por cota e valor livre.
+- [x] Exigir modalidade de amortização na confirmação de integralização.
+- [x] Usar `lanceId` retornado pela pendência, sem confundir com o ID da contemplação.
+- [x] Remover da oferta os tipos `MISTO` e `SEGURO_OBITO` enquanto bloqueados pelo backend.

@@ -2,13 +2,11 @@ package br.com.estudo.consorcio.domain.dto;
 
 /**
  * Parâmetros externos para apuração de uma assembleia.
- * Permite informar a dezena da Loteria Federal ou Pedra Chave
- * e indicar se deve realizar o sorteio nesta apuração.
+ * Permite indicar se deve realizar o sorteio nesta apuração.
  */
 public record ApuracaoRequestDTO(
     /**
-     * Dezena do prêmio principal da Loteria Federal ou número da Pedra Chave.
-     * Se nulo, utiliza o valor já salvo na assembleia ou um número aleatório.
+     * Campo legado, ignorado. O resultado é sempre obtido da extração oficial vinculada.
      */
     Integer dezenaSorteio,
 

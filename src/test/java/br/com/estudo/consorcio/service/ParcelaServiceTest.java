@@ -207,6 +207,13 @@ class ParcelaServiceTest {
 
         List<Parcela> parcelasPendentes = List.of(p1, p2, p3);
 
+        ContratoAdesao contrato = new ContratoAdesao();
+        contrato.setStatus(StatusContrato.EFETIVADO);
+        Cota cota = new Cota();
+        cota.setId(cotaId);
+        cota.setContratoAdesao(contrato);
+
+        when(cotaRepository.findById(cotaId)).thenReturn(Optional.of(cota));
         when(parcelaRepository.findByCotaIdAndStatusOrderByNumeroParcelaAsc(cotaId, StatusParcela.PENDENTE))
                 .thenReturn(parcelasPendentes);
 
@@ -294,6 +301,50 @@ class ParcelaServiceTest {
 
         assertEquals("Amortização só é permitida para cotas com adesão efetivada.", exception.getMessage());
         verify(parcelaRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar redução de prazo acima do Fundo Comum pendente")
+    void deveRejeitarReducaoPrazoAcimaDoSaldo() {
+        Long cotaId = 1L;
+        ContratoAdesao contrato = new ContratoAdesao(); contrato.setStatus(StatusContrato.EFETIVADO);
+        Cota cota = new Cota(); cota.setId(cotaId); cota.setContratoAdesao(contrato);
+        Parcela parcela = new Parcela(); parcela.setValorFundoComum(new BigDecimal("100.00"));
+        when(cotaRepository.findById(cotaId)).thenReturn(Optional.of(cota));
+        when(parcelaRepository.findByCotaIdAndStatusOrderByNumeroParcelaDesc(cotaId, StatusParcela.PENDENTE)).thenReturn(List.of(parcela));
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.amortizarPorReducaoDePrazo(cotaId, new BigDecimal("100.01")));
+        verify(parcelaRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("Deve recalcular total ao diluir proporcionalmente o Fundo Comum")
+    void deveRecalcularTotalAoDiluirProporcionalmente() {
+        Long cotaId = 1L;
+        ContratoAdesao contrato = new ContratoAdesao(); contrato.setStatus(StatusContrato.EFETIVADO);
+        Cota cota = new Cota(); cota.setId(cotaId); cota.setContratoAdesao(contrato);
+        Parcela p1 = parcelaComComponentes(new BigDecimal("100.00"));
+        Parcela p2 = parcelaComComponentes(new BigDecimal("300.00"));
+        when(cotaRepository.findById(cotaId)).thenReturn(Optional.of(cota));
+        when(parcelaRepository.findByCotaIdAndStatusOrderByNumeroParcelaAsc(cotaId, StatusParcela.PENDENTE)).thenReturn(List.of(p1, p2));
+
+        service.amortizarPorDiluicao(cotaId, new BigDecimal("100.00"));
+
+        assertAll(
+                () -> assertEquals(new BigDecimal("75.00"), p1.getValorFundoComum()),
+                () -> assertEquals(new BigDecimal("225.00"), p2.getValorFundoComum()),
+                () -> assertEquals(new BigDecimal("85.00"), p1.getValorParcela()),
+                () -> assertEquals(new BigDecimal("235.00"), p2.getValorParcela())
+        );
+    }
+
+    private Parcela parcelaComComponentes(BigDecimal fundoComum) {
+        Parcela parcela = new Parcela();
+        parcela.setValorFundoComum(fundoComum); parcela.setValorTaxaAdministracao(new BigDecimal("10.00"));
+        parcela.setValorFundoReserva(BigDecimal.ZERO); parcela.setValorSeguro(BigDecimal.ZERO);
+        parcela.setStatus(StatusParcela.PENDENTE); parcela.calcularValorTotal();
+        return parcela;
     }
 
     @Test

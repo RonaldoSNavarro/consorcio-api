@@ -183,21 +183,38 @@ O schema é gerenciado pelo **Flyway**. Ao subir a aplicação pela primeira vez
 ./mvnw spring-boot:run
 ```
 
-### Rodando via Docker (Recomendado)
+### Rodando via Docker (recomendado)
 
-O projeto já conta com suporte a **Docker** utilizando um build *multi-stage* super leve. A API se conectará automaticamente ao PostgreSQL rodando nativamente na sua máquina hospedeira.
+O `docker-compose.yml` orquestra os dois módulos: o backend Spring Boot e o frontend React servido por Nginx. Ambos usam builds *multi-stage*; o contexto do frontend é protegido pelo seu `.dockerignore`, portanto `node_modules`, `dist`, `.env` e metadados locais não são enviados ao daemon Docker.
 
-Para subir a aplicação em container, basta ter o Docker instalado e rodar:
+1. Copie `.env.example` para `.env` e informe `DB_USER`, `DB_PASSWORD` e `JWT_SECRET`. O PostgreSQL deve estar disponível no host em `host.docker.internal:5432/consorcio_db`.
+2. Na raiz deste repositório, construa e inicie os serviços:
+
+   ```bash
+   docker compose up --build -d
+   ```
+
+3. Verifique o estado e os logs quando necessário:
+
+   ```bash
+   docker compose ps
+   docker compose logs -f backend
+   ```
+
+Após a inicialização, os serviços ficam disponíveis em:
+
+* **Frontend:** `http://localhost` (porta 80).
+* **Backend:** `http://localhost:8081`.
+* **Swagger:** `http://localhost:8081/swagger-ui.html`.
+
+Uma verificação rápida sem sessão deve retornar HTTP `200` para o frontend e HTTP `401` para `GET /api/login/me`, pois o último endpoint exige autenticação:
 
 ```bash
-docker-compose up --build
+curl -I http://localhost/
+curl -i http://localhost:8081/api/login/me
 ```
-Após o build, a aplicação estará disponível da seguinte forma:
-* **Frontend (Aplicação Consórcio):** `http://localhost` (Porta 80)
-* **Backend (API Direta):** `http://localhost:8081`
 
-> [!NOTE]
-> **Conexão com Banco Local e Variáveis:** O `docker-compose.yml` está configurado para ler automaticamente as variáveis de ambiente de credenciais (`DB_USER`, `DB_PASSWORD`, `JWT_SECRET`) do seu sistema operacional ou de um arquivo `.env` localizado na raiz do projeto. Caso não possua, ele assumirá o usuário e senha `postgres` por padrão e procurará o PostgreSQL na máquina hospedeira (`host.docker.internal:5432`).
+Para encerrar os containers sem remover imagens, use `docker compose down`.
 
 ## 📖 Documentação da API (Swagger)
 
