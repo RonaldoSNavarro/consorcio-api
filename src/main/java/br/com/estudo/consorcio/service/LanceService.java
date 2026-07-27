@@ -87,6 +87,10 @@ public class LanceService {
             valorOferta = dto.valorOferta();
         }
 
+        if (valorOferta.compareTo(assembleia.getGrupo().getValorCredito()) > 0) {
+            throw new RegraDeNegocioException("O valor do lance não pode ser maior que o crédito vigente da cota.");
+        }
+
         // Validação de limite para Lance Embutido
         if (dto.tipo() == TipoLance.EMBUTIDO) {
             BigDecimal limitePercentual = assembleia.getGrupo().getPercentualLanceEmbutidoMaximo();

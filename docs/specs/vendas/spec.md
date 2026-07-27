@@ -68,6 +68,9 @@ A cota deve estar sempre atrelada a um bem que dite o seu reajuste.
 - RN-VND-009 (Baixa da Adesão): Somente `ParcelaService.pagar()` pode mudar a primeira parcela para `PAGA`, preencher `dataPagamento`/`valorPago`, registrar o ledger COSIF e efetivar `ContratoAdesao`/`Cota`.
 - RN-VND-010 (Amortização): Amortização de lance reduz exclusivamente o componente de Fundo Comum de parcelas futuras de cotas já efetivadas; ela não altera nenhuma parcela para `PAGA`, não preenche dados de pagamento e não pode ser executada para cotas em `AGUARDANDO_PAGAMENTO`. É consequência da liquidação identificada de lance vencedor, nunca de endpoint avulso por cota e valor.
 - RN-VND-011 (Estorno da Adesão): Ao estornar a primeira parcela de uma adesão sem pagamentos posteriores, o sistema reverte na mesma transação a parcela para `PENDENTE`, o contrato para `PENDENTE_PAGAMENTO`, a cota para `AGUARDANDO_PAGAMENTO`, a assinatura e qualquer comissão liberada por esse pagamento.
+- RN-VND-012 (Capacidade e Reserva de Cota): A capacidade total configurada do grupo é `quantidadeCotas`, que nunca pode ser inferior ao número de cotas físicas existentes. O padrão operacional é 1.000 cotas; valores legados de default devem ser normalizados pela migration. A venda deve reservar primeiro uma `Cota` existente em `DISPONIVEL`; somente se não houver cota materializada disponível e o total físico estiver abaixo da capacidade poderá criar a próxima cota sequencial. A validação de vaga ocorre antes de aprovar a proposta ou criar contrato, para que a indisponibilidade não deixe registros parciais.
+- RN-VND-013 (Identificação operacional da cota): `grupo_id` e `cliente_id` permanecem como chaves estrangeiras. A tabela `cotas` mantém também os campos de consulta `codigo_grupo`, `nome_cliente` e `cpf_cliente`, sincronizados com `grupos` e `clientes`; eles não substituem a integridade referencial.
+- RN-VND-014 (Busca financeira): A localização de uma cota no Financeiro deve aceitar conjuntamente `codigoGrupo` e `codigoCota`, preservando zeros à esquerda no código do grupo e sem interpretar o código de negócio como ID interno.
 
 ## 6. Diretrizes Técnicas / Notas de Arquitetura
 - **Persistência / Serialização:** Entidades chave do módulo (como `ProdutoConsorcio` e `BemReferencia`) possuem dependências aninhadas. Deve-se adotar `FetchType.EAGER` ou Projetar em DTOs a fim de contornar `LazyInitializationException` no momento de retorno via Jackson API.
@@ -126,3 +129,11 @@ A cota deve estar sempre atrelada a um bem que dite o seu reajuste.
 - **And** a parcela volta para `PENDENTE`;
 - **And** contrato e cota retornam para os estados pendentes de pagamento;
 - **And** qualquer comissão liberada pelo pagamento é estornada.
+
+### AC-VND-012-01 — Reservar cota disponível sem ultrapassar capacidade
+
+- **Given** um grupo elegível com cotas físicas em `DISPONIVEL`;
+- **When** uma proposta é aprovada;
+- **Then** a primeira cota disponível é vinculada ao cliente e ao contrato, com status `AGUARDANDO_PAGAMENTO`;
+- **And** não é criada uma nova cota nem é rejeitada a venda por comparar a quantidade de registros à capacidade;
+- **And** a página de grupos e a atribuição automática exibem a capacidade total configurada e a quantidade de vagas calculada corretamente.

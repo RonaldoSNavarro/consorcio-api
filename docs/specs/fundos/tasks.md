@@ -31,3 +31,8 @@
 - [x] Reverter contrato, cota e comissão no estorno da primeira parcela.
 - [x] Impedir que amortização altere parcelas para `PAGA`.
 - [x] Cobrir regressões de estorno e de cota aguardando pagamento.
+
+### [BACKEND/QA] BUG-FUN-009: Provisionamento COSIF de pagamento
+- [x] Provisionar de modo idempotente as 12 contas COSIF padronizadas na inicialização e dentro das transações contábeis.
+- [x] Rejeitar códigos COSIF fora do conjunto operacional com erro de negócio, sem persistência parcial.
+- [x] Cobrir o provisionamento completo e sua repetição idempotente em `ContabilidadeServiceTest`.

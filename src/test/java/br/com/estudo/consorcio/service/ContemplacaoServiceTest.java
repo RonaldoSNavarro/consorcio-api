@@ -364,7 +364,7 @@ class ContemplacaoServiceTest {
 
         when(lanceRepository.findById(idLance)).thenReturn(Optional.of(lance));
         when(contemplacaoRepository.findByCotaIdAndAssembleiaId(idCota, 2L)).thenReturn(Optional.of(contemplacao));
-        when(cotaMapper.toResponse(any(Cota.class))).thenReturn(new CotaResponseDTO(idCota, 44, 3L, 10L, "001", "Cliente Teste", java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, 1L, "Bem", java.math.BigDecimal.ZERO, br.com.estudo.consorcio.domain.enums.CategoriaBem.VEICULO_AUTOMOTOR, 60, StatusCota.AGUARDANDO_ANALISE, 0));
+        when(cotaMapper.toResponse(any(Cota.class))).thenReturn(new CotaResponseDTO(idCota, 44, 3L, 10L, "001", "Cliente Teste", "12345678901", java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, 1L, "Bem", java.math.BigDecimal.ZERO, br.com.estudo.consorcio.domain.enums.CategoriaBem.VEICULO_AUTOMOTOR, 60, StatusCota.AGUARDANDO_ANALISE, 0));
 
         // --- ACT ---
         CotaResponseDTO response = service.liquidarLance(idLance, TipoAmortizacaoLance.REDUCAO_PRAZO);
@@ -458,7 +458,7 @@ class ContemplacaoServiceTest {
     }
 
     private CotaResponseDTO respostaCota(Cota cota) {
-        return new CotaResponseDTO(cota.getId(), cota.getCodigoCota(), null, 10L, "001", null, BigDecimal.ZERO, BigDecimal.ZERO, null, null, null, null, null, cota.getStatus(), 0);
+        return new CotaResponseDTO(cota.getId(), cota.getCodigoCota(), null, 10L, "001", null, null, BigDecimal.ZERO, BigDecimal.ZERO, null, null, null, null, null, cota.getStatus(), 0);
     }
 
     @Test

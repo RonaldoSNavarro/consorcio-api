@@ -13,6 +13,7 @@
 - [x] Criar entidade `Lance.java` com cota, assembleia, tipo, valorOferta, statusApuracao
 - [x] Criar `LanceService.java` — validação de elegibilidade (status ATIVA, adimplência, assembleia CAPTANDO)
 - [x] Criar DTOs: `LanceRequestDTO`, `LanceResponseDTO`
+- [x] Rejeitar oferta maior que o crédito vigente, preservando impacto financeiro não negativo na apuração.
 
 ### [BACKEND] REQ-LAN-002: Modalidade de Lance Embutido
 - [x] Implementar validação no `LanceService` — teto de `percentualLanceEmbutidoMaximo` sobre valorCredito

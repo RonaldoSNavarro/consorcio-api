@@ -51,7 +51,7 @@ Todos os endpoints requerem cookie `HttpOnly` com JWT válido.
 **Erros**:
 | Código | Cenário |
 |---|---|
-| `400` | Cota inativa ou inadimplente, ou assembleia fechada |
+| `400` | Cota inativa ou inadimplente, assembleia fechada, ou valor de oferta acima do crédito vigente |
 | `422` | Valor do lance embutido excede o limite do grupo; `MISTO` e `SEGURO_OBITO` estão bloqueados até a modelagem financeira específica |
 
 ---

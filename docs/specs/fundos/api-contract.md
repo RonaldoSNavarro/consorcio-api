@@ -21,6 +21,8 @@ Registra o pagamento real. Se `numeroParcela = 1` e a cota estiver em
 `AGUARDANDO_PAGAMENTO`, a mesma transação efetiva o contrato e promove a cota para
 `ATIVA` ou `AGUARDANDO_INAUGURACAO`.
 
+As 12 contas COSIF padronizadas do domínio são provisionadas idempotentemente na inicialização da aplicação e podem ser recriadas sob demanda se uma delas for removida indevidamente. Uma conta não padronizada ou inválida retorna `400 Erro de negócio`; nenhum status de parcela, lançamento ou efetivação pode persistir nesse caso.
+
 ### POST `/api/parcelas/{parcelaId}/estornar`
 
 Reverte a baixa e os lançamentos COSIF. Para a parcela nº 1 sem pagamentos posteriores,

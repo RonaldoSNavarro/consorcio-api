@@ -9,4 +9,6 @@ import java.util.Optional;
 @Repository
 public interface ContratoAdesaoRepository extends JpaRepository<ContratoAdesao, Long> {
     Optional<ContratoAdesao> findByNumeroContrato(String numeroContrato);
+
+    Optional<ContratoAdesao> findByPropostaId(Long propostaId);
 }

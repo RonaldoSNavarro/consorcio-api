@@ -44,3 +44,16 @@
 - [x] **[BACKEND] RN-VND-010** — Bloquear amortização para cota pendente e impedir que a operação marque parcelas como `PAGA`.
 - [x] **[BACKEND] RN-VND-011** — Reverter contrato, cota e comissão no estorno da primeira parcela.
 - [x] **[QA] AC-VND-009-03/04** — Cobrir os dois cenários de regressão.
+
+## BUG-VND-004 — Capacidade do Grupo e Reserva de Cota
+
+- [x] **[BACKEND] RN-VND-012** — Reservar cota `DISPONIVEL` existente antes de criar uma nova cota sequencial.
+- [x] **[BACKEND] RN-VND-012** — Validar a vaga antes da aprovação da proposta e do contrato para impedir persistência parcial.
+- [x] **[FRONTEND] AC-VND-012-01** — Exibir a capacidade total na listagem de grupos e calcular vagas a partir de `codigoCota` e status `DISPONIVEL`.
+- [x] **[QA] AC-VND-012-01** — Cobrir a aprovação com cota disponível e a apresentação da capacidade.
+
+## BUG-FIN-VND-005 — Busca por código do grupo e da cota
+
+- [x] **[BACKEND] RN-VND-014** — Filtrar pela relação canônica `Cota.grupo.codigoGrupo` e por `Cota.codigoCota`.
+- [x] **[FRONTEND] RN-VND-014** — Usar chamada explícita por `codigoGrupo` e `codigoCota`, sem parâmetros posicionais ambíguos.
+- [x] **[QA] RN-VND-014** — Validar a busca combinada e publicar o bundle atualizado do Financeiro.

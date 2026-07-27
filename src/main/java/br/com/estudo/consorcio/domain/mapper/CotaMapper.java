@@ -29,6 +29,7 @@ public abstract class CotaMapper {
     @Mapping(source = "grupo.id", target = "grupoId")
     @Mapping(source = "grupo.codigoGrupo", target = "codigoGrupo")
     @Mapping(source = "cliente.nome", target = "nomeConsorciado")
+    @Mapping(source = "cliente.cpfCnpj", target = "cpfCnpj")
     @Mapping(source = "bemReferencia.id", target = "bemReferenciaId")
     @Mapping(source = "bemReferencia.descricao", target = "nomeBemReferencia")
     @Mapping(source = "bemReferencia.valorAtual", target = "valorBemReferencia")

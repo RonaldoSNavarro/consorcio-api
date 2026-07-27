@@ -50,11 +50,12 @@ public class CotaController {
     @GetMapping("/buscar")
     public ResponseEntity<Page<CotaResponseDTO>> buscar(
             @RequestParam(required = false) Long grupoId,
+            @RequestParam(required = false) String codigoGrupo,
             @RequestParam(required = false) Integer codigoCota,
             @RequestParam(required = false) Integer versaoHistorico,
             @RequestParam(required = false) String cpfCnpj,
             @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(service.buscar(grupoId, codigoCota, versaoHistorico, cpfCnpj, pageable));
+        return ResponseEntity.ok(service.buscar(grupoId, codigoGrupo, codigoCota, versaoHistorico, cpfCnpj, pageable));
     }
 
     @Operation(summary = "Listar por cliente", description = "Lista cotas por cliente")

@@ -12,3 +12,5 @@ Spec ref: `docs/specs/relatorios/spec.md` (v1.1)
 
 - `[x]` **TASK-REL-004**: Atualizar os schemas Zod e interfaces TypeScript (`EstatisticasGrupoResponseDTO`) para incluir o campo `totalCotasInadimplentes`.
 - `[x]` **TASK-REL-005**: Garantir que as chamadas para os endpoints de PLD/FT passem as datas corretas e tratem adequadamente o retorno atualizado.
+- `[x]` **TASK-REL-006**: Unificar menu e rotas de Balancete/PLD-FT na autoridade canÃ´nica `VIEW_RELATORIOS`.
+- `[x]` **TASK-REL-007**: Garantir que o Balancete 4110 apresente as 12 contas COSIF provisionadas, inclusive com saldo zero.

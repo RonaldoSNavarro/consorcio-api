@@ -89,8 +89,9 @@ public class CotaService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CotaResponseDTO> buscar(Long grupoId, Integer codigoCota, Integer versaoHistorico, String cpfCnpj, Pageable pageable) {
+    public Page<CotaResponseDTO> buscar(Long grupoId, String codigoGrupo, Integer codigoCota, Integer versaoHistorico, String cpfCnpj, Pageable pageable) {
         Specification<Cota> spec = Specification.where(CotaSpecification.porGrupoId(grupoId))
+                .and(CotaSpecification.porCodigoGrupo(codigoGrupo))
                 .and(CotaSpecification.porCodigoCota(codigoCota))
                 .and(CotaSpecification.porVersaoHistorico(versaoHistorico))
                 .and(CotaSpecification.porCpfCnpj(cpfCnpj))

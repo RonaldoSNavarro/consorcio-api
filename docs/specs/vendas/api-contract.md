@@ -6,6 +6,16 @@
 - **Spec**: [spec.md](spec.md)
 - **Última alteração**: Reversão da adesão e amortização sem quitação implícita — origem: CR-FIN-VND-003.
 
+## Busca financeira de cotas
+
+### GET /api/cotas/buscar
+
+Além do filtro técnico `grupoId`, aceita `codigoGrupo` (código BACEN do grupo) em conjunto com `codigoCota`. O Financeiro usa os dois códigos de negócio, sem depender do ID interno.
+
+Exemplo:
+
+`GET /api/cotas/buscar?codigoGrupo=002&codigoCota=1`
+
 ## Endpoints de Bens
 
 ### GET /api/vendas/bens-referencia

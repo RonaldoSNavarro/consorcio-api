@@ -2,6 +2,9 @@ package br.com.estudo.consorcio.domain.repository;
 
 import br.com.estudo.consorcio.domain.model.Assembleia;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import br.com.estudo.consorcio.domain.model.StatusAssembleia;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -14,4 +17,6 @@ public interface AssembleiaRepository extends JpaRepository<Assembleia, Long> {
 
     // Buscar ordenado por data
     List<Assembleia> findByGrupoIdOrderByDataAssembleiaAsc(Long grupoId);
+
+    Page<Assembleia> findByGrupoIdAndStatus(Long grupoId, StatusAssembleia status, Pageable pageable);
 }

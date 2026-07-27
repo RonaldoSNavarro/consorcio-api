@@ -196,4 +196,22 @@ class LanceServiceTest {
         assertTrue(exception.getMessage().contains("ultrapassa o teto do grupo"));
         verify(lanceRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("Deve barrar lance livre acima do crédito vigente")
+    void deveBarrarLanceLivreAcimaDoCredito() {
+        LanceRequestDTO request = new LanceRequestDTO(3L, 2L, TipoLance.FIRME,
+                new BigDecimal("100000.01"), ModalidadeLance.LIVRE);
+
+        when(assembleiaRepository.findById(2L)).thenReturn(Optional.of(assembleia));
+        when(cotaRepository.findById(3L)).thenReturn(Optional.of(cota));
+        when(parcelaRepository.existsByCotaIdAndStatusAndDataVencimentoBefore(eq(3L), eq(StatusParcela.PENDENTE), any()))
+                .thenReturn(false);
+
+        RegraDeNegocioException exception = assertThrows(RegraDeNegocioException.class,
+                () -> service.registrarLance(request));
+
+        assertTrue(exception.getMessage().contains("maior que o crédito vigente"));
+        verify(lanceRepository, never()).save(any());
+    }
 }

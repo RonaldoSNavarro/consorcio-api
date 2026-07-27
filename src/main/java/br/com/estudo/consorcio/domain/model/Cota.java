@@ -32,6 +32,19 @@ public class Cota {
     @JoinColumn(name = "grupo_id", nullable = false)
     private Grupo grupo;
 
+    /**
+     * Operational fields synchronized from the foreign-key relationships.
+     * The relationship fields remain the referential source of truth.
+     */
+    @Column(name = "codigo_grupo", length = 255)
+    private String codigoGrupo;
+
+    @Column(name = "nome_cliente", length = 255)
+    private String nomeCliente;
+
+    @Column(name = "cpf_cliente", length = 20)
+    private String cpfCliente;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "contrato_adesao_id", unique = true)
     private ContratoAdesao contratoAdesao;

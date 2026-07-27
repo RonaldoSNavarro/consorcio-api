@@ -14,6 +14,7 @@
 
 ## Regras de negócio
 
+- RN-LAN-001-01: oferta livre ou fixa deve ser positiva e não pode exceder o crédito vigente do grupo; assim o impacto financeiro da apuração não pode se tornar negativo.
 - RN-LAN-005-01: somente lance `VENCEDOR` pode ser liquidado; a transição final é `LIQUIDADO`.
 - RN-LAN-005-02: uma repetição com a mesma modalidade retorna a cota sem novo lançamento contábil ou amortização; modalidade diferente é erro de negócio.
 - RN-LAN-005-03: `FIRME` e `FGTS` registram recebimento em caixa, trânsito do crédito e promovem a cota. `EMBUTIDO` não cria entrada de caixa, pois a retenção de crédito já ocorre na contemplação. `MISTO` e `SEGURO_OBITO` ficam bloqueados enquanto não houver composição financeira dos componentes.

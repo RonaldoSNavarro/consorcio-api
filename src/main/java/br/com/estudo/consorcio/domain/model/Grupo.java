@@ -21,7 +21,7 @@ public class Grupo {
     private String codigoGrupo;
 
     @Column(name = "quantidade_cotas", nullable = false)
-    private Integer quantidadeCotas = 120;
+    private Integer quantidadeCotas = 1000;
 
     @Column(name = "dia_base_assembleias", nullable = false)
     private Integer diaBaseAssembleias = 15;

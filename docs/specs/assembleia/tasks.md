@@ -7,6 +7,16 @@
 
 ---
 
+## Correcoes de captacao
+- [x] Permitir abertura idempotente de captacao para sessoes pre-agendadas e corrigir registros legados ja `CAPTANDO` sem data inicial.
+- [x] Alinhar a operação e a interface de apuração à extração oficial persistida, sem entrada manual de dezena ou fallback aleatório.
+
+### [FRONTEND] Ata de apuracao
+- [x] Exibir ata somente de leitura da apuracao fechada, com metadados da extracao/pedra-chave e as contemplacoes vinculadas.
+
+### [FULL STACK] Consulta operacional otimizada
+- [x] Disponibilizar paginação por status e separar agenda, captação, apuração e atas na Central AGO.
+
 ## Tarefas
 
 ### [BACKEND] REQ-ASM-001: Estados da Assembleia
