@@ -31,7 +31,11 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 
 ## 🧪 Qualidade de Software e Testes
 
-O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura conta com **ampla suíte de 154 testes unitários e de integração 100% verdes**:
+O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura conta com **ampla suíte de 184 testes unitários e de integração 100% verdes**:
+
+* **Validação Estrita de Schema (Hibernate `ddl-auto=validate`):** Governança de banco de dados assegurada 100% via migrações Flyway versionadas (70 scripts), eliminando riscos de alteração dinâmica de schema em produção (MELHORIA-001).
+* **Perfis de Execução Hardened:** Suporte a `application-prod.properties` com HTTPS/cookies seguros, logging estruturado e endpoints Actuator restritos (MELHORIA-009).
+* **Testes de Jobs Agendados:** Cobertura de rotinas assíncronas em `LgpdAnonymizationJobTest`, `ReajusteAniversarioGrupoJobTest` e `VerificadorInadimplenciaJobTest` (MELHORIA-004).
 
 * **Testes Unitários (100% Service & Validator Coverage):** Toda a camada de `Service` possui cobertura total, incluindo os novos serviços de sincronização de listas restritivas (`ComplianceServiceTest`). Criamos suítes de teste de baixo nível como `CpfCnpjValidatorTest` e `ViaCepServiceTest` (usando mocks avançados da API fluente do `RestClient` do Spring).
 * **Módulos de Auditoria e Livro Razão:** Testados exaustivamente em `MovimentoFinanceiroServiceTest` e `HistoricoConsorciadoServiceTest` para validar consistência de saldos contábeis e a fórmula regulatória da categoria.
