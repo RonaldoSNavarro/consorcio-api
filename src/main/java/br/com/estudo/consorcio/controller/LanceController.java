@@ -24,7 +24,7 @@ public class LanceController {
 
     @Operation(summary = "Registra uma nova oferta de lance",
             description = "Cadastra uma oferta de lance livre ou fixo para uma cota em uma assembleia aberta.")
-    @PreAuthorize("hasAuthority('MANAGE_COTAS')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OPERADOR') or hasAnyAuthority('MANAGE_COTAS', 'ROLE_ADMIN')")
     @PostMapping
     public ResponseEntity<LanceResponseDTO> registrar(@Valid @RequestBody LanceRequestDTO dto) {
         LanceResponseDTO salva = service.registrarLance(dto);
@@ -33,7 +33,7 @@ public class LanceController {
 
     @Operation(summary = "Registra sinistro de óbito e gera lance automático",
             description = "Resolução BCB 285: o seguro quita o saldo devedor e gera um lance na próxima AGO.")
-    @PreAuthorize("hasAuthority('MANAGE_COTAS')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OPERADOR') or hasAnyAuthority('MANAGE_COTAS', 'ROLE_ADMIN')")
     @PostMapping("/sinistro-obito/{cotaId}")
     public ResponseEntity<LanceResponseDTO> registrarSinistroObito(@PathVariable Long cotaId) {
         LanceResponseDTO salva = service.registrarSinistroObito(cotaId);
