@@ -11,6 +11,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import br.com.estudo.consorcio.domain.model.StatusAssembleia;
 
 import java.util.List;
 import java.util.Map;
@@ -41,6 +45,17 @@ public class AssembleiaController {
         return ResponseEntity.ok(service.listarPorGrupo(grupoId));
     }
 
+    @Operation(summary = "Listar assembleias paginadas por status",
+            description = "Consulta otimizada para a Central AGO. O status e obrigatorio para evitar carregar o historico integral.")
+    @PreAuthorize("hasAuthority('VIEW_GRUPOS')")
+    @GetMapping("/grupo/{grupoId}/status/{status}")
+    public ResponseEntity<Page<AssembleiaResponseDTO>> listarPorGrupoEStatus(
+            @PathVariable Long grupoId,
+            @PathVariable StatusAssembleia status,
+            @PageableDefault(size = 5, sort = "dataAssembleia") Pageable pageable) {
+        return ResponseEntity.ok(service.listarPorGrupoEStatus(grupoId, status, pageable));
+    }
+
     @Operation(summary = "Abrir captação de lances",
             description = "Transita o status da assembleia de AGENDADA para CAPTANDO.")
     @PreAuthorize("hasAuthority('MANAGE_GRUPOS')")
@@ -61,19 +76,19 @@ public class AssembleiaController {
 
     @Operation(summary = "Apurar assembleia",
             description = "Executa o motor de apuração: processa lances livres, fixos e realiza sorteio " +
-                    "(ATIVAS + CANCELADAS) se informado. A dezena da Loteria Federal ou Pedra Chave " +
-                    "pode ser fornecida no body. Se omitida, usa valor aleatório.")
+                    "(ATIVAS + CANCELADAS) usando exclusivamente a extração oficial da Loteria Federal " +
+                    "elegível para a data da assembleia.")
     @PreAuthorize("hasAuthority('MANAGE_GRUPOS')")
     @PostMapping("/{id}/apurar")
     public ResponseEntity<Map<String, Object>> apurar(
             @PathVariable Long id,
             @RequestBody(required = false) ApuracaoRequestDTO params) {
+        boolean sorteioRealizado = params == null || !Boolean.FALSE.equals(params.realizarSorteio());
         service.apurarAssembleia(id, params);
         return ResponseEntity.ok(Map.of(
-                "mensagem", "Assembleia apurada e fechada com sucesso.",
+                "mensagem", "Assembleia apurada e fechada com sucesso usando a extração oficial elegível da Loteria Federal.",
                 "assembleiaId", id,
-                "dezenaSorteio", params != null && params.dezenaSorteio() != null ? params.dezenaSorteio() : "Aleatória",
-                "sorteioRealizado", params != null && Boolean.TRUE.equals(params.realizarSorteio())
+                "sorteioRealizado", sorteioRealizado
         ));
     }
 }

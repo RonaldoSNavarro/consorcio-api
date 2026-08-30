@@ -6,6 +6,7 @@ import br.com.estudo.consorcio.domain.model.*;
 import br.com.estudo.consorcio.domain.repository.AssembleiaRepository;
 import br.com.estudo.consorcio.domain.repository.CotaRepository;
 import br.com.estudo.consorcio.domain.repository.LanceRepository;
+import br.com.estudo.consorcio.domain.repository.LoteriaFederalRepository;
 import br.com.estudo.consorcio.domain.repository.ParcelaRepository;
 import br.com.estudo.consorcio.domain.util.PedraChaveCalculator;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
@@ -14,9 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -38,19 +39,22 @@ public class MotorApuracaoService {
     private final ParcelaRepository parcelaRepository;
     private final ContabilidadeService contabilidadeService;
     private final ContemplacaoService contemplacaoService;
+    private final LoteriaFederalRepository loteriaFederalRepository;
 
     public MotorApuracaoService(AssembleiaRepository assembleiaRepository,
                                 LanceRepository lanceRepository,
                                 CotaRepository cotaRepository,
                                 ParcelaRepository parcelaRepository,
                                 ContabilidadeService contabilidadeService,
-                                ContemplacaoService contemplacaoService) {
+                                ContemplacaoService contemplacaoService,
+                                LoteriaFederalRepository loteriaFederalRepository) {
         this.assembleiaRepository = assembleiaRepository;
         this.lanceRepository = lanceRepository;
         this.cotaRepository = cotaRepository;
         this.parcelaRepository = parcelaRepository;
         this.contabilidadeService = contabilidadeService;
         this.contemplacaoService = contemplacaoService;
+        this.loteriaFederalRepository = loteriaFederalRepository;
     }
 
     @Transactional
@@ -63,6 +67,11 @@ public class MotorApuracaoService {
         Assembleia assembleia = assembleiaRepository.findById(assembleiaId)
                 .orElseThrow(() -> new RegraDeNegocioException("Assembleia não encontrada."));
 
+        // Requisições repetidas após o fechamento não podem recriar contemplações ou lançamentos.
+        if (assembleia.getStatus() == StatusAssembleia.FECHADA) {
+            log.info("Assembleia {} já está fechada; apuração idempotente ignorada.", assembleiaId);
+            return;
+        }
         if (assembleia.getStatus() != StatusAssembleia.REALIZADA) {
             throw new RegraDeNegocioException("A apuração só pode ocorrer em assembleias com status REALIZADA.");
         }
@@ -72,7 +81,7 @@ public class MotorApuracaoService {
         List<Long> cotasJaContempladas = new ArrayList<>();
 
         boolean realizarSorteio = (params == null || Boolean.TRUE.equals(params.realizarSorteio()));
-        int numeroPremio = resolverNumeroPremio(assembleia, params);
+        int numeroPremio = resolverNumeroPremio(assembleia);
 
         Cota cotaAtivaSorteada = null;
         // ═══════════════════════════════════════════════
@@ -88,14 +97,16 @@ public class MotorApuracaoService {
         // ═══════════════════════════════════════════════
         // FASE 2: Sorteio Excluídos (Restituição)
         // ═══════════════════════════════════════════════
-        if (realizarSorteio && cotaAtivaSorteada != null) {
-            saldoFundoComumLivre = realizarSorteioExcluidos(assembleia, grupo, saldoFundoComumLivre, cotasJaContempladas, cotaAtivaSorteada.getCodigoCota());
+        if (realizarSorteio) {
+            saldoFundoComumLivre = realizarSorteioExcluidos(assembleia, grupo, saldoFundoComumLivre, cotasJaContempladas,
+                    assembleia.getPremioExcluidos() != null ? assembleia.getPremioExcluidos() : numeroPremio);
         }
 
         // ═══════════════════════════════════════════════
         // FASE 3: Apuração de Lances (Livre e Fixo)
         // ═══════════════════════════════════════════════
-        apurarLances(assembleia, grupo, saldoFundoComumLivre, cotasJaContempladas, numeroPremio);
+        apurarLances(assembleia, grupo, saldoFundoComumLivre, cotasJaContempladas, numeroPremio,
+                cotaAtivaSorteada == null ? null : cotaAtivaSorteada.getCodigoCota());
 
         // Fim da Apuração
         assembleia.setStatus(StatusAssembleia.FECHADA);
@@ -137,7 +148,6 @@ public class MotorApuracaoService {
         
         // Auditoria
         assembleia.setAlgoritmoUsado(grupo.getAlgoritmoPedraChave());
-        assembleia.setNumeroExtracaoLoteria(String.valueOf(numeroPremio));
         assembleia.setPedraChaveCalculada(pedraChave);
 
         Cota cotaSorteada = buscarCotaApta(pedraChave, cotasAtivas, grupo.getDirecaoFallbackSorteio(), assembleia);
@@ -189,7 +199,10 @@ public class MotorApuracaoService {
                     ? percentualAmortizado.multiply(valorBem).setScale(2, java.math.RoundingMode.HALF_UP)
                     : BigDecimal.ZERO;
 
-            BigDecimal multaRescisoria = totalFundoComumPago.multiply(new BigDecimal("0.10")).setScale(2, java.math.RoundingMode.HALF_UP);
+            BigDecimal taxaMulta = (grupo.getPercentualMultaRescisoria() != null) 
+                    ? grupo.getPercentualMultaRescisoria() 
+                    : new BigDecimal("0.10");
+            BigDecimal multaRescisoria = totalFundoComumPago.multiply(taxaMulta).setScale(2, java.math.RoundingMode.HALF_UP);
             BigDecimal valorRestituicao = totalFundoComumPago.subtract(multaRescisoria).setScale(2, java.math.RoundingMode.HALF_UP);
 
             contemplacaoService.registrar(new ContemplacaoRequestDTO(
@@ -212,7 +225,8 @@ public class MotorApuracaoService {
     private void apurarLances(Assembleia assembleia, Grupo grupo,
                               BigDecimal saldoFundoComumLivre,
                               List<Long> cotasJaContempladas,
-                              int numeroPremio) {
+                              int numeroPremio,
+                              Integer codigoCotaSorteada) {
 
         List<Lance> todosLances = lanceRepository.findByAssembleiaIdOrderByValorOfertaDesc(assembleia.getId());
 
@@ -221,13 +235,15 @@ public class MotorApuracaoService {
                 .sorted((l1, l2) -> {
                     int cmp = l2.getValorOferta().compareTo(l1.getValorOferta());
                     if (cmp != 0) return cmp;
-                    return criarComparadorDesempate(grupo, numeroPremio).compare(l1, l2);
+                    return criarComparadorDesempate(grupo, numeroPremio, codigoCotaSorteada,
+                            assembleia.getDataAssembleia()).compare(l1, l2);
                 })
                 .toList();
 
         List<Lance> lancesFixo = todosLances.stream()
                 .filter(l -> l.getModalidade() == ModalidadeLance.FIXO)
-                .sorted(criarComparadorDesempate(grupo, numeroPremio))
+                .sorted(criarComparadorDesempate(grupo, numeroPremio, codigoCotaSorteada,
+                        assembleia.getDataAssembleia()))
                 .toList();
 
         for (Lance lance : lancesLivre) {
@@ -311,34 +327,74 @@ public class MotorApuracaoService {
         return null;
     }
 
-    private int resolverNumeroPremio(Assembleia assembleia, ApuracaoRequestDTO params) {
-        if (params != null && params.dezenaSorteio() != null && params.dezenaSorteio() > 0) {
-            assembleia.setNumeroSorteado(params.dezenaSorteio());
-            return params.dezenaSorteio();
+    private int resolverNumeroPremio(Assembleia assembleia) {
+        LoteriaFederal extracao = assembleia.getNumeroExtracaoLoteria() == null
+                ? loteriaFederalRepository.findTopByDataSorteioLessThanEqualOrderByDataSorteioDesc(assembleia.getDataAssembleia())
+                    .orElseThrow(() -> new RegraDeNegocioException("Não há extração oficial da Loteria Federal elegível para a assembleia."))
+                : loteriaFederalRepository.findByConcurso(assembleia.getNumeroExtracaoLoteria())
+                    .orElseThrow(() -> new RegraDeNegocioException("A extração vinculada à assembleia não foi encontrada."));
+        if (extracao.getDataSorteio() == null || extracao.getDataSorteio().isAfter(assembleia.getDataAssembleia())) {
+            throw new RegraDeNegocioException("A extração oficial vinculada não é elegível para a data da assembleia.");
         }
-        if (assembleia.getNumeroSorteado() != null) {
-            return assembleia.getNumeroSorteado();
+        try {
+            int premio = converterPremio(extracao.getPremio1());
+            int premioExcluidos = converterPremio(extracao.getPremio2());
+            if (assembleia.getNumeroSorteado() != null && !assembleia.getNumeroSorteado().equals(premio)) {
+                throw new RegraDeNegocioException("O prêmio gravado na assembleia diverge da extração oficial vinculada.");
+            }
+            if (assembleia.getPremioExcluidos() != null && !assembleia.getPremioExcluidos().equals(premioExcluidos)) {
+                throw new RegraDeNegocioException("O prêmio de excluídos gravado na assembleia diverge da extração oficial vinculada.");
+            }
+            assembleia.setNumeroSorteado(premio);
+            assembleia.setNumeroExtracaoLoteria(extracao.getConcurso());
+            assembleia.setPremioExcluidos(premioExcluidos);
+            return premio;
+        } catch (NumberFormatException ex) {
+            throw new RegraDeNegocioException("Os prêmios da extração oficial são inválidos.");
         }
-        int dezena = new Random().nextInt(100000) + 1; // Até 5 dígitos (Loteria Federal)
-        assembleia.setNumeroSorteado(dezena);
-        return dezena;
     }
 
-    private java.util.Comparator<Lance> criarComparadorDesempate(Grupo grupo, int numeroPremio) {
+    private int converterPremio(String premio) {
+        int numero = Integer.parseInt(premio.replaceAll("\\D", ""));
+        if (numero <= 0) {
+            throw new NumberFormatException();
+        }
+        return numero;
+    }
+
+    private java.util.Comparator<Lance> criarComparadorDesempate(Grupo grupo, int numeroPremio,
+                                                                   Integer codigoCotaSorteada,
+                                                                   LocalDate dataApuracao) {
         if (grupo.getCriterioDesempateLance() == CriterioDesempateLance.LOTERIA_FEDERAL ||
             grupo.getCriterioDesempateLance() == CriterioDesempateLance.PROXIMIDADE_COTA_SORTEADA) {
-            // Em caso de empate, usar proximidade à pedra-chave simulada (usando divisão 1000 para lances)
-            int pedra = PedraChaveCalculator.calcular(AlgoritmoPedraChave.DIVISAO_1000, numeroPremio, 1000); 
+            int pedra = PedraChaveCalculator.calcular(grupo.getAlgoritmoPedraChave(), numeroPremio, 1000);
+            int referencia = grupo.getCriterioDesempateLance() == CriterioDesempateLance.PROXIMIDADE_COTA_SORTEADA
+                    && codigoCotaSorteada != null ? codigoCotaSorteada : pedra;
             return (l1, l2) -> {
-                int d1 = Math.abs(l1.getCota().getCodigoCota() - pedra);
-                int d2 = Math.abs(l2.getCota().getCodigoCota() - pedra);
+                int d1 = Math.abs(l1.getCota().getCodigoCota() - referencia);
+                int d2 = Math.abs(l2.getCota().getCodigoCota() - referencia);
                 if (d1 != d2) return Integer.compare(d1, d2);
                 return Integer.compare(l1.getCota().getCodigoCota(), l2.getCota().getCodigoCota());
             };
         } else if (grupo.getCriterioDesempateLance() == CriterioDesempateLance.ORDEM_OFERTA) {
             return (l1, l2) -> l1.getDataOferta().compareTo(l2.getDataOferta());
+        } else if (grupo.getCriterioDesempateLance() == CriterioDesempateLance.MAIOR_LANCE_ACUMULADO) {
+            return (l1, l2) -> {
+                BigDecimal total1 = calcularFundoComumAcumulado(l1.getCota().getId(), dataApuracao);
+                BigDecimal total2 = calcularFundoComumAcumulado(l2.getCota().getId(), dataApuracao);
+                int comparacao = total2.compareTo(total1);
+                return comparacao != 0 ? comparacao : Integer.compare(l1.getCota().getCodigoCota(), l2.getCota().getCodigoCota());
+            };
         } else {
             return (l1, l2) -> Integer.compare(l1.getCota().getCodigoCota(), l2.getCota().getCodigoCota());
         }
+    }
+
+    private BigDecimal calcularFundoComumAcumulado(Long cotaId, LocalDate dataApuracao) {
+        return parcelaRepository.findByCotaId(cotaId).stream()
+                .filter(p -> p.getStatus() == StatusParcela.PAGA)
+                .filter(p -> p.getDataPagamento() == null || !p.getDataPagamento().isAfter(dataApuracao))
+                .map(Parcela::getValorFundoComum)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

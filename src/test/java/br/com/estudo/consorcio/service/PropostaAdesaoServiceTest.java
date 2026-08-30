@@ -196,4 +196,56 @@ public class PropostaAdesaoServiceTest {
         assertEquals("Nenhum grupo ativo disponível com vagas para a categoria solicitada.", ex.getMessage());
         verify(grupoRepository, never()).save(any());
     }
+
+    @Test
+    void efetivarContrato_ComCotaDisponivel_DeveReservarCotaExistente() {
+        br.com.estudo.consorcio.domain.model.CategoriaBem categoria = new br.com.estudo.consorcio.domain.model.CategoriaBem();
+        categoria.setTipoBacen(br.com.estudo.consorcio.domain.enums.TipoCategoriaBacen.BEM_MOVEL_I);
+        br.com.estudo.consorcio.domain.model.BemReferencia bem = new br.com.estudo.consorcio.domain.model.BemReferencia();
+        bem.setCategoriaBem(categoria);
+        br.com.estudo.consorcio.domain.model.ProdutoConsorcio produto = new br.com.estudo.consorcio.domain.model.ProdutoConsorcio();
+        produto.setBemReferencia(bem);
+        produto.setPrazoMeses(36);
+
+        br.com.estudo.consorcio.domain.model.Grupo grupo = new br.com.estudo.consorcio.domain.model.Grupo();
+        grupo.setId(2L);
+        grupo.setCodigoGrupo("002");
+        grupo.setQuantidadeCotas(120);
+        grupo.setTaxaAdministracao(new java.math.BigDecimal("15.00"));
+        grupo.setDiasAntecedenciaVencimento(5);
+
+        proposta.setStatus(StatusProposta.APROVADA);
+        proposta.setProduto(produto);
+        proposta.setGrupo(grupo);
+        proposta.setValorCreditoSolicitado(new java.math.BigDecimal("36000.00"));
+
+        ContratoAdesao contrato = new ContratoAdesao();
+        contrato.setId(99L);
+        contrato.setStatus(br.com.estudo.consorcio.domain.enums.StatusContrato.PENDENTE_PAGAMENTO);
+        contrato.setProposta(proposta);
+
+        br.com.estudo.consorcio.domain.model.Cota cotaDisponivel = new br.com.estudo.consorcio.domain.model.Cota();
+        cotaDisponivel.setId(120L);
+        cotaDisponivel.setCodigoCota(120);
+        cotaDisponivel.setStatus(br.com.estudo.consorcio.domain.model.StatusCota.DISPONIVEL);
+        cotaDisponivel.setGrupo(grupo);
+
+        when(cotaRepository.findByContratoAdesaoId(99L)).thenReturn(Optional.empty());
+        when(cotaRepository.findFirstByGrupoIdAndStatusOrderByCodigoCotaAsc(2L,
+                br.com.estudo.consorcio.domain.model.StatusCota.DISPONIVEL)).thenReturn(Optional.of(cotaDisponivel));
+        when(assembleiaRepository.findByGrupoIdOrderByDataAssembleiaAsc(2L)).thenReturn(List.of());
+
+        ContratoAdesao resultado = propostaService.efetivarContrato(contrato);
+
+        assertSame(contrato, resultado);
+        assertAll(
+                () -> assertSame(cliente, cotaDisponivel.getCliente()),
+                () -> assertSame(contrato, cotaDisponivel.getContratoAdesao()),
+                () -> assertEquals(br.com.estudo.consorcio.domain.model.StatusCota.AGUARDANDO_PAGAMENTO, cotaDisponivel.getStatus()),
+                () -> assertSame(bem, cotaDisponivel.getBemReferencia()),
+                () -> assertEquals(36, cotaDisponivel.getPrazoMeses())
+        );
+        verify(cotaRepository).save(cotaDisponivel);
+        verify(cotaRepository, never()).countByGrupoId(2L);
+    }
 }

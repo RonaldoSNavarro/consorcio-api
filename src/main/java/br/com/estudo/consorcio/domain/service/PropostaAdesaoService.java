@@ -116,6 +116,12 @@ public class PropostaAdesaoService {
         PropostaAdesao proposta = propostaRepository.findById(propostaId)
                 .orElseThrow(() -> new RegraDeNegocioException("Proposta não encontrada"));
 
+        if (proposta.getStatus() == StatusProposta.APROVADA) {
+            return contratoRepository.findByPropostaId(propostaId)
+                    .map(this::prepararContratoParaPagamento)
+                    .orElseThrow(() -> new RegraDeNegocioException("Proposta aprovada sem contrato para preparação da venda."));
+        }
+
         if (proposta.getStatus() != StatusProposta.EM_ANALISE) {
             throw new RegraDeNegocioException("Apenas propostas EM_ANALISE podem ser aprovadas.");
         }
@@ -139,6 +145,8 @@ public class PropostaAdesaoService {
     }
 
     private ContratoAdesao efetivarAprovacaoInterna(PropostaAdesao proposta) {
+        validarDisponibilidadeGrupo(resolverGrupoElegivel(proposta));
+
         proposta.setStatus(StatusProposta.APROVADA);
         proposta.setDataAtualizacao(LocalDateTime.now(clock));
         propostaRepository.save(proposta);
@@ -219,32 +227,15 @@ public class PropostaAdesaoService {
         
         final br.com.estudo.consorcio.domain.model.PropostaAdesao proposta = contrato.getProposta();
         
-        // Respeita o Grupo selecionado na Proposta; se nulo, busca o melhor grupo existente com vagas
-        Grupo grupo = proposta.getGrupo();
-        if (grupo == null && proposta.getCodigoGrupo() != null) {
-            grupo = grupoRepository.findByCodigoGrupo(proposta.getCodigoGrupo()).orElse(null);
-        }
-        
-        if (grupo == null) {
-            br.com.estudo.consorcio.domain.enums.CategoriaBem catEnum = mapCategoriaBacen(proposta.getProduto().getBemReferencia().getCategoriaBem().getTipoBacen());
-            grupo = grupoRepository.encontrarMelhorGrupoDisponivel(catEnum)
-                    .orElseThrow(() -> new RegraDeNegocioException("Nenhum grupo ativo disponível com vagas para a categoria solicitada."));
-        } else {
-            long cotasExistentes = cotaRepository.countByGrupoId(grupo.getId());
-            if (cotasExistentes >= grupo.getQuantidadeCotas()) {
-                throw new RegraDeNegocioException("O grupo selecionado (" + grupo.getCodigoGrupo() + ") atingiu a capacidade máxima de cotas.");
-            }
-        }
-
-        Cota cota = new Cota();
-        long cotasNoGrupo = cotaRepository.countByGrupoId(grupo.getId());
-        cota.setCodigoCota((int) cotasNoGrupo + 1);
+        Grupo grupo = resolverGrupoElegivel(proposta);
+        Cota cota = cotaRepository.findFirstByGrupoIdAndStatusOrderByCodigoCotaAsc(grupo.getId(), StatusCota.DISPONIVEL)
+                .orElseGet(() -> criarProximaCota(grupo));
         cota.setCliente(contrato.getProposta().getCliente());
         cota.setGrupo(grupo);
         cota.setContratoAdesao(contrato);
-        
+        cota.setBemReferencia(proposta.getProduto().getBemReferencia());
+        cota.setPrazoMeses(proposta.getProduto().getPrazoMeses());
         cota.setStatus(StatusCota.AGUARDANDO_PAGAMENTO);
-        
         cotaRepository.save(cota);
 
         // --- GERAÇÃO DE PARCELAS ---
@@ -295,6 +286,40 @@ public class PropostaAdesaoService {
         }
         
         return contrato;
+    }
+
+    private Grupo resolverGrupoElegivel(PropostaAdesao proposta) {
+        Grupo grupo = proposta.getGrupo();
+        if (grupo == null && proposta.getCodigoGrupo() != null) {
+            grupo = grupoRepository.findByCodigoGrupo(proposta.getCodigoGrupo()).orElse(null);
+        }
+        if (grupo != null) {
+            return grupo;
+        }
+
+        br.com.estudo.consorcio.domain.enums.CategoriaBem categoria = mapCategoriaBacen(
+                proposta.getProduto().getBemReferencia().getCategoriaBem().getTipoBacen());
+        return grupoRepository.encontrarMelhorGrupoDisponivel(categoria)
+                .orElseThrow(() -> new RegraDeNegocioException("Nenhum grupo ativo disponível com vagas para a categoria solicitada."));
+    }
+
+    private void validarDisponibilidadeGrupo(Grupo grupo) {
+        boolean possuiCotaDisponivel = cotaRepository
+                .findFirstByGrupoIdAndStatusOrderByCodigoCotaAsc(grupo.getId(), StatusCota.DISPONIVEL)
+                .isPresent();
+        if (!possuiCotaDisponivel && cotaRepository.countByGrupoId(grupo.getId()) >= grupo.getQuantidadeCotas()) {
+            throw new RegraDeNegocioException("O grupo selecionado (" + grupo.getCodigoGrupo() + ") atingiu a capacidade máxima de cotas.");
+        }
+    }
+
+    private Cota criarProximaCota(Grupo grupo) {
+        long cotasNoGrupo = cotaRepository.countByGrupoId(grupo.getId());
+        if (cotasNoGrupo >= grupo.getQuantidadeCotas()) {
+            throw new RegraDeNegocioException("O grupo selecionado (" + grupo.getCodigoGrupo() + ") atingiu a capacidade máxima de cotas.");
+        }
+        Cota cota = new Cota();
+        cota.setCodigoCota((int) cotasNoGrupo + 1);
+        return cota;
     }
 
     private br.com.estudo.consorcio.domain.enums.CategoriaBem mapCategoriaBacen(TipoCategoriaBacen tipoBacen) {

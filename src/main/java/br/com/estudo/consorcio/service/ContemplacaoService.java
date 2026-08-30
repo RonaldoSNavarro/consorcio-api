@@ -37,13 +37,14 @@ public class ContemplacaoService {
     private final LanceRepository lanceRepository;
     private final CotaMapper cotaMapper;
     private final AlertaComplianceRepository alertaComplianceRepository;
+    private final ParcelaService parcelaService;
 
     public ContemplacaoService(ContemplacaoRepository contemplacaoRepository, AssembleiaRepository assembleiaRepository,
                                CotaRepository cotaRepository, ParcelaRepository parcelaRepository,
                                ContemplacaoMapper mapper, ContabilidadeService contabilidadeService,
                                CotaService cotaService, HistoricoConsorciadoService historicoService,
                                LanceRepository lanceRepository, CotaMapper cotaMapper,
-                               AlertaComplianceRepository alertaComplianceRepository) {
+                               AlertaComplianceRepository alertaComplianceRepository, ParcelaService parcelaService) {
         this.contemplacaoRepository = contemplacaoRepository;
         this.assembleiaRepository = assembleiaRepository;
         this.cotaRepository = cotaRepository;
@@ -55,6 +56,7 @@ public class ContemplacaoService {
         this.lanceRepository = lanceRepository;
         this.cotaMapper = cotaMapper;
         this.alertaComplianceRepository = alertaComplianceRepository;
+        this.parcelaService = parcelaService;
     }
 
     private Usuario getUsuarioAutenticado() {
@@ -289,57 +291,87 @@ public class ContemplacaoService {
 
     public List<ContemplacaoResponseDTO> listarPendentesIntegralizacao() {
         return contemplacaoRepository.findPendentesIntegralizacao().stream()
-                .map(mapper::toResponse)
+                .map(this::toResponseComLance)
                 .toList();
     }
 
+    private ContemplacaoResponseDTO toResponseComLance(Contemplacao contemplacao) {
+        ContemplacaoResponseDTO response = mapper.toResponse(contemplacao);
+        Long lanceId = lanceRepository.findByCotaIdAndAssembleiaId(
+                        contemplacao.getCota().getId(), contemplacao.getAssembleia().getId())
+                .map(Lance::getId)
+                .orElse(null);
+        return new ContemplacaoResponseDTO(
+                response.id(), response.cotaId(), response.assembleiaId(), response.tipoContemplacao(),
+                response.valorLance(), response.dataContemplacao(), response.lanceEmbutido(),
+                response.valorCreditoLiberado(), response.codigoGrupo(), response.nomeCliente(),
+                response.cpfCnpjCliente(), response.statusCota(), response.codigoCota(), lanceId);
+    }
+    /**
+     * Liquida uma única vez o lance vencedor e aplica sua amortização na mesma transação.
+     * Lances embutidos não representam entrada de caixa (ADR 004 e Resolução BCB 285/2023).
+     */
     @Transactional
-    public CotaResponseDTO confirmarPagamentoLance(Long lanceId) {
+    public CotaResponseDTO liquidarLance(Long lanceId, TipoAmortizacaoLance tipoAmortizacao) {
         Lance lance = lanceRepository.findById(lanceId)
                 .orElseThrow(() -> new RegraDeNegocioException("Lance não encontrado."));
 
+        if (tipoAmortizacao == null) {
+            throw new RegraDeNegocioException("A modalidade de amortização é obrigatória.");
+        }
+        if (lance.getStatusApuracao() == StatusApuracaoLance.LIQUIDADO) {
+            if (lance.getTipoAmortizacao() != tipoAmortizacao) {
+                throw new RegraDeNegocioException("O lance já foi liquidado com modalidade de amortização diferente.");
+            }
+            return cotaMapper.toResponse(lance.getCota());
+        }
         if (lance.getStatusApuracao() != StatusApuracaoLance.VENCEDOR) {
             throw new RegraDeNegocioException("Este lance não foi classificado como vencedor.");
         }
-
-        Cota cota = lance.getCota();
-        if (cota.getStatus() != StatusCota.PENDENTE_INTEGRALIZACAO) {
-            throw new RegraDeNegocioException("Esta cota não está pendente de integralização.");
+        if (lance.getTipo() == TipoLance.MISTO || lance.getTipo() == TipoLance.SEGURO_OBITO) {
+            throw new RegraDeNegocioException("A liquidação de lance " + lance.getTipo() + " requer modelagem financeira específica.");
         }
 
-        Contemplacao contemplacao = contemplacaoRepository.findTopByCotaIdOrderByDataContemplacaoDesc(cota.getId())
+        Cota cota = lance.getCota();
+        Contemplacao contemplacao = contemplacaoRepository.findByCotaIdAndAssembleiaId(cota.getId(), lance.getAssembleia().getId())
                 .orElseThrow(() -> new RegraDeNegocioException("Contemplação não encontrada para a cota."));
+        if (!contemplacao.getAssembleia().getId().equals(lance.getAssembleia().getId())) {
+            throw new RegraDeNegocioException("A contemplação não pertence à assembleia do lance.");
+        }
 
         Grupo grupo = cota.getGrupo();
+        if (lance.getTipo() == TipoLance.FIRME || lance.getTipo() == TipoLance.FGTS) {
+            if (cota.getStatus() != StatusCota.PENDENTE_INTEGRALIZACAO) {
+                throw new RegraDeNegocioException("Esta cota não está pendente de integralização.");
+            }
+            contabilidadeService.registrarBaixa(grupo, cota, null, ContabilidadeService.CONTA_CAIXA,
+                    ContabilidadeService.CONTA_FUNDO_COMUM, lance.getValorOferta(), LocalDate.now(),
+                    "Integralização física de lance - Cota " + cota.getCodigoCota());
+            contabilidadeService.registrarBaixa(grupo, cota, null, ContabilidadeService.CONTA_FUNDO_COMUM,
+                    ContabilidadeService.CONTA_CREDITOS_LIBERAR, contemplacao.getValorCreditoLiberado(), LocalDate.now(),
+                    "Trânsito de crédito contemplado pós-integralização - Cota " + cota.getCodigoCota());
+            cotaService.registrarTransicaoVersao(cota, StatusCota.AGUARDANDO_ANALISE,
+                    "Integralização do lance efetuada - Cota aguardando análise de crédito");
+        } else if (lance.getTipo() != TipoLance.EMBUTIDO) {
+            throw new RegraDeNegocioException("Tipo de lance não suportado para liquidação.");
+        }
 
-        // 1. Recebimento do lance livre: Débito em CONTA_CAIXA e Crédito em CONTA_FUNDO_COMUM pelo valor do lance
-        contabilidadeService.registrarBaixa(
-                grupo, cota, null,
-                ContabilidadeService.CONTA_CAIXA,
-                ContabilidadeService.CONTA_FUNDO_COMUM,
-                lance.getValorOferta(),
-                LocalDate.now(),
-                "Integralização física de lance livre - Cota " + cota.getCodigoCota()
-        );
-
-        // 2. Trânsito do crédito liberado: Débito em CONTA_FUNDO_COMUM e Crédito em CONTA_CREDITOS_LIBERAR pelo valor líquido liberado
-        contabilidadeService.registrarBaixa(
-                grupo, cota, null,
-                ContabilidadeService.CONTA_FUNDO_COMUM,
-                ContabilidadeService.CONTA_CREDITOS_LIBERAR,
-                contemplacao.getValorCreditoLiberado(),
-                LocalDate.now(),
-                "Trânsito de crédito contemplado pós-integralização - Cota " + cota.getCodigoCota()
-        );
-
-        // 3. Transitar status da cota para AGUARDANDO_ANALISE
-        cotaService.registrarTransicaoVersao(cota, StatusCota.AGUARDANDO_ANALISE, "Integralização do lance efetuada - Cota aguardando análise de crédito");
+        if (tipoAmortizacao == TipoAmortizacaoLance.REDUCAO_PRAZO) {
+            parcelaService.amortizarPorReducaoDePrazo(cota.getId(), lance.getValorOferta());
+        } else {
+            parcelaService.amortizarPorDiluicao(cota.getId(), lance.getValorOferta());
+        }
+        lance.setStatusApuracao(StatusApuracaoLance.LIQUIDADO);
+        lance.setDataLiquidacao(java.time.LocalDateTime.now());
+        lance.setTipoAmortizacao(tipoAmortizacao);
+        lance.setAmortizacaoAplicada(true);
+        lanceRepository.save(lance);
 
         // --- Registrar Interação de Histórico ---
         Usuario usuario = getUsuarioAutenticado();
         historicoService.registrarInteracao(
                 cota.getCliente(), cota, grupo, null,
-                TipoInteracao.PAGAMENTO_PARCELA, "Integralização do lance livre no valor de R$ " + lance.getValorOferta() + " confirmada.",
+                TipoInteracao.PAGAMENTO_PARCELA, "Liquidação do lance no valor de R$ " + lance.getValorOferta() + " confirmada.",
                 grupo.getValorCredito(), null,
                 null, null, null,
                 "Lance integralizado", lance.getValorOferta(), usuario);
@@ -364,7 +396,7 @@ public class ContemplacaoService {
         Assembleia assembleia = contemplacao.getAssembleia();
         lanceRepository.findByCotaIdAndAssembleiaId(cota.getId(), assembleia.getId())
                 .ifPresent(lance -> {
-                    lance.setStatusApuracao(StatusApuracaoLance.INVALIDO);
+                    lance.setStatusApuracao(StatusApuracaoLance.EXPIRADO);
                     lanceRepository.save(lance);
                 });
 

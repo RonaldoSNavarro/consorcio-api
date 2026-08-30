@@ -40,7 +40,10 @@ public interface GrupoRepository extends JpaRepository<Grupo, Long> {
     @org.springframework.data.jpa.repository.Query("""
         SELECT g FROM Grupo g WHERE g.categoriaBem = :categoria
         AND (g.status = 'EM_ANDAMENTO' OR g.status = 'EM_FORMACAO')
-        AND (SELECT COUNT(c) FROM Cota c WHERE c.grupo = g) < g.quantidadeCotas
+        AND (
+            EXISTS (SELECT 1 FROM Cota c WHERE c.grupo = g AND c.status = 'DISPONIVEL')
+            OR (SELECT COUNT(c) FROM Cota c WHERE c.grupo = g) < g.quantidadeCotas
+        )
         ORDER BY g.status ASC, (SELECT COUNT(c) FROM Cota c WHERE c.grupo = g) DESC
         LIMIT 1
     """)

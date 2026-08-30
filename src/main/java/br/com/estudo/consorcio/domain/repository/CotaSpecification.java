@@ -12,6 +12,15 @@ public class CotaSpecification {
         return (root, query, cb) -> grupoId == null ? null : cb.equal(root.get("grupo").get("id"), grupoId);
     }
 
+    public static Specification<Cota> porCodigoGrupo(String codigoGrupo) {
+        if (codigoGrupo == null || codigoGrupo.isBlank()) return (root, query, cb) -> null;
+        return (root, query, cb) -> {
+            // The denormalized column can be null in legacy rows until Flyway backfills it.
+            // The group FK remains the canonical source for the business group code.
+            return cb.equal(root.join("grupo", JoinType.INNER).get("codigoGrupo"), codigoGrupo.trim());
+        };
+    }
+
     public static Specification<Cota> porCodigoCota(Integer codigoCota) {
         return (root, query, cb) -> codigoCota == null ? null : cb.equal(root.get("codigoCota"), codigoCota);
     }

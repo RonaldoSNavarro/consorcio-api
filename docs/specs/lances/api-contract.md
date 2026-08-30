@@ -1,7 +1,7 @@
 # 📋 Contrato de API — Oferta de Lances (lances)
 
 *   **Capability**: lances
-*   **Versão**: v1.1
+*   **Versão**: v1.2
 *   **Spec de referência**: [spec.md](spec.md)
 *   **Última alteração**: Inclusão da modalidade (LIVRE, FIXO) nos DTOs de Lance.
 
@@ -28,7 +28,7 @@ Todos os endpoints requerem cookie `HttpOnly` com JWT válido.
 {
   "cotaId": "Long — ID da cota (obrigatório, positivo)",
   "assembleiaId": "Long — ID da assembleia (obrigatório, positivo)",
-  "tipo": "TipoLance — EMBUTIDO | FIRME | MISTO (obrigatório)",
+  "tipo": "TipoLance — EMBUTIDO | FIRME | FGTS | MISTO | SEGURO_OBITO (obrigatório)",
   "modalidade": "ModalidadeLance — LIVRE | FIXO (obrigatório)",
   "valorOferta": "BigDecimal — valor ofertado (≥ 0, calculado automaticamente se modalidade for FIXO)"
 }
@@ -51,44 +51,37 @@ Todos os endpoints requerem cookie `HttpOnly` com JWT válido.
 **Erros**:
 | Código | Cenário |
 |---|---|
-| `400` | Cota inativa ou inadimplente, ou assembleia fechada |
-| `422` | Valor do lance embutido excede o limite do grupo |
+| `400` | Cota inativa ou inadimplente, assembleia fechada, ou valor de oferta acima do crédito vigente |
+| `422` | Valor do lance embutido excede o limite do grupo; `MISTO` e `SEGURO_OBITO` estão bloqueados até a modelagem financeira específica |
 
 ---
 
-### POST `/api/parcelas/cota/{cotaId}/lance/reducao-prazo`
+### POST `/api/contemplacoes/lances/{id}/integralizar`
 
 | Item | Valor |
 |---|---|
-| **Descrição** | Amortiza lance pago via redução de prazo (quita parcelas de trás para frente) |
+| **Descrição** | Liquida um lance vencedor identificado e aplica a amortização escolhida na mesma transação |
 | **Auth** | 🔒 Autenticado |
-| **REQ-IDs** | REQ-LAN-003 (Redução de Prazo) |
+| **REQ-IDs** | REQ-LAN-003, REQ-LAN-005 |
 
-**Path Parameters**: `cotaId` (Long)
-**Query Parameters**: `valorLance` (BigDecimal — valor do lance pago)
+**Path Parameters**: `id` (Long — identificador do lance)
 
-**Response `200 OK`**: `"Amortização por redução de prazo realizada com sucesso!"`
+**Request Body**:
+```json
+{ "tipoAmortizacao": "REDUCAO_PRAZO" }
+```
+
+**Response `200 OK`**: `CotaResponseDTO`
 
 **Erros**:
 | Código | Cenário |
 |---|---|
-| `400` | Cota não encontrada ou valor inválido |
-| `422` | Valor do lance excede saldo devedor |
+| `400` | Lance não vencedor, modalidade divergente ou tipo ainda bloqueado |
+| `422` | Valor do lance excede Fundo Comum pendente |
 
 ---
 
-### POST `/api/parcelas/cota/{cotaId}/lance/diluicao`
-
-| Item | Valor |
-|---|---|
-| **Descrição** | Amortiza lance pago via diluição de valor (reduz cada parcela restante proporcionalmente) |
-| **Auth** | 🔒 Autenticado |
-| **REQ-IDs** | REQ-LAN-003 (Diluição de Valor) |
-
-**Path Parameters**: `cotaId` (Long)
-**Query Parameters**: `valorLance` (BigDecimal — valor do lance pago)
-
-**Response `200 OK`**: `"Amortização por diluição do valor das parcelas realizada com sucesso!"`
+Os endpoints públicos de amortização por `cotaId` e valor livre foram removidos. A modalidade `DILUICAO` é enviada no mesmo endpoint de liquidação, no corpo da requisição.
 
 ---
 

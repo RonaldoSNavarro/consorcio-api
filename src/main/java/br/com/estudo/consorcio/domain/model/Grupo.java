@@ -21,7 +21,7 @@ public class Grupo {
     private String codigoGrupo;
 
     @Column(name = "quantidade_cotas", nullable = false)
-    private Integer quantidadeCotas = 120;
+    private Integer quantidadeCotas = 1000;
 
     @Column(name = "dia_base_assembleias", nullable = false)
     private Integer diaBaseAssembleias = 15;
@@ -37,7 +37,7 @@ public class Grupo {
     @Column(name = "prazo_meses")
     private List<Integer> prazosPermitidos;
 
-    @ManyToMany
+    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinTable(
         name = "grupo_bens_permitidos",
         joinColumns = @JoinColumn(name = "grupo_id"),
@@ -66,7 +66,7 @@ public class Grupo {
     private LocalDate dataCriacao = LocalDate.now();
 
     @Column
-    private LocalDate dataInauguracao; // Data da 1ª AGO (pode ser nula no início)
+    private LocalDate dataInauguracao;
 
     @Column(name = "data_encerramento")
     private LocalDate dataEncerramento;
@@ -86,6 +86,9 @@ public class Grupo {
     @Column(name = "destinacao_multa_rescisoria", nullable = false)
     private DestinacaoMultaRescisoria destinacaoMultaRescisoria = DestinacaoMultaRescisoria.FUNDO_RESERVA;
 
+    @Column(name = "percentual_multa_rescisoria")
+    private BigDecimal percentualMultaRescisoria = new BigDecimal("0.1000");
+
     @Enumerated(EnumType.STRING)
     @Column(name = "algoritmo_pedra_chave", nullable = false)
     private AlgoritmoPedraChave algoritmoPedraChave = AlgoritmoPedraChave.CENTENA;
@@ -98,7 +101,6 @@ public class Grupo {
     @Column(name = "versao")
     private Long versao;
 
-    // Getters e Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -127,22 +129,18 @@ public class Grupo {
         if (bensPermitidos != null && !bensPermitidos.isEmpty() && bensPermitidos.get(0).getValorAtual() != null) {
             return bensPermitidos.get(0).getValorAtual();
         }
-        return BigDecimal.valueOf(100000); // fallback
+        return BigDecimal.valueOf(100000);
     }
 
     @Transient
     public void setValorCredito(BigDecimal valorCredito) {
-        // ignore
-    }
-
-    @Transient
-    public Integer getPrazoMeses() {
-        return prazoMaximoMeses;
-    }
-
-    @Transient
-    public void setPrazoMeses(Integer prazoMeses) {
-        this.prazoMaximoMeses = prazoMeses;
+        if (this.bensPermitidos != null && !this.bensPermitidos.isEmpty()) {
+            this.bensPermitidos.get(0).setValorAtual(valorCredito);
+        } else {
+            BemReferencia bem = new BemReferencia();
+            bem.setValorAtual(valorCredito);
+            this.bensPermitidos = List.of(bem);
+        }
     }
 
     public List<Integer> getPrazosPermitidos() { return prazosPermitidos; }
@@ -175,14 +173,6 @@ public class Grupo {
     public LocalDate getDataEncerramento() { return dataEncerramento; }
     public void setDataEncerramento(LocalDate dataEncerramento) { this.dataEncerramento = dataEncerramento; }
 
-    public Long getVersao() { return versao; }
-    public void setVersao(Long versao) { this.versao = versao; }
-
-    @Deprecated
-    public Long getVersion() { return versao; }
-    @Deprecated
-    public void setVersion(Long version) { this.versao = version; }
-
     public CriterioDesempateLance getCriterioDesempateLance() { return criterioDesempateLance; }
     public void setCriterioDesempateLance(CriterioDesempateLance criterioDesempateLance) { this.criterioDesempateLance = criterioDesempateLance; }
 
@@ -195,9 +185,26 @@ public class Grupo {
     public DestinacaoMultaRescisoria getDestinacaoMultaRescisoria() { return destinacaoMultaRescisoria; }
     public void setDestinacaoMultaRescisoria(DestinacaoMultaRescisoria destinacaoMultaRescisoria) { this.destinacaoMultaRescisoria = destinacaoMultaRescisoria; }
 
+    public BigDecimal getPercentualMultaRescisoria() { return percentualMultaRescisoria; }
+    public void setPercentualMultaRescisoria(BigDecimal percentualMultaRescisoria) { this.percentualMultaRescisoria = percentualMultaRescisoria; }
+
     public AlgoritmoPedraChave getAlgoritmoPedraChave() { return algoritmoPedraChave; }
     public void setAlgoritmoPedraChave(AlgoritmoPedraChave algoritmoPedraChave) { this.algoritmoPedraChave = algoritmoPedraChave; }
 
     public DirecaoFallbackSorteio getDirecaoFallbackSorteio() { return direcaoFallbackSorteio; }
     public void setDirecaoFallbackSorteio(DirecaoFallbackSorteio direcaoFallbackSorteio) { this.direcaoFallbackSorteio = direcaoFallbackSorteio; }
+
+    public Long getVersao() { return versao; }
+    public void setVersao(Long versao) { this.versao = versao; }
+
+    @Transient
+    public Integer getPrazoMeses() {
+        return (prazosPermitidos != null && !prazosPermitidos.isEmpty()) ? prazosPermitidos.get(0) : prazoMaximoMeses;
+    }
+
+    @Transient
+    public void setPrazoMeses(Integer prazo) {
+        this.prazoMaximoMeses = prazo;
+        this.prazosPermitidos = (prazo != null) ? List.of(prazo) : List.of();
+    }
 }

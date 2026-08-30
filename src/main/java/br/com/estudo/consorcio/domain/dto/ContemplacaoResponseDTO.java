@@ -18,5 +18,6 @@ public record ContemplacaoResponseDTO(
         String nomeCliente,
         String cpfCnpjCliente,
         String statusCota,
-        Integer codigoCota
+        Integer codigoCota,
+        Long lanceId
 ) {}

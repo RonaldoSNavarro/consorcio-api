@@ -1,8 +1,8 @@
 # Tasks SDD — Módulo de Vendas
 
 - **Capability**: vendas
-- **Spec**: [spec.md](spec.md) v2.2
-- **API Contract**: [api-contract.md](api-contract.md) v2.2
+- **Spec**: [spec.md](spec.md) v2.3
+- **API Contract**: [api-contract.md](api-contract.md) v2.3
 - **Status**: IMPLEMENTED
 
 ## BUG-PLD-VND-001 — REQ-VND-008
@@ -36,3 +36,24 @@
 - Resultado backend: 158 testes aprovados, 0 falhas, 2 ignorados.
 - `hooks.test.jsx` e `AnaliseRiscoPage.test.jsx`
 - Resultado frontend direcionado: 16 testes aprovados, 0 falhas.
+
+## CR-FIN-VND-003 — Consistência da amortização e do estorno da adesão
+
+- [x] **[SPEC] RN-VND-006** — Alinhar a alocação a grupos existentes, sem criação automática.
+- [x] **[SPEC] RN-VND-010/RN-VND-011** — Definir amortização sem quitação implícita e reversão atômica da adesão.
+- [x] **[BACKEND] RN-VND-010** — Bloquear amortização para cota pendente e impedir que a operação marque parcelas como `PAGA`.
+- [x] **[BACKEND] RN-VND-011** — Reverter contrato, cota e comissão no estorno da primeira parcela.
+- [x] **[QA] AC-VND-009-03/04** — Cobrir os dois cenários de regressão.
+
+## BUG-VND-004 — Capacidade do Grupo e Reserva de Cota
+
+- [x] **[BACKEND] RN-VND-012** — Reservar cota `DISPONIVEL` existente antes de criar uma nova cota sequencial.
+- [x] **[BACKEND] RN-VND-012** — Validar a vaga antes da aprovação da proposta e do contrato para impedir persistência parcial.
+- [x] **[FRONTEND] AC-VND-012-01** — Exibir a capacidade total na listagem de grupos e calcular vagas a partir de `codigoCota` e status `DISPONIVEL`.
+- [x] **[QA] AC-VND-012-01** — Cobrir a aprovação com cota disponível e a apresentação da capacidade.
+
+## BUG-FIN-VND-005 — Busca por código do grupo e da cota
+
+- [x] **[BACKEND] RN-VND-014** — Filtrar pela relação canônica `Cota.grupo.codigoGrupo` e por `Cota.codigoCota`.
+- [x] **[FRONTEND] RN-VND-014** — Usar chamada explícita por `codigoGrupo` e `codigoCota`, sem parâmetros posicionais ambíguos.
+- [x] **[QA] RN-VND-014** — Validar a busca combinada e publicar o bundle atualizado do Financeiro.

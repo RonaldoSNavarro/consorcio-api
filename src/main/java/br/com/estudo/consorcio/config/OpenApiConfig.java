@@ -4,66 +4,45 @@ import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
-import org.springdoc.core.customizers.OpenApiCustomizer;
+import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.Comparator;
 import java.util.List;
 
 @Configuration
 public class OpenApiConfig {
 
+    public static final String SECURITY_SCHEME_NAME = "cookieAuth";
+
     @Bean
-    public OpenAPI consorcioOpenAPI() {
+    public OpenAPI customOpenAPI() {
         return new OpenAPI()
-                .components(new Components()
-                        .addSecuritySchemes("bearer-key",
-                                new SecurityScheme()
-                                        .type(SecurityScheme.Type.HTTP)
-                                        .scheme("bearer")
-                                        .bearerFormat("JWT")))
-                .addSecurityItem(new SecurityRequirement().addList("bearer-key"))
                 .info(new Info()
-                        .title("🏢 Consórcio API")
-                        .description("API REST para administração e gerenciamento do ciclo de vida de consórcios, implementando regras normatizadas pelo Banco Central do Brasil (BCB) e tratamento de inadimplência pro-rata die.")
+                        .title("Consórcio API — Documentação Oficial OpenAPI 3.0")
+                        .description("API corporativa de alta performance para administração de consórcios segundo as normativas do Banco Central do Brasil (BACEN) e Lei 11.795/2008.")
                         .version("v1.0.0")
                         .contact(new Contact()
-                                .name("Ronaldo Navarro")
-                                .url("https://github.com/RonaldoSNavarro")));
-    }
-
-    // === INTERCEPTADOR QUE GARANTE A ORDEM DAS ABAS ===
-    @Bean
-    public OpenApiCustomizer sortTagsCustomizer() {
-        return openApi -> {
-            // A ordem exata da sua jornada
-            List<String> ordemDesejada = List.of(
-                    "Autenticação",
-                    "MFA / 2FA",
-                    "Clientes",
-                    "Vendas",
-                    "Análise de Crédito",
-                    "Grupos",
-                    "Cotas",
-                    "Parcelas",
-                    "Assembleias",
-                    "Loteria Federal",
-                    "Contemplações",
-                    "Movimentos Financeiros",
-                    "Compliance",
-                    "Relatórios BCB"
-            );
-
-            // Se as tags já foram mapeadas pelo Springdoc, ele as ordena com base na nossa lista
-            if (openApi.getTags() != null) {
-                openApi.getTags().sort(Comparator.comparing(tag -> {
-                    int index = ordemDesejada.indexOf(tag.getName());
-                    return index == -1 ? 999 : index; // Se achar uma tag nova, joga pro fim da lista
-                }));
-            }
-        };
+                                .name("Equipe de Arquitetura Consórcio")
+                                .email("arquitetura@consorcio.com.br"))
+                        .license(new License()
+                                .name("Apache 2.0")
+                                .url("https://www.apache.org/licenses/LICENSE-2.0.html")))
+                .servers(List.of(
+                        new Server().url("http://localhost:8080").description("Ambiente Local de Desenvolvimento"),
+                        new Server().url("https://api-staging.consorcio.com.br").description("Ambiente de Staging / Homologação"),
+                        new Server().url("https://api.consorcio.com.br").description("Ambiente de Produção")
+                ))
+                .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME))
+                .components(new Components()
+                        .addSecuritySchemes(SECURITY_SCHEME_NAME,
+                                new SecurityScheme()
+                                        .name("jwt-token")
+                                        .type(SecurityScheme.Type.APIKEY)
+                                        .in(SecurityScheme.In.COOKIE)
+                                        .description("Token JWT seguro transmitido via cookie HttpOnly (SameSite=Strict)")));
     }
 }

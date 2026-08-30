@@ -26,7 +26,8 @@ Esta capability define as regras para a extraÃ§Ã£o de relatÃ³rios gerencia
 - **Regras**:
   - Exibir a lista de contas contÃ¡beis mapeadas no grupo com seus respectivos saldos apurados em uma `dataReferencia`.
   - O saldo deve refletir os dÃ©bitos e crÃ©ditos registrados atÃ© as 23:59:59 da data solicitada.
-  - O acesso Ã© restrito aos perfis `ROLE_ADMIN` e `ROLE_AUDITOR`.
+  - O acesso Ã© concedido pela autoridade canÃ´nica `VIEW_RELATORIOS`, usada de forma idÃªntica no backend, nas rotas protegidas e no menu do frontend.
+  - O balancete deve listar as 12 contas COSIF padronizadas, inclusive quando o saldo do grupo for zero.
 - **Acceptance Criteria**:
   - **Given** um grupo com histÃ³rico de arrecadaÃ§Ã£o e contemplaÃ§Ãµes
   - **When** um `ROLE_ADMIN` solicita o balancete de uma data de referÃªncia

@@ -19,6 +19,13 @@ public class TokenService {
     @Value("${api.security.token.secret}")
     private String secret;
 
+    @jakarta.annotation.PostConstruct
+    public void validarSegurancaChave() {
+        if (secret == null || secret.trim().length() < 32) {
+            throw new IllegalStateException("JWT Secret inválido ou inseguro: deve possuir pelo menos 32 caracteres (256 bits).");
+        }
+    }
+
     public String gerarToken(Usuario usuario) {
         try {
             var algoritmo = Algorithm.HMAC256(secret);
@@ -38,8 +45,7 @@ public class TokenService {
     }
 
     private Instant dataExpiracao() {
-        // Define o fuso horário de Brasília (-03:00) e adiciona 2 horas de validade
-        return LocalDateTime.now().plusHours(2).toInstant(ZoneOffset.of("-03:00"));
+        return Instant.now().plus(2, java.time.temporal.ChronoUnit.HOURS);
     }
 
     public String gerarTokenMfaTemporario(Usuario usuario) {
@@ -49,7 +55,7 @@ public class TokenService {
                     .withIssuer("API Consorcio MFA")
                     .withSubject(usuario.getUsername())
                     .withClaim("mfa_pending", true)
-                    .withExpiresAt(LocalDateTime.now().plusMinutes(5).toInstant(ZoneOffset.of("-03:00")))
+                    .withExpiresAt(Instant.now().plus(5, java.time.temporal.ChronoUnit.MINUTES))
                     .sign(algoritmo);
         } catch (JWTCreationException exception) {
             throw new RegraDeNegocioException("Erro ao gerar token MFA temporário");

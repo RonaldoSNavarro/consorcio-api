@@ -5,13 +5,17 @@ import br.com.estudo.consorcio.domain.dto.AssembleiaResponseDTO;
 import br.com.estudo.consorcio.domain.mapper.AssembleiaMapper; // Importar o mapper
 import br.com.estudo.consorcio.domain.model.Assembleia;
 import br.com.estudo.consorcio.domain.model.Grupo;
+import br.com.estudo.consorcio.domain.model.StatusAssembleia;
 import br.com.estudo.consorcio.domain.model.TipoAssembleia;
 import br.com.estudo.consorcio.domain.repository.AssembleiaRepository;
 import br.com.estudo.consorcio.domain.repository.GrupoRepository;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -56,10 +60,28 @@ public class AssembleiaService {
                 .toList();
     }
 
+    /**
+     * Retorna uma pagina de assembleias em um estado operacional especifico.
+     * Mantem a listagem legada para consumidores que precisam do historico integral.
+     */
+    @Transactional(readOnly = true)
+    public Page<AssembleiaResponseDTO> listarPorGrupoEStatus(Long grupoId, StatusAssembleia status, Pageable pageable) {
+        return assembleiaRepository.findByGrupoIdAndStatus(grupoId, status, pageable)
+                .map(mapper::toResponse);
+    }
+
     @Transactional
     public void abrirCaptacao(Long assembleiaId) {
         Assembleia assembleia = assembleiaRepository.findById(assembleiaId)
                 .orElseThrow(() -> new RegraDeNegocioException("Assembleia não encontrada."));
+
+        if (assembleia.getStatus() == StatusAssembleia.CAPTANDO) {
+            if (assembleia.getDataInicioCaptacao() == null) {
+                assembleia.setDataInicioCaptacao(LocalDateTime.now());
+                assembleiaRepository.save(assembleia);
+            }
+            return;
+        }
 
         if (assembleia.getStatus() != br.com.estudo.consorcio.domain.model.StatusAssembleia.AGENDADA) {
             throw new RegraDeNegocioException("Apenas assembleias AGENDADAS podem abrir captação de lances.");

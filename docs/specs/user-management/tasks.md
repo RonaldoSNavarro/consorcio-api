@@ -23,4 +23,4 @@
 - [x] Criar Modal de Cadastro de Usuário (nome, login, email, senha temporária, perfil).
 - [x] Criar tela/modal de Perfis com Checkboxes para Permissões Granulares baseadas no Enum.
 - [x] Integrar UI com a API REST.
-- [ ] Ajustar fluxo do MFA (Pendência no Lote 5 do Agente).
+- [x] Ajustar fluxo do MFA (Suporte a TOTP/E-mail e telas integradas).

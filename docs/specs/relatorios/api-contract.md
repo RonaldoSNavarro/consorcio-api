@@ -14,7 +14,7 @@ Endpoints para a geraÃ§Ã£o de relatÃ³rios de Balancete COSIF, EstatÃ­sti
 
 **SeguranÃ§a Global:**
 - Header obrigatÃ³rio: `Authorization: Bearer <JWT>`
-- O endpoint PLD/FT e Balancete 4110 sÃ£o restritos a usuÃ¡rios com os papÃ©is `ROLE_ADMIN` ou `ROLE_AUDITOR`. O papel `ROLE_CONSORCIADO` recebe `403 Forbidden`.
+- O endpoint PLD/FT e o Balancete 4110 exigem a autoridade `VIEW_RELATORIOS`, atribuÃ­da aos perfis autorizados. O frontend deve usar a mesma autoridade para menu e rota.
 
 ---
 
@@ -25,7 +25,7 @@ Lista lances registrados acima de R$ 50.000,00 para um perÃ­odo especÃ­fico,
 
 - **MÃ©todo:** `GET`
 - **Path:** `/pld-ft`
-- **PermissÃµes:** `ROLE_ADMIN`, `ROLE_AUDITOR`
+- **PermissÃµes:** `VIEW_RELATORIOS`
 
 **Query Parameters:**
 | ParÃ¢metro | Tipo | ObrigatÃ³rio | Formato | DescriÃ§Ã£o |
@@ -57,7 +57,7 @@ Gera o balancete de um grupo consolidando as contas COSIF e avaliando a quadratu
 
 - **MÃ©todo:** `GET`
 - **Path:** `/balancete/{grupoId}`
-- **PermissÃµes:** `ROLE_ADMIN`, `ROLE_AUDITOR`
+- **PermissÃµes:** `VIEW_RELATORIOS`
 
 **Path Variables:**
 | VariÃ¡vel | Tipo | DescriÃ§Ã£o |

@@ -31,6 +31,14 @@ import org.apache.poi.ss.usermodel.DateUtil;
 @Service
 public class ComplianceSincronizacaoService {
 
+    /**
+     * Endpoint publicado pelo Sanctions List Service (SLS). A rota antiga
+     * /api/download nao existe no SLS e fazia a sincronizacao cair sempre no fallback.
+     */
+    private static final String OFAC_SDN_ADVANCED_XML_URL =
+            "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN_ADVANCED.XML";
+    private static final String OFAC_USER_AGENT = "ConsorcioAPI/1.0 (compliance-list-sync)";
+
     private final ListaRestritivaRepository listaRestritivaRepository;
     private final MatchComplianceService matchComplianceService;
     private final ComplianceExecucaoLogRepository logRepository;
@@ -93,8 +101,10 @@ public class ComplianceSincronizacaoService {
                     .build();
                     
             java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
-                    .uri(java.net.URI.create("https://sanctionslistservice.ofac.treas.gov/api/download/CONS_ADVANCED.XML"))
-                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                    .uri(java.net.URI.create(OFAC_SDN_ADVANCED_XML_URL))
+                    // O SLS exige User-Agent para evitar resposta 403 em clientes automatizados.
+                    .header("User-Agent", OFAC_USER_AGENT)
+                    .header("Accept", "application/xml, text/xml;q=0.9, */*;q=0.1")
                     .timeout(java.time.Duration.ofSeconds(60))
                     .GET()
                     .build();

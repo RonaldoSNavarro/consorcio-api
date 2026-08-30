@@ -1,7 +1,7 @@
 # 📋 Contrato de API — Apuração e Contemplações (contemplacao)
 
 *   **Capability**: contemplacao
-*   **Versão**: v1.0 (Baseline Retroativo)
+*   **Versão**: v1.1
 *   **Spec de referência**: [spec.md](spec.md)
 *   **Última alteração**: Geração retroativa baseada no código implementado.
 
@@ -78,7 +78,12 @@ Todos os endpoints requerem cookie `HttpOnly` com JWT válido.
 | **Auth** | 🔒 Autenticado |
 | **REQ-IDs** | REQ-CON-004 (Desembolso Efetivo) |
 
-**Path Parameters**: `id` (Long — ID da contemplação)
+**Path Parameters**: `id` (Long — ID do lance)
+
+**Request Body**:
+```json
+{ "tipoAmortizacao": "REDUCAO_PRAZO | DILUICAO" }
+```
 
 **Response `200 OK`**: `ContemplacaoResponseDTO`
 
@@ -100,6 +105,11 @@ Todos os endpoints requerem cookie `HttpOnly` com JWT válido.
 
 ## 📐 DTOs de Referência
 
+### Request: `LiquidacaoLanceRequestDTO`
+```java
+public record LiquidacaoLanceRequestDTO(@NotNull TipoAmortizacaoLance tipoAmortizacao) {}
+```
+
 ### Request: `ContemplacaoRequestDTO`
 ```java
 public record ContemplacaoRequestDTO(
@@ -110,6 +120,14 @@ public record ContemplacaoRequestDTO(
     @NotNull Boolean lanceEmbutido
 ) {}
 ```
+
+---
+
+## Correção P0 — liquidação identificada
+
+- `POST /api/contemplacoes/{id}/pagamento-bem` recebe somente o ID da contemplação; não recebe modalidade de amortização.
+- `POST /api/contemplacoes/lances/{id}/integralizar` recebe o ID do lance vencedor e o corpo obrigatório `{ "tipoAmortizacao": "REDUCAO_PRAZO | DILUICAO" }`.
+- A listagem `GET /api/contemplacoes/pendentes-integralizacao` inclui `lanceId` em cada `ContemplacaoResponseDTO` de lance. A interface deve usar `lanceId` para liquidar e manter `id` para operações próprias da contemplação.
 
 ### Response: `ContemplacaoResponseDTO`
 ```java

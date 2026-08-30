@@ -26,5 +26,6 @@ public interface ContemplacaoMapper {
     @Mapping(source = "cota.cliente.cpfCnpj", target = "cpfCnpjCliente")
     @Mapping(source = "cota.status", target = "statusCota")
     @Mapping(source = "cota.codigoCota", target = "codigoCota")
+    @Mapping(target = "lanceId", ignore = true)
     ContemplacaoResponseDTO toResponse(Contemplacao entity);
 }

@@ -2,6 +2,7 @@ package br.com.estudo.consorcio.service;
 
 import br.com.estudo.consorcio.domain.dto.ViaCepResponseDTO;
 import br.com.estudo.consorcio.exception.RegraDeNegocioException;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
@@ -12,6 +13,7 @@ public class ViaCepService {
 
     public ViaCepService() {
         this.restClient = RestClient.builder()
+                .requestFactory(new SimpleClientHttpRequestFactory())
                 .baseUrl("http://viacep.com.br/ws")
                 .build();
     }

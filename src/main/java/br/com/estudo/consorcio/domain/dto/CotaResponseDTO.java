@@ -11,6 +11,7 @@ public record CotaResponseDTO(
         Long grupoId,
         String codigoGrupo,
         String nomeConsorciado,
+        String cpfCnpj,
         BigDecimal percentualPago,
         BigDecimal percentualAPagar,
         Long bemReferenciaId,

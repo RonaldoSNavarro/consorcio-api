@@ -67,14 +67,51 @@ Todos os endpoints requerem cookie `HttpOnly` com JWT válido.
     "id": "Long",
     "dataAssembleia": "LocalDate",
     "tipo": "TipoAssembleia",
-    "grupoId": "Long"
+    "grupoId": "Long",
+    "status": "StatusAssembleia â€” AGENDADA | CAPTANDO | REALIZADA | FECHADA",
+    "numeroSorteado": "Integer — primeiro prêmio da extração usado no sorteio",
+    "premioExcluidos": "Integer — segundo prêmio usado para excluídos",
+    "numeroExtracaoLoteria": "String — concurso oficial vinculado",
+    "algoritmoUsado": "AlgoritmoPedraChave",
+    "pedraChaveCalculada": "Integer",
+    "fallbacksAplicados": "Integer"
   }
 ]
 ```
 
 ---
 
+### GET `/api/assembleias/grupo/{grupoId}/status/{status}`
+
+Consulta paginada usada pela Central AGO. `status` é obrigatório (`AGENDADA`, `CAPTANDO`, `REALIZADA` ou `FECHADA`); aceita os parâmetros Spring `page` e `size`. O tamanho padrão é cinco, ordenado por `dataAssembleia`.
+
+**Response `200 OK`**: página Spring com `content`, `totalElements`, `totalPages`, `number` e `size`.
+
+### POST `/api/assembleias/{id}/apurar`
+
+| Item | Valor |
+|---|---|
+| **Descrição** | Executa a apuração auditável: sorteio oficial, excluídos e lances |
+| **Auth** | `MANAGE_GRUPOS` |
+
+A assembleia deve estar em `REALIZADA`, após o encerramento da captação. O motor usa exclusivamente a extração da Loteria Federal mais recente cuja data seja menor ou igual à data da assembleia; ausência de extração elegível retorna `400`. O campo legado `dezenaSorteio` é ignorado e não há fallback aleatório.
+
+```json
+{ "realizarSorteio": true }
+```
+
+---
+
 ## 📐 DTOs de Referência
+
+### POST `/api/assembleias/{id}/abrir-captacao`
+
+| Item | Valor |
+|---|---|
+| **Descricao** | Abre a janela de lances de uma assembleia pre-agendada |
+| **Auth** | `MANAGE_GRUPOS` |
+
+Transita `AGENDADA` para `CAPTANDO` e registra `dataInicioCaptacao`. A chamada repetida para uma assembleia ja `CAPTANDO` e idempotente; se o dado legado nao tiver data inicial, ela e preenchida. Assembleias `REALIZADA` e `FECHADA` retornam `400`.
 
 ### Request: `AssembleiaRequestDTO`
 ```java
@@ -88,6 +125,9 @@ public record AssembleiaRequestDTO(
 ### Response: `AssembleiaResponseDTO`
 ```java
 public record AssembleiaResponseDTO(
-    Long id, LocalDate dataAssembleia, TipoAssembleia tipo, Long grupoId
+    Long id, LocalDate dataAssembleia, TipoAssembleia tipo, Long grupoId,
+    StatusAssembleia status, Integer numeroSorteado, Integer premioExcluidos,
+    String numeroExtracaoLoteria, AlgoritmoPedraChave algoritmoUsado,
+    Integer pedraChaveCalculada, Integer fallbacksAplicados
 ) {}
 ```

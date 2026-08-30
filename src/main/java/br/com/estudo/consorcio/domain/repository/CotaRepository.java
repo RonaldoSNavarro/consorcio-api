@@ -19,6 +19,8 @@ public interface CotaRepository extends JpaRepository<Cota, Long>, JpaSpecificat
 
     Page<Cota> findByClienteId(Long clienteId, Pageable pageable);
 
+    List<Cota> findByClienteId(Long clienteId);
+
     Optional<Cota> findByCodigoCotaAndGrupo_CodigoGrupo(Integer codigoCota, String codigoGrupo);
     
     @Deprecated

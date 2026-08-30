@@ -4,9 +4,11 @@ import br.com.estudo.consorcio.domain.dto.AssembleiaRequestDTO;
 import br.com.estudo.consorcio.domain.dto.AssembleiaResponseDTO;
 import br.com.estudo.consorcio.domain.model.Assembleia;
 import br.com.estudo.consorcio.domain.model.Grupo;
+import br.com.estudo.consorcio.domain.model.StatusAssembleia;
 import br.com.estudo.consorcio.domain.model.TipoAssembleia;
 import br.com.estudo.consorcio.domain.repository.AssembleiaRepository;
 import br.com.estudo.consorcio.domain.repository.GrupoRepository;
+import br.com.estudo.consorcio.exception.RegraDeNegocioException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,6 +19,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,6 +40,52 @@ class AssembleiaServiceTest {
 
     @InjectMocks
     private AssembleiaService service;
+
+    @Mock
+    private MotorApuracaoService motorApuracaoService;
+
+    @Test
+    @DisplayName("Deve abrir captacao para assembleia previamente agendada")
+    void deveAbrirCaptacaoParaAssembleiaAgendada() {
+        Assembleia assembleia = new Assembleia();
+        assembleia.setId(501L);
+        assembleia.setStatus(StatusAssembleia.AGENDADA);
+        when(assembleiaRepository.findById(501L)).thenReturn(Optional.of(assembleia));
+
+        service.abrirCaptacao(501L);
+
+        assertEquals(StatusAssembleia.CAPTANDO, assembleia.getStatus());
+        assertNotNull(assembleia.getDataInicioCaptacao());
+        verify(assembleiaRepository).save(assembleia);
+    }
+
+    @Test
+    @DisplayName("Deve confirmar idempotentemente captacao ja aberta e preencher data ausente")
+    void deveConfirmarCaptacaoJaAberta() {
+        Assembleia assembleia = new Assembleia();
+        assembleia.setId(501L);
+        assembleia.setStatus(StatusAssembleia.CAPTANDO);
+        when(assembleiaRepository.findById(501L)).thenReturn(Optional.of(assembleia));
+
+        service.abrirCaptacao(501L);
+
+        assertEquals(StatusAssembleia.CAPTANDO, assembleia.getStatus());
+        assertNotNull(assembleia.getDataInicioCaptacao());
+        verify(assembleiaRepository).save(assembleia);
+    }
+
+    @Test
+    @DisplayName("Deve impedir reabertura de assembleia ja realizada")
+    void deveImpedirReaberturaDeAssembleiaRealizada() {
+        Assembleia assembleia = new Assembleia();
+        assembleia.setId(501L);
+        assembleia.setStatus(StatusAssembleia.REALIZADA);
+        when(assembleiaRepository.findById(501L)).thenReturn(Optional.of(assembleia));
+
+        assertThrows(RegraDeNegocioException.class, () -> service.abrirCaptacao(501L));
+
+        verify(assembleiaRepository, never()).save(any());
+    }
 
     @Test
     @DisplayName("Deve agendar assembleia com sucesso usando o tipo informado")
@@ -109,6 +159,13 @@ class AssembleiaServiceTest {
 
         Assembleia a1 = new Assembleia(); a1.setId(1L); a1.setGrupo(grupo); a1.setTipo(TipoAssembleia.ORDINARIA);
         Assembleia a2 = new Assembleia(); a2.setId(2L); a2.setGrupo(grupo); a2.setTipo(TipoAssembleia.EXTRAORDINARIA);
+        a1.setStatus(StatusAssembleia.CAPTANDO);
+        a2.setStatus(StatusAssembleia.AGENDADA);
+        a1.setNumeroExtracaoLoteria("06123");
+        a1.setNumeroSorteado(12345);
+        a1.setPremioExcluidos(54321);
+        a1.setPedraChaveCalculada(345);
+        a1.setFallbacksAplicados(1);
 
         when(assembleiaRepository.findByGrupoId(idGrupo)).thenReturn(List.of(a1, a2));
 
@@ -119,6 +176,37 @@ class AssembleiaServiceTest {
         assertEquals(2, resultado.size());
         assertEquals(TipoAssembleia.ORDINARIA, resultado.get(0).tipo());
         assertEquals(TipoAssembleia.EXTRAORDINARIA, resultado.get(1).tipo());
+        assertEquals(StatusAssembleia.CAPTANDO, resultado.get(0).status(),
+                "A listagem deve expor o status para o credenciamento filtrar apenas CAPTANDO");
+        assertEquals(StatusAssembleia.AGENDADA, resultado.get(1).status());
+        assertEquals("06123", resultado.get(0).numeroExtracaoLoteria());
+        assertEquals(12345, resultado.get(0).numeroSorteado());
+        assertEquals(54321, resultado.get(0).premioExcluidos());
+        assertEquals(345, resultado.get(0).pedraChaveCalculada());
+        assertEquals(1, resultado.get(0).fallbacksAplicados());
         verify(assembleiaRepository, times(1)).findByGrupoId(idGrupo);
+    }
+
+    @Test
+    @DisplayName("Deve paginar assembleias pelo status operacional")
+    void devePaginarAssembleiasPorStatus() {
+        Long grupoId = 1L;
+        Grupo grupo = new Grupo();
+        grupo.setId(grupoId);
+        Assembleia agendada = new Assembleia();
+        agendada.setId(3L);
+        agendada.setGrupo(grupo);
+        agendada.setStatus(StatusAssembleia.AGENDADA);
+        agendada.setTipo(TipoAssembleia.ORDINARIA);
+
+        when(assembleiaRepository.findByGrupoIdAndStatus(eq(grupoId), eq(StatusAssembleia.AGENDADA), any()))
+                .thenReturn(new PageImpl<>(List.of(agendada), PageRequest.of(0, 5), 6));
+
+        var resultado = service.listarPorGrupoEStatus(grupoId, StatusAssembleia.AGENDADA, PageRequest.of(0, 5));
+
+        assertEquals(1, resultado.getNumberOfElements());
+        assertEquals(6, resultado.getTotalElements());
+        assertEquals(StatusAssembleia.AGENDADA, resultado.getContent().getFirst().status());
+        verify(assembleiaRepository).findByGrupoIdAndStatus(eq(grupoId), eq(StatusAssembleia.AGENDADA), any());
     }
 }

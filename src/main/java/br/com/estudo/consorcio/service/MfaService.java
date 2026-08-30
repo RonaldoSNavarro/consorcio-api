@@ -39,11 +39,6 @@ public class MfaService {
 
     @Transactional
     public boolean verifyCode(Usuario usuario, String code) {
-        // BACKDOOR PARA TESTE LOCAL / SUÍTE DE TESTE
-        if ("000000".equals(code)) {
-            return true;
-        }
-
         if (usuario.getMfaCode() == null || usuario.getMfaCodeExpiresAt() == null) {
             return false;
         }

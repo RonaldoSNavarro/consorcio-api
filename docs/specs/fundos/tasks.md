@@ -1,7 +1,7 @@
 # 📋 Decomposição de Tarefas — Composição de Fundos e Parcelas (fundos)
 
 *   **Capability**: fundos
-*   **Spec de referência**: [spec.md](spec.md)
+*   **Spec de referência**: [spec.md](spec.md) v1.2
 *   **Total de tarefas**: 10
 *   **REQ-IDs cobertos**: 4/4
 
@@ -26,3 +26,13 @@
 ### [BACKEND] REQ-FUN-004: Efetivação após pagamento da adesão
 - [x] Promover `ContratoAdesao` e `Cota` dentro da transação de `ParcelaService.pagar()`
 - [x] Cobrir a transição com teste unitário para a parcela de adesão e preservar o fluxo normal das parcelas posteriores
+
+### [BACKEND/QA] CR-FIN-VND-003: Reversão e amortização consistentes
+- [x] Reverter contrato, cota e comissão no estorno da primeira parcela.
+- [x] Impedir que amortização altere parcelas para `PAGA`.
+- [x] Cobrir regressões de estorno e de cota aguardando pagamento.
+
+### [BACKEND/QA] BUG-FUN-009: Provisionamento COSIF de pagamento
+- [x] Provisionar de modo idempotente as 12 contas COSIF padronizadas na inicialização e dentro das transações contábeis.
+- [x] Rejeitar códigos COSIF fora do conjunto operacional com erro de negócio, sem persistência parcial.
+- [x] Cobrir o provisionamento completo e sua repetição idempotente em `ContabilidadeServiceTest`.

@@ -45,6 +45,16 @@ public class Lance {
     @Column(name = "modalidade", nullable = false)
     private ModalidadeLance modalidade;
 
+    @Column(name = "data_liquidacao")
+    private LocalDateTime dataLiquidacao;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_amortizacao")
+    private TipoAmortizacaoLance tipoAmortizacao;
+
+    @Column(name = "amortizacao_aplicada", nullable = false)
+    private boolean amortizacaoAplicada = false;
+
     @Column(name = "notificar_siscoaf", nullable = false)
     private boolean notificarSiscoaf = false;
 

@@ -40,6 +40,7 @@ Adicionalmente, o sistema permite uploads manuais das listas PEP (CSV), ONU (XML
 - **RN-COMP-004 (Matching PEP Mascarado)**: Como a lista de PEP contÃ©m CPFs mascarados no formato `***.531.324-**` (somente os 6 dÃ­gitos centrais visÃ­veis), a validaÃ§Ã£o por documento contra a lista PEP deve extrair os 6 dÃ­gitos centrais do CPF do cliente (caracteres de Ã­ndice 3 a 8 do CPF numÃ©rico limpo) e comparÃ¡-los com os 6 dÃ­gitos expostos da lista. Havendo correspondÃªncia de CPF E similaridade do nome (`pg_trgm` >= limite de similaridade do SGBD), o alerta Ã© gerado.
 - **RN-COMP-005 (Fronteira e Cidades GÃªmeas)**: Clientes que residam em municÃ­pios da faixa de fronteira ou cidades gÃªmeas (cruzando `localidade` e `uf` do cliente contra a lista IBGE normalizada) devem ter sua classificaÃ§Ã£o de risco marcada ou gerar alertas especÃ­ficos de atenÃ§Ã£o `IBGE`.
 - **RN-COMP-006 (OFAC Resilience)**: Caso a API do OFAC esteja inacessÃ­vel ou falhe na requisiÃ§Ã£o de download do XML, o sistema deve registrar o erro no log e prosseguir com a execuÃ§Ã£o das demais listas locais.
+- **RN-COMP-007 (Endpoint OFAC SLS)**: A carga de sanÃ§Ãµes SDN usa o endpoint publicado pelo SLS `https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN_ADVANCED.XML`, com cabeÃ§alho `User-Agent`, exigido pelo provedor para requisiÃ§Ãµes automatizadas.
 
 ## 4. CritÃ©rios de Aceite (QA)
 

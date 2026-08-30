@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -282,6 +283,8 @@ public class ParcelaService {
                     parcela.getValorJuros(), parcela.getDataVencimento(), "Estorno de Provisão de Juros - Parcela " + parcela.getNumeroParcela());
         }
 
+        reverterAdesaoAposEstorno(parcela, grupo, cota, hoje);
+
         // 2. Altera status da parcela para PENDENTE (reabrir cobrança)
         parcela.setStatus(StatusParcela.PENDENTE);
 
@@ -296,28 +299,80 @@ public class ParcelaService {
         return mapper.toResponse(parcelaSalva);
     }
 
+    /**
+     * Reverte a efetivação que foi produzida exclusivamente pela baixa da primeira parcela.
+     *
+     * <p>A reversão mantém a atomicidade entre a parcela, o contrato, a cota e a comissão,
+     * conforme RN-VND-011 e RN-FUN-005. Uma adesão com pagamentos posteriores não pode ser
+     * estornada isoladamente, pois isso deixaria o histórico financeiro inconsistente.</p>
+     *
+     * @param parcela parcela submetida ao estorno
+     * @param grupo grupo vinculado à cota
+     * @param cota cota vinculada à parcela
+     * @param dataEstorno data contábil do estorno
+     * @throws RegraDeNegocioException se houver pagamento posterior ou estados incompatíveis
+     */
+    private void reverterAdesaoAposEstorno(Parcela parcela, Grupo grupo, Cota cota, LocalDate dataEstorno) {
+        if (!Integer.valueOf(1).equals(parcela.getNumeroParcela())) {
+            return;
+        }
+
+        boolean possuiPagamentosPosteriores = parcelaRepository.findByCotaId(cota.getId()).stream()
+                .anyMatch(p -> p.getNumeroParcela() != null
+                        && p.getNumeroParcela() > 1
+                        && p.getStatus() == StatusParcela.PAGA);
+        if (possuiPagamentosPosteriores) {
+            throw new RegraDeNegocioException("Não é possível estornar a primeira parcela após pagamentos posteriores.");
+        }
+
+        ContratoAdesao contrato = cota.getContratoAdesao();
+        if (contrato == null
+                || contrato.getStatus() != StatusContrato.EFETIVADO
+                || (cota.getStatus() != StatusCota.ATIVA
+                && cota.getStatus() != StatusCota.AGUARDANDO_INAUGURACAO)) {
+            throw new RegraDeNegocioException("Estorno da adesão encontrou contrato ou cota em estado incompatível.");
+        }
+
+        comissaoService.buscarPorContratoEStatus(contrato.getId(), "PAGA").ifPresent(comissao -> {
+            comissaoService.estornarComissao(comissao);
+            contabilidadeService.registrarEstorno(grupo, cota, parcela,
+                    ContabilidadeService.CONTA_CAIXA,
+                    ContabilidadeService.CONTA_TAXA_ADM,
+                    comissao.getValorTotalComissao(),
+                    dataEstorno,
+                    "Estorno de comissão pela reversão da adesão - Contrato " + contrato.getId());
+        });
+
+        contrato.setStatus(StatusContrato.PENDENTE_PAGAMENTO);
+        contrato.setDataAssinatura(null);
+        contratoRepository.save(contrato);
+
+        cota.setStatus(StatusCota.AGUARDANDO_PAGAMENTO);
+        cotaRepository.save(cota);
+    }
+
     // Os métodos de amortização continuam iguais, pois eles operam listas internas no banco
     @Transactional
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('MANAGE_FINANCEIRO')")
     public void amortizarPorReducaoDePrazo(Long cotaId, BigDecimal valorLance) {
+        Cota cota = cotaRepository.findById(cotaId)
+                .orElseThrow(() -> new RegraDeNegocioException("Cota não encontrada."));
+        if (cota.getContratoAdesao() == null
+                || cota.getContratoAdesao().getStatus() != StatusContrato.EFETIVADO) {
+            throw new RegraDeNegocioException("Amortização só é permitida para cotas com adesão efetivada.");
+        }
+
         List<Parcela> parcelasDeTrasParaFrente = parcelaRepository.findByCotaIdAndStatusOrderByNumeroParcelaDesc(cotaId, StatusParcela.PENDENTE);
+        validarValorESaldoPendente(valorLance, parcelasDeTrasParaFrente);
         BigDecimal saldoLance = valorLance;
 
         for (Parcela parcela : parcelasDeTrasParaFrente) {
             if (saldoLance.compareTo(BigDecimal.ZERO) <= 0) break;
 
-            if (saldoLance.compareTo(parcela.getValorParcela()) >= 0) {
-                parcela.setStatus(StatusParcela.PAGA);
-                parcela.setDataPagamento(LocalDate.now());
-                parcela.setValorMulta(BigDecimal.ZERO);
-                parcela.setValorJuros(BigDecimal.ZERO);
-                parcela.setValorPago(parcela.getValorParcela());
-                saldoLance = saldoLance.subtract(parcela.getValorParcela());
-            } else {
-                BigDecimal novoFundoComum = parcela.getValorFundoComum().subtract(saldoLance);
-                parcela.setValorFundoComum(novoFundoComum);
-                saldoLance = BigDecimal.ZERO;
-            }
+            BigDecimal amortizacao = saldoLance.min(parcela.getValorFundoComum());
+            parcela.setValorFundoComum(parcela.getValorFundoComum().subtract(amortizacao));
+            parcela.calcularValorTotal();
+            saldoLance = saldoLance.subtract(amortizacao);
         }
         parcelaRepository.saveAll(parcelasDeTrasParaFrente);
     }
@@ -325,24 +380,71 @@ public class ParcelaService {
     @Transactional
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('MANAGE_FINANCEIRO')")
     public void amortizarPorDiluicao(Long cotaId, BigDecimal valorLance) {
+        Cota cota = cotaRepository.findById(cotaId)
+                .orElseThrow(() -> new RegraDeNegocioException("Cota não encontrada."));
+        if (cota.getContratoAdesao() == null
+                || cota.getContratoAdesao().getStatus() != StatusContrato.EFETIVADO) {
+            throw new RegraDeNegocioException("Amortização só é permitida para cotas com adesão efetivada.");
+        }
         List<Parcela> parcelasPendentes = parcelaRepository.findByCotaIdAndStatusOrderByNumeroParcelaAsc(cotaId, StatusParcela.PENDENTE);
-        if (parcelasPendentes.isEmpty()) throw new RegraDeNegocioException("Não há parcelas pendentes para amortizar.");
-
-        int quantidadeParcelas = parcelasPendentes.size();
-        BigDecimal abatimentoPorParcela = valorLance.divide(new BigDecimal(quantidadeParcelas), 2, RoundingMode.DOWN);
-        BigDecimal valorAplicado = BigDecimal.ZERO;
-
-        for (int i = 0; i < quantidadeParcelas; i++) {
-            Parcela parcela = parcelasPendentes.get(i);
-            BigDecimal abatimentoAtual = (i == quantidadeParcelas - 1) ? valorLance.subtract(valorAplicado) : abatimentoPorParcela;
-
-            BigDecimal novoFundoComum = parcela.getValorFundoComum().subtract(abatimentoAtual);
-            if (novoFundoComum.compareTo(BigDecimal.ZERO) < 0) novoFundoComum = BigDecimal.ZERO;
-
-            parcela.setValorFundoComum(novoFundoComum);
-            valorAplicado = valorAplicado.add(abatimentoAtual);
+        validarValorESaldoPendente(valorLance, parcelasPendentes);
+        BigInteger totalCentavos = parcelasPendentes.stream().map(p -> emCentavos(p.getValorFundoComum()))
+                .reduce(BigInteger.ZERO, BigInteger::add);
+        BigInteger abatimentoCentavos = emCentavos(valorLance);
+        java.util.List<AmortizacaoProporcional> distribuicao = new java.util.ArrayList<>();
+        BigInteger aplicado = BigInteger.ZERO;
+        for (Parcela parcela : parcelasPendentes) {
+            BigInteger[] divisao = abatimentoCentavos.multiply(emCentavos(parcela.getValorFundoComum())).divideAndRemainder(totalCentavos);
+            distribuicao.add(new AmortizacaoProporcional(parcela, divisao[0], divisao[1]));
+            aplicado = aplicado.add(divisao[0]);
+        }
+        distribuicao.sort(java.util.Comparator.comparing(AmortizacaoProporcional::resto).reversed()
+                .thenComparing(item -> item.parcela().getNumeroParcela(),
+                        java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder())));
+        BigInteger restante = abatimentoCentavos.subtract(aplicado);
+        for (int i = 0; restante.signum() > 0; i = (i + 1) % distribuicao.size()) {
+            AmortizacaoProporcional item = distribuicao.get(i);
+            if (item.valorBase().compareTo(emCentavos(item.parcela().getValorFundoComum())) < 0) {
+                item.adicionarCentavo();
+                restante = restante.subtract(BigInteger.ONE);
+            }
+        }
+        for (AmortizacaoProporcional item : distribuicao) {
+            Parcela parcela = item.parcela();
+            parcela.setValorFundoComum(deCentavos(emCentavos(parcela.getValorFundoComum()).subtract(item.valorBase())));
+            parcela.calcularValorTotal();
         }
         parcelaRepository.saveAll(parcelasPendentes);
+    }
+
+    private void validarValorESaldoPendente(BigDecimal valorLance, List<Parcela> parcelasPendentes) {
+        if (valorLance == null || valorLance.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RegraDeNegocioException("O valor da amortização deve ser positivo.");
+        }
+        BigDecimal saldoFundoComum = parcelasPendentes.stream().map(Parcela::getValorFundoComum)
+                .filter(java.util.Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (valorLance.compareTo(saldoFundoComum) > 0) {
+            throw new RegraDeNegocioException("O valor da amortização excede o saldo pendente de Fundo Comum.");
+        }
+    }
+
+    private BigInteger emCentavos(BigDecimal valor) {
+        return valor.setScale(2, RoundingMode.UNNECESSARY).movePointRight(2).toBigIntegerExact();
+    }
+
+    private BigDecimal deCentavos(BigInteger valor) {
+        return new BigDecimal(valor, 2);
+    }
+
+    private static final class AmortizacaoProporcional {
+        private final Parcela parcela;
+        private BigInteger valorBase;
+        private final BigInteger resto;
+        private AmortizacaoProporcional(Parcela parcela, BigInteger valorBase, BigInteger resto) { this.parcela = parcela; this.valorBase = valorBase; this.resto = resto; }
+        private Parcela parcela() { return parcela; }
+        private BigInteger valorBase() { return valorBase; }
+        private BigInteger resto() { return resto; }
+        private void adicionarCentavo() { valorBase = valorBase.add(BigInteger.ONE); }
     }
 
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('VIEW_FINANCEIRO', 'VIEW_COMPLIANCE') or @ownershipGuard.canAccessCota(#cotaId)")

@@ -1,7 +1,7 @@
 # 📋 Contrato de API — Composição de Fundos e Parcelas (fundos)
 
 *   **Capability**: fundos
-*   **Versão**: v1.1
+*   **Versão**: v1.2
 *   **Spec de referência**: [spec.md](spec.md)
 *   **Última alteração**: Geração retroativa baseada no código implementado.
 
@@ -20,6 +20,14 @@ Todos os endpoints requerem cookie `HttpOnly` com JWT válido.
 Registra o pagamento real. Se `numeroParcela = 1` e a cota estiver em
 `AGUARDANDO_PAGAMENTO`, a mesma transação efetiva o contrato e promove a cota para
 `ATIVA` ou `AGUARDANDO_INAUGURACAO`.
+
+As 12 contas COSIF padronizadas do domínio são provisionadas idempotentemente na inicialização da aplicação e podem ser recriadas sob demanda se uma delas for removida indevidamente. Uma conta não padronizada ou inválida retorna `400 Erro de negócio`; nenhum status de parcela, lançamento ou efetivação pode persistir nesse caso.
+
+### POST `/api/parcelas/{parcelaId}/estornar`
+
+Reverte a baixa e os lançamentos COSIF. Para a parcela nº 1 sem pagamentos posteriores,
+reverte também o contrato para `PENDENTE_PAGAMENTO` e a cota para
+`AGUARDANDO_PAGAMENTO`.
 
 ### POST `/api/parcelas`
 

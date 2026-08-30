@@ -43,7 +43,10 @@ public class SecurityConfigurations {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf
+                    .csrfTokenRepository(org.springframework.security.web.csrf.CookieCsrfTokenRepository.withHttpOnlyFalse())
+                    .ignoringRequestMatchers("/api/login/**", "/api/webhooks/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/api/health/**")
+                )
                 .headers(headers -> headers
                     .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'; frame-ancestors 'none'; sandbox"))
                     .frameOptions(frame -> frame.deny())
