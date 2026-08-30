@@ -54,8 +54,11 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 
 ## 🧪 Qualidade de Software e Testes
 
-O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura conta com **ampla suíte de 274 testes unitários e de integração 100% verdes**:
+O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura conta com **ampla suíte de 283 testes unitários e de integração 100% verdes**:
 
+* **Portal do Consorciado (MELHORIA-013):** Autoatendimento com extrato financeiro, ofertas de lance online e isolamento rigoroso via `OwnershipGuard`.
+* **Integração Bancária e PIX (MELHORIA-014):** Geração de linha digitável, QR Code PIX Copia & Cola, processamento idempotente de webhooks bancários e baixa contábil no COSIF.
+* **Observabilidade e Monitoramento (MELHORIA-015):** Correlation IDs distribuídos (`trace_id` no MDC), sanitização de dados sensíveis LGPD em logs e Health Checks regulatórios.
 * **Sistema de Notificações & LGPD (MELHORIA-010):** Central de mensageria com canais e-mail/inbox, opt-in/opt-out por categoria e disparos regulatórios automáticos (100% testado).
 * **Dashboard Analítico e Financeiro (MELHORIA-011):** KPIs consolidados de arrecadação, inadimplência média, projeções de receita de TA e mapa de calor dos grupos.
 * **Transferência de Cotas - Art. 13 Lei 11.795/2008 (MELHORIA-012):** Esteira com análise de risco, cobrança de taxa e troca de titularidade atômica com auditoria.
