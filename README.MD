@@ -54,8 +54,9 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 
 ## 🧪 Qualidade de Software e Testes
 
-O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura conta com **ampla suíte de 284 testes unitários e de integração 100% verdes**:
+O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura conta com **ampla suíte de 290 testes unitários e de integração 100% verdes**:
 
+* **Motor Avançado de Assembleias & Credenciamento de Lances (MELHORIA-021 a 034):** Credenciamento prévio com hash criptográfico de assinatura, simulação dry-run de apuração, múltiplos sorteios por assembleia, suporte a lances FGTS/Misto/Seguro Óbito e audit trail SHA-256 da ata da assembleia.
 * **Documentação OpenAPI 3.0 & Swagger UI (MELHORIA-020):** Configuração personalizada com esquema `cookieAuth`, metadados de compliance e múltiplos servidores (Dev, Staging, Prod).
 * **Pipelines CI/CD Automatizadas (MELHORIA-016):** Workflows do GitHub Actions com Quality Gates rigorosos de compilação, testes e validação multi-container.
 * **Portal do Consorciado (MELHORIA-013):** Autoatendimento com extrato financeiro, ofertas de lance online e isolamento rigoroso via `OwnershipGuard`.
