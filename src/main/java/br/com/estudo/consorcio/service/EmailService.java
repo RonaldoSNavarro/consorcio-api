@@ -30,10 +30,8 @@ public class EmailService {
         String mensagem = "Olá,\n\nSeu código de verificação para acesso ao Consórcio Admin é:\n\n" 
                 + codigo + "\n\nEste código expira em 5 minutos.\nSe você não solicitou este código, por favor ignore este e-mail.";
 
-        // Sempre imprime no console para debug local facilitado
         imprimirBannerNoConsole(destinatario, codigo);
 
-        // Se o SMTP estiver configurado no application.properties, envia o e-mail real
         if (mailHost != null && !mailHost.isBlank()) {
             try {
                 SimpleMailMessage message = new SimpleMailMessage();
@@ -47,12 +45,43 @@ public class EmailService {
                 mailSender.send(message);
                 logger.info("📧 E-mail real com código MFA enviado com sucesso para: {}", destinatario);
             } catch (Exception e) {
-                logger.error("❌ Falha ao enviar e-mail real de MFA (serviço offline ou credenciais incorretas). Detalhes: {}", e.getMessage());
-                logger.info("👉 Use o código exibido no console acima para prosseguir.");
+                logger.error("❌ Falha ao enviar e-mail real de MFA: {}", e.getMessage());
             }
-        } else {
-            logger.info("ℹ️ SMTP não configurado (spring.mail.host vazio). O código MFA foi enviado apenas para o console da aplicação.");
         }
+    }
+
+    public void enviarEmail(String destinatario, String assunto, String mensagem) {
+        imprimirBannerGenericoNoConsole(destinatario, assunto, mensagem);
+
+        if (mailHost != null && !mailHost.isBlank()) {
+            try {
+                SimpleMailMessage message = new SimpleMailMessage();
+                if (username != null && !username.isBlank()) {
+                    message.setFrom(username);
+                }
+                message.setTo(destinatario);
+                message.setSubject(assunto);
+                message.setText(mensagem);
+
+                mailSender.send(message);
+                logger.info("📧 E-mail enviado com sucesso para: {}", destinatario);
+            } catch (Exception e) {
+                logger.error("❌ Falha ao enviar e-mail: {}", e.getMessage());
+            }
+        }
+    }
+
+    private void imprimirBannerGenericoNoConsole(String destinatario, String assunto, String mensagem) {
+        System.out.println("\n");
+        System.out.println("========================================================================");
+        System.out.println("📧 [SIMULAÇÃO DE E-MAIL] NOTIFICAÇÃO ENVIADA");
+        System.out.println("------------------------------------------------------------------------");
+        System.out.println("Para:    " + destinatario);
+        System.out.println("Assunto: " + assunto);
+        System.out.println("------------------------------------------------------------------------");
+        System.out.println("Mensagem: " + mensagem);
+        System.out.println("========================================================================");
+        System.out.println("\n");
     }
 
     private void imprimirBannerNoConsole(String destinatario, String codigo) {

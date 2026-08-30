@@ -54,9 +54,12 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 
 ## 🧪 Qualidade de Software e Testes
 
-O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura conta com **ampla suíte de 259 testes unitários e de integração 100% verdes**:
+O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura conta com **ampla suíte de 274 testes unitários e de integração 100% verdes**:
 
-* **Validação Estrita de Schema (Hibernate `ddl-auto=validate`):** Governança de banco de dados assegurada 100% via migrações Flyway versionadas (70 scripts), eliminando riscos de alteração dinâmica de schema em produção (MELHORIA-001).
+* **Sistema de Notificações & LGPD (MELHORIA-010):** Central de mensageria com canais e-mail/inbox, opt-in/opt-out por categoria e disparos regulatórios automáticos (100% testado).
+* **Dashboard Analítico e Financeiro (MELHORIA-011):** KPIs consolidados de arrecadação, inadimplência média, projeções de receita de TA e mapa de calor dos grupos.
+* **Transferência de Cotas - Art. 13 Lei 11.795/2008 (MELHORIA-012):** Esteira com análise de risco, cobrança de taxa e troca de titularidade atômica com auditoria.
+* **Validação Estrita de Schema (Hibernate `ddl-auto=validate`):** Governança de banco de dados assegurada 100% via migrações Flyway versionadas (72 scripts), eliminando riscos de alteração dinâmica de schema em produção (MELHORIA-001).
 * **Perfis de Execução Hardened:** Suporte a `application-prod.properties` com HTTPS/cookies seguros, logging estruturado e endpoints Actuator restritos (MELHORIA-009).
 * **MFA por E-mail Obrigatório (ADR 013):** Perfis administrativos (`COMPLIANCE` e `ADMIN`) exigem Autenticação Multifator de segundo fator via código dinâmico de 6 dígitos enviado por e-mail (usando Jakarta Mail com fallback resiliente de logs em console), eliminando problemas de dessincronização de relógio de hardware (clock drift).
 * **Proteção Ativa contra IDOR (Insecure Direct Object Reference):** Camada rigorosa de validação de propriedade na camada de serviço (`ClienteService`, `CotaService`, `ParcelaService`). O usuário autenticado só pode obter, visualizar ou modificar recursos associados diretamente à sua identidade (comparando o subject do token com atributos via `@ownershipGuard`). Para gestores e administradores, o sistema avalia corretamente as permissões organizacionais globais (ex: `MANAGE_CLIENTES`) via `SecurityContextHolder` para permitir acesso global, contornando o bloqueio IDOR adequadamente. O controle de permissões baseado em escopos/roles também opera via anotação `@PreAuthorize` nativa.
