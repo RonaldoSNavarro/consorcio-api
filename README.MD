@@ -21,6 +21,29 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 ## 🏗️ Arquitetura e Padrões de Projeto
 
 * **Arquitetura de DTOs (Records):** Isolamento total das entidades para segurança e estabilidade de contratos.
+# 🏢 Consórcio API
+
+> [!NOTE]
+> Este é um **projeto de estudos e demonstração de portfólio**, focado na implementação de regras de negócios avançadas para sistemas financeiros e consórcios. Ele não é utilizado em produção.
+
+Um sistema back-end de alta performance para administração e gerenciamento de consórcios, desenvolvido em **Java 21** com **Spring Boot 4.0.6** (Spring Framework 7). Este projeto implementa regras de negócio financeiras reais baseadas nas normativas do Banco Central do Brasil (BCB) e no Código de Defesa do Consumidor (CDC).
+
+## 🚀 Tecnologias e Ferramentas
+
+* **Java 21:** Uso de *Virtual Threads* para escalabilidade e *Records* para imutabilidade.
+* **Spring Boot 4.0.6:** (Web, Data JPA, Security) com Spring Framework 7 e Hibernate 7.
+* **Spring Security 7 & JWT (Auth0 4.5):** Autenticação stateless e autorização baseada em tokens.
+* **PostgreSQL:** Persistência de dados financeiros.
+* **Flyway 11 (via Starter):** Versionamento e migração de schema do banco de dados.
+* **Jackson 3:** Serialização/desserialização JSON de alta performance.
+* **MapStruct 1.6:** Mapeamento declarativo entre entidades e DTOs.
+* **JUnit 5, Mockito & MockMvc:** Ecossistema completo de testes para garantir a integridade do sistema.
+* **Springdoc OpenAPI 3.0 (Swagger):** Documentação interativa personalizada e protegida.
+* **Lombok:** Redução de código boilerplate.
+
+## 🏗️ Arquitetura e Padrões de Projeto
+
+* **Arquitetura de DTOs (Records):** Isolamento total das entidades para segurança e estabilidade de contratos.
 * **Mapeamento Unidirecional:** Separação clara entre dados de entrada validados e saída filtrada.
 * **Global Exception Handling:** Centralização do tratamento de erros com respostas HTTP padronizadas.
 * **Inativação Lógica em Conformidade Legal:** A exclusão física de clientes é substituída por inativação lógica para conformidade regulatória (LGPD Art. 16, II & IV, e Resolução 285 do Banco Central do Brasil).
@@ -31,22 +54,10 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 
 ## 🧪 Qualidade de Software e Testes
 
-O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura conta com **ampla suíte de 229 testes unitários e de integração 100% verdes**:
+O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura conta com **ampla suíte de 259 testes unitários e de integração 100% verdes**:
 
 * **Validação Estrita de Schema (Hibernate `ddl-auto=validate`):** Governança de banco de dados assegurada 100% via migrações Flyway versionadas (70 scripts), eliminando riscos de alteração dinâmica de schema em produção (MELHORIA-001).
 * **Perfis de Execução Hardened:** Suporte a `application-prod.properties` com HTTPS/cookies seguros, logging estruturado e endpoints Actuator restritos (MELHORIA-009).
-* **Testes de Jobs Agendados:** Cobertura de rotinas assíncronas em `LgpdAnonymizationJobTest`, `ReajusteAniversarioGrupoJobTest` e `VerificadorInadimplenciaJobTest` (MELHORIA-004).
-
-* **Testes Unitários (100% Service & Validator Coverage):** Toda a camada de `Service` possui cobertura total, incluindo os novos serviços de sincronização de listas restritivas (`ComplianceServiceTest`). Criamos suítes de teste de baixo nível como `CpfCnpjValidatorTest` e `ViaCepServiceTest` (usando mocks avançados da API fluente do `RestClient` do Spring).
-* **Módulos de Auditoria e Livro Razão:** Testados exaustivamente em `MovimentoFinanceiroServiceTest` e `HistoricoConsorciadoServiceTest` para validar consistência de saldos contábeis e a fórmula regulatória da categoria.
-* **Testes de Integração (MockMvc):** Validação dos fluxos de entrada e saída (`Controllers`), garantindo que a serialização JSON, as validações de Bean (`@Valid`), os filtros de segurança JWT e os tratamentos do `GlobalExceptionHandler` funcionem perfeitamente.
-* **Testes End-to-End no Navegador (Playwright):** Suíte completa de teste em navegador Chrome real (`e2e_agent.cjs` no repositório frontend) simulando todo o ciclo de vida operacional (login, cadastros PF/PJ, inauguração de grupo, emissão de cotas, injeção contábil Postgres, baixa física de parcelas, assembleias, apuração de sorteio/lances e relatórios BCB).
-
-## 🛡️ Segurança e Autenticação
-
-A proteção da aplicação segue os mais altos padrões de cibersegurança e conformidade regulatória:
-
-* **Sessões Seguras via Cookies HttpOnly (ADR 001 & ADR 007):** A aplicação utiliza tokens JWT customizados (HMAC256) encapsulados em cookies seguros com diretivas `HttpOnly`, `SameSite=Strict`, e `Secure`, mitigando riscos de XSS. O frontend SPA implementa validação ativa (F5-safety) contra perdas de estado.
 * **MFA por E-mail Obrigatório (ADR 013):** Perfis administrativos (`COMPLIANCE` e `ADMIN`) exigem Autenticação Multifator de segundo fator via código dinâmico de 6 dígitos enviado por e-mail (usando Jakarta Mail com fallback resiliente de logs em console), eliminando problemas de dessincronização de relógio de hardware (clock drift).
 * **Proteção Ativa contra IDOR (Insecure Direct Object Reference):** Camada rigorosa de validação de propriedade na camada de serviço (`ClienteService`, `CotaService`, `ParcelaService`). O usuário autenticado só pode obter, visualizar ou modificar recursos associados diretamente à sua identidade (comparando o subject do token com atributos via `@ownershipGuard`). Para gestores e administradores, o sistema avalia corretamente as permissões organizacionais globais (ex: `MANAGE_CLIENTES`) via `SecurityContextHolder` para permitir acesso global, contornando o bloqueio IDOR adequadamente. O controle de permissões baseado em escopos/roles também opera via anotação `@PreAuthorize` nativa.
 * **Auditoria Assíncrona Total:** Um interceptador global (`AuditLoggerInterceptor`) opera de forma não bloqueante para registrar metadados de acesso (Endpoint, IP, Status HTTP, User) via transação independente (`REQUIRES_NEW`), gerando rastreabilidade regulatória completa gravada no banco de dados.
