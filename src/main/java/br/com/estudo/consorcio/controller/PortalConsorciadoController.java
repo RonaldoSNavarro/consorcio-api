@@ -33,7 +33,7 @@ public class PortalConsorciadoController {
     public ResponseEntity<List<PortalCotaDTO>> listarMinhasCotas(
             @RequestParam(required = false) String cpfCnpj,
             Authentication authentication) {
-        String doc = (cpfCnpj != null && !cpfCnpj.isBlank()) ? cpfCnpj : authentication.getName();
+        String doc = resolverDocumentoSeguro(cpfCnpj, authentication);
         return ResponseEntity.ok(service.listarCotasDoCliente(doc));
     }
 
@@ -44,7 +44,7 @@ public class PortalConsorciadoController {
             @PathVariable Long cotaId,
             @RequestParam(required = false) String cpfCnpj,
             Authentication authentication) {
-        String doc = (cpfCnpj != null && !cpfCnpj.isBlank()) ? cpfCnpj : authentication.getName();
+        String doc = resolverDocumentoSeguro(cpfCnpj, authentication);
         return ResponseEntity.ok(service.obterExtratoCota(cotaId, doc));
     }
 
@@ -55,7 +55,27 @@ public class PortalConsorciadoController {
             @Valid @RequestBody PortalOfertaLanceDTO dto,
             @RequestParam(required = false) String cpfCnpj,
             Authentication authentication) {
-        String doc = (cpfCnpj != null && !cpfCnpj.isBlank()) ? cpfCnpj : authentication.getName();
+        String doc = resolverDocumentoSeguro(cpfCnpj, authentication);
         return ResponseEntity.status(HttpStatus.CREATED).body(service.ofertarLanceOnline(dto, doc));
+    }
+
+    private String resolverDocumentoSeguro(String cpfCnpj, Authentication authentication) {
+        Authentication auth = (authentication != null) ? authentication : org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        String usuarioLogado = (auth != null) ? auth.getName() : null;
+
+        if (cpfCnpj == null || cpfCnpj.isBlank() || (usuarioLogado != null && usuarioLogado.equals(cpfCnpj))) {
+            return (usuarioLogado != null) ? usuarioLogado : cpfCnpj;
+        }
+
+        boolean isAdmin = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("MANAGE_CLIENTES"));
+
+        if (!isAdmin) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Acesso negado: você não tem permissão para consultar ou operar cotas de outro titular."
+            );
+        }
+
+        return cpfCnpj;
     }
 }

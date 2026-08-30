@@ -199,7 +199,10 @@ public class MotorApuracaoService {
                     ? percentualAmortizado.multiply(valorBem).setScale(2, java.math.RoundingMode.HALF_UP)
                     : BigDecimal.ZERO;
 
-            BigDecimal multaRescisoria = totalFundoComumPago.multiply(new BigDecimal("0.10")).setScale(2, java.math.RoundingMode.HALF_UP);
+            BigDecimal taxaMulta = (grupo.getPercentualMultaRescisoria() != null) 
+                    ? grupo.getPercentualMultaRescisoria() 
+                    : new BigDecimal("0.10");
+            BigDecimal multaRescisoria = totalFundoComumPago.multiply(taxaMulta).setScale(2, java.math.RoundingMode.HALF_UP);
             BigDecimal valorRestituicao = totalFundoComumPago.subtract(multaRescisoria).setScale(2, java.math.RoundingMode.HALF_UP);
 
             contemplacaoService.registrar(new ContemplacaoRequestDTO(

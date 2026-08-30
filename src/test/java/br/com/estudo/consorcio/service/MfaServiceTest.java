@@ -79,8 +79,10 @@ class MfaServiceTest {
     }
 
     @Test
-    @DisplayName("Deve validar backdoor de teste 000000")
-    void deveValidarBackdoorDeTeste() {
-        assertTrue(mfaService.verifyCode(usuario, "000000"));
+    @DisplayName("Deve rejeitar código fixo 000000 quando não for o código real gerado")
+    void deveRejeitarCodigoFixo000000() {
+        usuario.setMfaCode("987654");
+        usuario.setMfaCodeExpiresAt(LocalDateTime.now().plusMinutes(5));
+        assertFalse(mfaService.verifyCode(usuario, "000000"));
     }
 }

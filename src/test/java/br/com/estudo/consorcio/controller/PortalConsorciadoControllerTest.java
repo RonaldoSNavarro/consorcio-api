@@ -63,4 +63,27 @@ class PortalConsorciadoControllerTest {
                 .andExpect(jsonPath("$[0].cotaId").value(100))
                 .andExpect(jsonPath("$[0].codigoGrupo").value("GRP-01"));
     }
+
+    @Test
+    @DisplayName("Deve rejeitar tentativa de IDOR quando consorciado comum tenta acessar CPF alheio")
+    void deveRejeitarIdorQuandoConsorciadoTentaAcessarCpfAlheio() throws Exception {
+        mockMvc.perform(get("/api/portal/minhas-cotas?cpfCnpj=99999999999"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    @DisplayName("Deve permitir que administrador consulte cotas de cliente específico")
+    void devePermitirAdminConsultarCotasDeCliente() throws Exception {
+        PortalCotaDTO dto = new PortalCotaDTO(
+                100L, "GRP-01", 20, StatusCota.ATIVA,
+                new BigDecimal("90000.00"), new BigDecimal("45000.00"), 10, 60
+        );
+
+        when(service.listarCotasDoCliente("99999999999")).thenReturn(List.of(dto));
+
+        mockMvc.perform(get("/api/portal/minhas-cotas?cpfCnpj=99999999999"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].cotaId").value(100));
+    }
 }

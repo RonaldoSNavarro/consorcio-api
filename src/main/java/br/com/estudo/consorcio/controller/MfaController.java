@@ -20,10 +20,12 @@ public class MfaController {
 
     private final MfaService mfaService;
     private final UsuarioRepository usuarioRepository;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
-    public MfaController(MfaService mfaService, UsuarioRepository usuarioRepository) {
+    public MfaController(MfaService mfaService, UsuarioRepository usuarioRepository, org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
         this.mfaService = mfaService;
         this.usuarioRepository = usuarioRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @PostMapping("/setup")
@@ -69,10 +71,16 @@ public class MfaController {
 
     @PostMapping("/reset")
     @Transactional
-    public ResponseEntity<Void> resetMfa(@AuthenticationPrincipal Usuario principal) {
+    public ResponseEntity<Void> resetMfa(
+            @AuthenticationPrincipal Usuario principal,
+            @RequestBody @Valid br.com.estudo.consorcio.domain.dto.MfaResetRequestDTO request) {
         Usuario usuario = (Usuario) usuarioRepository.findByLogin(principal.getUsername());
         if (usuario == null) {
             throw new br.com.estudo.consorcio.exception.RegraDeNegocioException("Usuário não encontrado");
+        }
+
+        if (request.senhaAtual() == null || !passwordEncoder.matches(request.senhaAtual(), usuario.getPassword())) {
+            throw new br.com.estudo.consorcio.exception.RegraDeNegocioException("Senha incorreta para confirmação de identidade.");
         }
 
         usuario.setMfaEnabled(false);

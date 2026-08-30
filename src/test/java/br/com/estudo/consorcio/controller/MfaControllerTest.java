@@ -51,6 +51,9 @@ class MfaControllerTest {
     @MockitoBean
     private br.com.estudo.consorcio.service.SecurityAuditService securityAuditService;
 
+    @MockitoBean
+    private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+
     private Usuario usuario;
 
     @BeforeEach
@@ -73,8 +76,11 @@ class MfaControllerTest {
     @DisplayName("Deve resetar MFA com sucesso")
     void deveResetarMfa() throws Exception {
         when(usuarioRepository.findByLogin("admin")).thenReturn(usuario);
+        when(passwordEncoder.matches("123456", "123456")).thenReturn(true);
 
         mockMvc.perform(post("/api/mfa/reset")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"senhaAtual\":\"123456\"}")
                 .with(SecurityMockMvcRequestPostProcessors.user(usuario)))
                 .andExpect(status().isOk());
 
