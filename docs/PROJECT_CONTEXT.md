@@ -117,10 +117,28 @@ O `AuthContext.jsx` inicializa o token a partir do `localStorage.getItem('consor
 *   **Decisão:** Imposição do `OwnershipGuard` no `PortalConsorciadoController`, remoção definitiva de backdoors de MFA, proteção CSRF via `CookieCsrfTokenRepository` (`XSRF-TOKEN`), absorção de resíduos centesimais no COSIF e foco programático WCAG 2.1 AA em modais.
 *   **Consequência:** Blindagem de segurança de nível bancário e conformidade estrita com LGPD Art. 46.
 
+### ADR 017: Injeção Automática de Token CSRF no Cliente HTTP e Autorização de Lances (Spec 50)
+*   **Contexto:** Ao cadastrar lances pelo frontend, requisições `POST /api/lances` retornavam `403 Forbidden` devido à falta do envio do cookie `XSRF-TOKEN` no cabeçalho `X-XSRF-TOKEN` e exigência excessivamente restritiva de autoridade em `LanceController`.
+*   **Decisão:** A camada de serviço HTTP (`fetchApi` e `httpClient`) extrai dinamicamente o cookie `XSRF-TOKEN` e injeta no cabeçalho em todas as requisições mutatórias (`POST`, `PUT`, `DELETE`, `PATCH`). O `LanceController` foi flexibilizado para aceitar `ROLE_ADMIN`, `ROLE_OPERADOR` e `MANAGE_COTAS`.
+*   **Consequência:** Eliminação de erros 403 espúrios mantendo proteção CSRF transparente e RBAC coeso.
+
+### ADR 018: Grupos Dinâmicos e Resiliência em Relatórios Financeiros (Spec 51)
+*   **Contexto:** A tela de Balancete Contábil possuía IDs estáticos em hardcode (`1, 2, 3`), disparando `404 Not Found` ao consultar grupos inexistentes.
+*   **Decisão:** O seletor de grupos passou a consumir a listagem real da API (`GET /api/grupos`), acompanhado de tratamento gracioso de erros 404 e mensagens informativas ao operador.
+*   **Consequência:** Interface 100% dinâmica, sem quebras de integridade e orientada a dados reais de banco.
+
+### ADR 019: Padronização de Testes E2E com Playwright e Resiliência Multiplataforma (Spec 52)
+*   **Contexto:** Scripts de teste E2E continham caminhos absolutos locais do Windows, dependências obsoletas e classes de depuração sem asserções no backend.
+*   **Decisão:** Centralização da suíte E2E no script `e2e-playwright-lifecycle.cjs` com suporte a variáveis de ambiente (`BASE_URL`, `CHROME_PATH`, `SCREENSHOT_DIR`), integração no `package.json` (`npm run test:e2e`), criação de `playwright.config.js` e expurgo de classes de scratch (`ScratchTest.java`, `ReflectTest.java`) e scripts legados duplicados.
+*   **Consequência:** Suíte de ponta a ponta 100% autossuficiente e executável em qualquer ambiente (Windows, Linux, Docker, CI/CD).
+
 ---
 
 ## 📈 4. Estado Atual do Projeto
 
-- **Fase Atual:** Specs 01 a 49 Totalmente Implementadas e Testadas (100% Cobertura Verde).
-- **Suíte de Testes:** **292 testes automatizados no Backend** (JUnit 5 / MockMvc) e **60 testes no Frontend** (Vitest / Testing Library) passando com 100% de sucesso.
+- **Fase Atual:** Specs 01 a 52 Totalmente Implementadas e Testadas (100% Cobertura Verde).
+- **Suíte de Testes Automatizados:**
+  - **Backend:** **290 testes automatizados** (JUnit 5 / MockMvc / Testcontainers PostgreSQL) passando com 100% de sucesso.
+  - **Frontend:** **60 testes unitários e de integração** (Vitest / Testing Library) passando com 100% de sucesso.
+  - **E2E Lifecycle:** **13 cenários de ponta a ponta** com Playwright cobrindo desde autenticação e MFA, criação de grupos, propostas de adesão, assembleias, lances com CSRF, apuração, relatórios regulatórios até encerramento.
 - **Motor de Assembleias & Portal:** Sistema operando com motor avançado de assembleias, credenciamento prévio com hash de assinatura digital, múltiplos sorteios, simulação dry-run, audit trail SHA-256 e portal do consorciado com autoatendimento blindado contra IDOR.
