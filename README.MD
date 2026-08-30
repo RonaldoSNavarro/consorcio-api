@@ -31,7 +31,7 @@ Um sistema back-end de alta performance para administração e gerenciamento de 
 
 ## 🧪 Qualidade de Software e Testes
 
-O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura conta com **ampla suíte de 199 testes unitários e de integração 100% verdes**:
+O projeto segue a pirâmide de testes para garantir que nenhuma alteração no código quebre as regras financeiras. A cobertura conta com **ampla suíte de 229 testes unitários e de integração 100% verdes**:
 
 * **Validação Estrita de Schema (Hibernate `ddl-auto=validate`):** Governança de banco de dados assegurada 100% via migrações Flyway versionadas (70 scripts), eliminando riscos de alteração dinâmica de schema em produção (MELHORIA-001).
 * **Perfis de Execução Hardened:** Suporte a `application-prod.properties` com HTTPS/cookies seguros, logging estruturado e endpoints Actuator restritos (MELHORIA-009).
