@@ -132,13 +132,18 @@ O `AuthContext.jsx` inicializa o token a partir do `localStorage.getItem('consor
 *   **Decisão:** Centralização da suíte E2E no script `e2e-playwright-lifecycle.cjs` com suporte a variáveis de ambiente (`BASE_URL`, `CHROME_PATH`, `SCREENSHOT_DIR`), integração no `package.json` (`npm run test:e2e`), criação de `playwright.config.js` e expurgo de classes de scratch (`ScratchTest.java`, `ReflectTest.java`) e scripts legados duplicados.
 *   **Consequência:** Suíte de ponta a ponta 100% autossuficiente e executável em qualquer ambiente (Windows, Linux, Docker, CI/CD).
 
+### ADR 020: Emissão Contínua de Cookie CSRF para SPAs e Harmonização de RBAC em Parcelas (Spec 53)
+*   **Contexto:** Ao submeter a baixa de parcela (`PUT /api/parcelas/{id}/pagar`), o servidor respondia `403 Forbidden` devido ao carregamento tardio (*deferred*) do CSRF no Spring Security 6 (não emitindo o cookie `XSRF-TOKEN` nas respostas GET/Login) e autoridade excessivamente estrita no `ParcelaController`.
+*   **Decisão:** Criação do `CsrfCookieFilter` para forçar a gravação contínua do cookie `XSRF-TOKEN`, configuração de `CsrfTokenRequestAttributeHandler` com atributo `null` no Spring Security e ampliação do `@PreAuthorize` em `ParcelaController` para aceitar `ADMIN`, `FINANCEIRO`, `OPERADOR` e `MANAGE_FINANCEIRO`.
+*   **Consequência:** Eliminação definitiva de erros 403 em operações financeiras de baixa/estorno de parcelas com blindagem CSRF ativa.
+
 ---
 
 ## 📈 4. Estado Atual do Projeto
 
-- **Fase Atual:** Specs 01 a 52 Totalmente Implementadas e Testadas (100% Cobertura Verde).
+- **Fase Atual:** Specs 01 a 53 Totalmente Implementadas e Testadas (100% Cobertura Verde).
 - **Suíte de Testes Automatizados:**
-  - **Backend:** **290 testes automatizados** (JUnit 5 / MockMvc / Testcontainers PostgreSQL) passando com 100% de sucesso.
+  - **Backend:** **293 testes automatizados** (JUnit 5 / MockMvc / Testcontainers PostgreSQL) passando com 100% de sucesso.
   - **Frontend:** **60 testes unitários e de integração** (Vitest / Testing Library) passando com 100% de sucesso.
   - **E2E Lifecycle:** **13 cenários de ponta a ponta** com Playwright cobrindo desde autenticação e MFA, criação de grupos, propostas de adesão, assembleias, lances com CSRF, apuração, relatórios regulatórios até encerramento.
 - **Motor de Assembleias & Portal:** Sistema operando com motor avançado de assembleias, credenciamento prévio com hash de assinatura digital, múltiplos sorteios, simulação dry-run, audit trail SHA-256 e portal do consorciado com autoatendimento blindado contra IDOR.

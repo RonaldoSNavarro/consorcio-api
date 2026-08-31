@@ -26,7 +26,7 @@ public class ParcelaController {
     }
 
     @Operation(summary = "Gerar nova parcela", description = "Cria um novo registro de cobrança vinculando apenas ao ID da cota.")
-    @PreAuthorize("hasAuthority('MANAGE_FINANCEIRO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCEIRO', 'OPERADOR') or hasAnyAuthority('MANAGE_FINANCEIRO', 'ROLE_ADMIN')")
     @PostMapping
     public ResponseEntity<ParcelaResponseDTO> cadastrar(@Valid @RequestBody ParcelaRequestDTO dto) {
         ParcelaResponseDTO parcelaSalva = service.salvar(dto);
@@ -34,14 +34,14 @@ public class ParcelaController {
     }
 
     @Operation(summary = "Histórico de parcelas da cota", description = "Retorna a lista completa de parcelas de uma cota específica.")
-    @PreAuthorize("hasAuthority('VIEW_FINANCEIRO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCEIRO', 'OPERADOR', 'CONSORCIADO') or hasAnyAuthority('VIEW_FINANCEIRO', 'ROLE_ADMIN')")
     @GetMapping("/cota/{cotaId}")
     public ResponseEntity<List<ParcelaResponseDTO>> listarPorCota(@PathVariable Long cotaId) {
         return ResponseEntity.ok(service.listarPorCota(cotaId));
     }
 
     @Operation(summary = "Registrar pagamento da parcela", description = "Processa a baixa financeira, calculando automaticamente 2% de multa moratória e juros pro-rata die em caso de atraso.")
-    @PreAuthorize("hasAuthority('MANAGE_FINANCEIRO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCEIRO', 'OPERADOR') or hasAnyAuthority('MANAGE_FINANCEIRO', 'ROLE_ADMIN')")
     @PutMapping("/{id}/pagar")
     public ResponseEntity<ParcelaResponseDTO> pagarParcela(@PathVariable Long id, @RequestParam LocalDate dataPagamento) {
         ParcelaResponseDTO parcelaPaga = service.pagar(id, dataPagamento);
@@ -49,7 +49,7 @@ public class ParcelaController {
     }
 
     @Operation(summary = "Estornar pagamento da parcela", description = "Realiza o estorno contábil inverso (DÉBITO no fundo do grupo), zera os valores pagos e retorna a parcela para o status PENDENTE.")
-    @PreAuthorize("hasAuthority('MANAGE_FINANCEIRO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FINANCEIRO', 'OPERADOR') or hasAnyAuthority('MANAGE_FINANCEIRO', 'ROLE_ADMIN')")
     @PostMapping("/{id}/estornar")
     public ResponseEntity<ParcelaResponseDTO> estornarParcela(@PathVariable Long id) {
         ParcelaResponseDTO parcelaEstornada = service.estornar(id);

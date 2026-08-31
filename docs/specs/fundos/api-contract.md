@@ -7,15 +7,22 @@
 
 ---
 
-## 🔐 Autenticação
+## 🔐 Autenticação e CSRF
 
 Todos os endpoints requerem cookie `HttpOnly` com JWT válido.
+Requisições mutatórias (`POST`, `PUT`, `DELETE`) exigem o envio do token CSRF via cabeçalho `X-XSRF-TOKEN` (obtido a partir do cookie `XSRF-TOKEN` emitido pelo `CsrfCookieFilter`).
 
 ---
 
 ## 📡 Endpoints
 
 ### PUT `/api/parcelas/{parcelaId}/pagar`
+
+| Item | Valor |
+|---|---|
+| **Descrição** | Registra o pagamento real e baixa contábil de uma parcela |
+| **Auth** | 🔒 `ADMIN`, `FINANCEIRO`, `OPERADOR` ou `MANAGE_FINANCEIRO` |
+| **REQ-IDs** | REQ-FUN-003, REQ-FUN-004, REQ-AUT-005, REQ-SEG-010 |
 
 Registra o pagamento real. Se `numeroParcela = 1` e a cota estiver em
 `AGUARDANDO_PAGAMENTO`, a mesma transação efetiva o contrato e promove a cota para
@@ -24,6 +31,12 @@ Registra o pagamento real. Se `numeroParcela = 1` e a cota estiver em
 As 12 contas COSIF padronizadas do domínio são provisionadas idempotentemente na inicialização da aplicação e podem ser recriadas sob demanda se uma delas for removida indevidamente. Uma conta não padronizada ou inválida retorna `400 Erro de negócio`; nenhum status de parcela, lançamento ou efetivação pode persistir nesse caso.
 
 ### POST `/api/parcelas/{parcelaId}/estornar`
+
+| Item | Valor |
+|---|---|
+| **Descrição** | Reverte a baixa da parcela e os lançamentos COSIF |
+| **Auth** | 🔒 `ADMIN`, `FINANCEIRO`, `OPERADOR` ou `MANAGE_FINANCEIRO` |
+| **REQ-IDs** | REQ-FUN-003, REQ-AUT-005, REQ-SEG-010 |
 
 Reverte a baixa e os lançamentos COSIF. Para a parcela nº 1 sem pagamentos posteriores,
 reverte também o contrato para `PENDENTE_PAGAMENTO` e a cota para

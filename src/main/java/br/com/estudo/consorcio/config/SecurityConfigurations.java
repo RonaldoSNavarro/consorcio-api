@@ -41,10 +41,14 @@ public class SecurityConfigurations {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        var requestHandler = new org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler();
+        requestHandler.setCsrfRequestAttributeName(null);
+
         return http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf
                     .csrfTokenRepository(org.springframework.security.web.csrf.CookieCsrfTokenRepository.withHttpOnlyFalse())
+                    .csrfTokenRequestHandler(requestHandler)
                     .ignoringRequestMatchers("/api/login/**", "/api/webhooks/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/api/health/**")
                 )
                 .headers(headers -> headers
@@ -68,6 +72,7 @@ public class SecurityConfigurations {
                 })
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(intrusionDetectionFilter, SecurityFilter.class)
+                .addFilterAfter(new CsrfCookieFilter(), SecurityFilter.class)
                 .build();
     }
 
