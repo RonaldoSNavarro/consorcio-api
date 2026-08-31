@@ -19,3 +19,10 @@ Este arquivo registra a execução das tarefas estruturais (Lote 1) para a migra
 - [x] Remover infraestrutura legada (`TokenService`, `SecurityFilter`, bibliotecas `com.auth0:java-jwt`, `AutenticacaoController`).
 - [x] Ativar e forçar MFA (TOTP) para administradores e compliance.
 - [x] Adicionar Headers de Segurança (`CSP`, `HSTS`, `X-Frame-Options`).
+
+## 3. Spec 53 — Emissão Contínua de Cookie CSRF e Harmonização de RBAC em Parcelas - CONCLUÍDA
+- [x] **CsrfCookieFilter:** Criação do filtro para emissão forçada do cookie `XSRF-TOKEN` para clientes SPA.
+- [x] **Desativação de Deferred CSRF:** Configuração de `CsrfTokenRequestAttributeHandler` com `csrfRequestAttributeName(null)` no `SecurityConfigurations`.
+- [x] **RBAC em ParcelaController:** Flexibilização das anotações `@PreAuthorize` para suportar `ADMIN`, `FINANCEIRO`, `OPERADOR` e `MANAGE_FINANCEIRO`.
+- [x] **Testes Automatizados TDD:** Cobertura 100% verde com `ParcelaControllerTest` e `CsrfSecurityTest`.
+
